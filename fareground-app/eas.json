@@ -34,7 +34,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://dee-safe-relay-islands.trycloudflare.com"
+        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
       }
     }
   }

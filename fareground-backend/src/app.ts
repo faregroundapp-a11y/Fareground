@@ -45,6 +45,10 @@ const apiLimiter = rateLimit({
 export function createApp() {
   const app = express();
 
+  // Behind a host's proxy, read the player's real IP from X-Forwarded-For
+  // so rate limits are per player, not shared. See TRUST_PROXY in env.ts.
+  if (config.trustProxy > 0) app.set('trust proxy', config.trustProxy);
+
   // --- Global middleware. Order matters: these run top to bottom. ---
 
   app.use(helmet()); // sensible security headers

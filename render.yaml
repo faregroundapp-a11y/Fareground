@@ -1,0 +1,50 @@
+# Render Blueprint: puts the Fareground backend and its database online.
+#
+# On render.com: New -> Blueprint -> pick this repository -> Apply.
+# Render builds fareground-backend, creates the Postgres database, runs every
+# migration on each start, and serves the API over HTTPS at
+#   https://fareground-api.onrender.com
+# (if that name is taken Render adds a suffix - copy the real URL into the
+# "tester" profile in fareground-app/eas.json).
+#
+# FREE PLAN CAVEATS, fine for a first round of testers:
+#   * the web service sleeps after 15 min idle; the first request after that
+#     takes ~1 minute. Switch `plan: free` -> `starter` on the web service to
+#     keep it awake.
+#   * the free database is deleted after 30 days unless upgraded.
+#   * profile photos live on the service's disk and vanish on each deploy.
+
+services:
+  - type: web
+    name: fareground-api
+    runtime: node
+    plan: free
+    rootDir: fareground-backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node dist/scripts/migrate.js && node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fareground-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Render puts one proxy in front of the app; see TRUST_PROXY in env.ts.
+      - key: TRUST_PROXY
+        value: "1"
+      # The app ships Google's TEST ad units, which never send the signed
+      # server-side callback that `ssv` waits for - so under `ssv` no rewarded
+      # ad would ever pay out. Switch to `ssv` once real AdMob units are set up.
+      - key: AD_REWARD_VERIFICATION
+        value: client
+
+databases:
+  - name: fareground-db
+    plan: free
+    databaseName: fareground
+    user: fareground

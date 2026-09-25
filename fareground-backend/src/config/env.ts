@@ -70,6 +70,14 @@ export const config = {
   rateLimitApiMax: numberEnv('RATE_LIMIT_API_MAX', 120), // per IP per minute
 
   /**
+   * How many reverse proxies sit in front of the server. 0 on a PC. A host
+   * like Render or Railway puts ONE proxy in front, and without this every
+   * request appears to come from that proxy's IP - so all players share a
+   * single rate-limit bucket and 20 sign-ins lock everybody out.
+   */
+  trustProxy: numberEnv('TRUST_PROXY', 0),
+
+  /**
    * Device attestation policy - see src/security/attestation.ts.
    *   off       do not check at all (local development)
    *   optional  verify when supplied, but never block  (use during rollout)
