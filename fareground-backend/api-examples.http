@@ -1,0 +1,121 @@
+### Fareground API examples
+# Use the "REST Client" extension in VS Code (click "Send Request" above each
+# block), or copy the bodies into Postman / Insomnia.
+
+@baseUrl = http://localhost:3000
+@token = paste-the-token-from-register-or-login-here
+
+### Health check
+GET {{baseUrl}}/health
+
+### Register a new player
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "ada",
+  "email": "ada@example.com",
+  "password": "walk1000steps"
+}
+
+### Log in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "walk1000steps"
+}
+
+### Sync steps from an iPhone
+# The Idempotency-Key makes a retry safe: send the SAME key when retrying a
+# sync that timed out, and a FRESH one for a genuinely new batch of steps.
+POST {{baseUrl}}/steps/sync
+Content-Type: application/json
+Authorization: Bearer {{token}}
+Idempotency-Key: 11111111-1111-1111-1111-111111111111
+
+{
+  "steps": 3500,
+  "platform": "IOS",
+  "deviceId": "iphone-demo-1"
+}
+
+### Sync steps from an Android phone
+POST {{baseUrl}}/steps/sync
+Content-Type: application/json
+Authorization: Bearer {{token}}
+Idempotency-Key: 22222222-2222-2222-2222-222222222222
+
+{
+  "steps": 1200,
+  "platform": "ANDROID",
+  "deviceId": "pixel-demo-1"
+}
+
+### Replay the first sync - must NOT pay out again ("replayed": true)
+POST {{baseUrl}}/steps/sync
+Content-Type: application/json
+Authorization: Bearer {{token}}
+Idempotency-Key: 11111111-1111-1111-1111-111111111111
+
+{
+  "steps": 3500,
+  "platform": "IOS",
+  "deviceId": "iphone-demo-1"
+}
+
+### An implausible claim - watch stepsAccepted and limit in the response
+POST {{baseUrl}}/steps/sync
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "steps": 150000
+}
+
+### Ask for an attestation challenge (step 1 of App Attest / Play Integrity)
+# Feed the returned nonce into DCAppAttestService (iOS) or the Play Integrity
+# requestHash (Android), then send the result on the next /steps/sync.
+POST {{baseUrl}}/attest/challenge
+Authorization: Bearer {{token}}
+
+### Sync with an attestation attached
+# With ATTESTATION_MODE=off the verifier is skipped, but the nonce is still
+# consumed - send this twice with the same nonce and the second returns 401.
+POST {{baseUrl}}/steps/sync
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "steps": 500,
+  "platform": "IOS",
+  "deviceId": "iphone-demo-1",
+  "attestation": {
+    "token": "paste-the-base64-attestation-here",
+    "nonce": "paste-the-nonce-from-attest-challenge-here"
+  }
+}
+
+### Claim the square you are standing on (costs 100 WP)
+POST {{baseUrl}}/parcels/claim
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "lat": 51.5129,
+  "lng": -0.1471,
+  "accuracyM": 6
+}
+
+### Claimed squares around a position (for the map)
+GET {{baseUrl}}/parcels/nearby?lat=51.5129&lng=-0.1471&radius=300
+Authorization: Bearer {{token}}
+
+### Everything you own
+GET {{baseUrl}}/parcels
+Authorization: Bearer {{token}}
+
+### Check balance (this is what credits passive coins)
+GET {{baseUrl}}/user/balance
+Authorization: Bearer {{token}}

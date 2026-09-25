@@ -1,0 +1,121 @@
+{
+  "expo": {
+    "name": "Fareground",
+    "slug": "walkscape",
+    "scheme": "fareground",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fareground.app",
+      "infoPlist": {
+        "NSMotionUsageDescription": "Fareground counts your steps to turn them into Walk Points."
+      }
+    },
+    "android": {
+      "package": "com.fareground.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#2F5D50",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.health.READ_STEPS"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Fareground uses your location to show the ground around you and to claim the parcel you are standing on."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Fareground counts your steps to turn them into Walk Points."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 26,
+            "buildArchs": ["arm64-v8a", "x86_64"]
+          }
+        }
+      ],
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "delayAppMeasurementInit": true,
+          "userTrackingUsageDescription": "This lets Fareground show ads that are more relevant to you."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.fareground-placeholder"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fareground uses your photos only for the profile picture you choose.",
+          "cameraPermission": false,
+          "microphonePermission": false,
+          "colors": {
+            "cropToolbarColor": "#2F5D50",
+            "cropToolbarIconColor": "#FFFFFF",
+            "cropToolbarActionTextColor": "#FFD37A",
+            "cropBackgroundColor": "#143328"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#2F5D50",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#1F4A3F"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0bae1a40-5660-4956-9f0d-3b4a3b495780"
+      }
+    },
+    "owner": "zpolos-team"
+  }
+}

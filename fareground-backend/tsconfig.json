@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    /* We compile to plain CommonJS so that imports do NOT need a ".js" suffix.
+       This is the friendliest setup for someone new to TypeScript. */
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+
+    "rootDir": "src",
+    "outDir": "dist",
+
+    /* Strict mode catches most bugs at compile time. Keep this on. */
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declaration": false
+  },
+  "include": ["src/**/*.ts"],
+  // Tests run through tsx and do not belong in the production build.
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+}

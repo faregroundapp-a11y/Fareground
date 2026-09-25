@@ -1,0 +1,684 @@
+import { Camera, Map, type MapRef } from '@maplibre/maplibre-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '@/api/client';
+import type { ClaimSummary, NearbyParcel, Parcel, TreasureBox } from '@/api/types';
+import { BoostSheet } from '@/components/BoostSheet';
+import { ClaimButton, type ClaimState } from '@/components/ClaimButton';
+import { CELEBRATION_MS, ClaimCelebration } from '@/components/ClaimCelebration';
+import { CLAIM_FX_MS, ClaimFx, type ClaimFxSpec } from '@/components/ClaimFx';
+import { Countdown } from '@/components/Countdown';
+import { CommunitySheet } from '@/components/CommunitySheet';
+import { PlayerPicture } from '@/components/PlayerPicture';
+import { CountUp } from '@/components/CountUp';
+import { DailySheet } from '@/components/DailySheet';
+import { DoorbellSheet } from '@/components/DoorbellSheet';
+import { BoltIcon, ChestIcon, CoinIcon, CompassIcon, PlayAdIcon, StepsIcon } from '@/components/icons';
+import { PlayerMarker } from '@/components/PlayerMarker';
+import { TreasureMarkers } from '@/components/TreasureMarkers';
+import { RevealSheet } from '@/components/RevealSheet';
+import { Runner } from '@/components/Runner';
+import { WorldLayers } from '@/components/WorldLayers';
+import { DEFAULT_PARCEL_PRICE, MAP_STYLE_URL, MAX_CLAIM_ACCURACY_M } from '@/config';
+import { CLAIM_REACH_M, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
+import { cellForLatLng, type Cell } from '@/game/grid';
+import { MINERALS, MINERAL_ORDER } from '@/game/minerals';
+import { useAreaReporter } from '@/hooks/useAreaReporter';
+import { useGameCamera } from '@/hooks/useGameCamera';
+import { useLocation, type Fix } from '@/hooks/useLocation';
+import { useNearby } from '@/hooks/useNearby';
+import { useRewardedAd } from '@/hooks/useRewardedAd';
+import { useTreasure } from '@/hooks/useTreasure';
+import { adsAvailable } from '@/native/ads';
+import { haptics } from '@/native/haptics';
+import { router } from 'expo-router';
+import { useGameBalance, useGameDaily } from '@/state/game';
+import { useSession } from '@/state/session';
+import { colors, fonts, mono, radius, space, TOUCH, type } from '@/theme';
+
+const HOURS_PER_MONTH = 730;
+
+/**
+ * Below this much movement the lit squares and reach circle are left alone.
+ * GPS wobbles a metre or two even when you stand still; redrawing the map's
+ * sources for that every second is wasted work (and visible as jitter).
+ */
+const SETTLE_M = 2;
+
+/** A position that only updates once you have really moved. */
+function useSettledPosition(lat: number, lng: number) {
+  const [pos, setPos] = useState({ lat, lng });
+  // Derived state, updated during render (React's documented pattern), so it
+  // never lags a frame behind.
+  if (metresBetween(pos.lat, pos.lng, lat, lng) > SETTLE_M) {
+    setPos({ lat, lng });
+  }
+  return pos;
+}
+
+/** Handles the "not ready yet" states, then hands over to the game view. */
+export default function MapScreen() {
+  const location = useLocation();
+
+  if (location.status === 'denied') {
+    return (
+      <Centered>
+        <Runner gait="idle" size={80} />
+        <Text style={styles.centeredTitle}>Fareground needs your location</Text>
+        <Text style={styles.centeredBody}>
+          The whole game is the ground under your feet. Turn on location for Fareground in Settings, then come back.
+        </Text>
+      </Centered>
+    );
+  }
+  if (location.status !== 'ok') {
+    return (
+      <Centered>
+        <Runner gait="walk" size={80} />
+        <Text style={styles.centeredBody}>Finding where you are…</Text>
+        <ActivityIndicator color={colors.accent} />
+      </Centered>
+    );
+  }
+  // Mounted only once there is a fix, so the camera starts in the right place.
+  return <GameView fix={location.fix} />;
+}
+
+function GameView({ fix }: { fix: Fix }) {
+  const insets = useSafeAreaInsets();
+  const { token, user } = useSession();
+  const { balance, boostEndsAt, prizeEndsAt, refresh: refreshBalance, awayCoins, dismissAway } = useGameBalance();
+  const { daily, refresh: refreshDaily } = useGameDaily();
+
+  const { parcels, refresh: refreshNearby } = useNearby(fix.lat, fix.lng);
+
+  const centre = useMemo<[number, number]>(() => [fix.lng, fix.lat], [fix.lng, fix.lat]);
+  const mapRef = useRef<MapRef>(null);
+  const settled = useSettledPosition(fix.lat, fix.lng);
+  const { treasure, open: openBox, refresh: refreshTreasure } = useTreasure(settled.lat, settled.lng);
+  const { watch, busy: adBusy } = useRewardedAd(() => {
+    refreshBalance();
+    refreshDaily();
+    refreshTreasure();
+  });
+  // Which leaderboards you are on (city / region / country).
+  useAreaReporter(settled.lat, settled.lng);
+
+  // --- a short message over the map, for taps that cannot do anything ---
+  // Scouting (a rewarded ad) widens the reach for a few minutes. The app
+  // always shows a little less than the server allows, so drift between
+  // tapping and the request arriving cannot turn a promise into a refusal.
+  const scout = balance?.rewards.scout;
+  const reach = scout?.active ? scout.reachM - 10 : CLAIM_REACH_M;
+
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  // How far each treasure box is, and whether one is close enough to open.
+  const boxes = treasure?.boxes ?? EMPTY_BOXES;
+  const withinM = treasure?.collectWithinM ?? 30;
+  const boxDistances = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const b of boxes) out[b.id] = metresBetween(fix.lat, fix.lng, b.lat, b.lng);
+    return out;
+  }, [boxes, fix.lat, fix.lng]);
+  const reachableBox = boxes.find((b) => (boxDistances[b.id] ?? Infinity) <= withinM) ?? null;
+  const [openingBox, setOpeningBox] = useState(false);
+  /** The box reward just collected, while an ad could still double it. */
+  const [boxClaim, setBoxClaim] = useState<ClaimSummary | null>(null);
+  const [community, setCommunity] = useState(false);
+
+  async function grabBox() {
+    if (!reachableBox || openingBox) return;
+    setOpeningBox(true);
+    haptics.press();
+    try {
+      const claim = await openBox(reachableBox.id, { lat: fix.lat, lng: fix.lng });
+      haptics.success();
+      showToast(`Treasure! +${claim.amount} Walk Points.`);
+      setBoxClaim(claim);
+      refreshBalance();
+    } catch (e) {
+      haptics.warn();
+      showToast(e instanceof Error ? e.message : 'Could not open that box.');
+    } finally {
+      setOpeningBox(false);
+    }
+  }
+
+  /** Double what the box just paid - the best moment to offer an ad. */
+  async function doubleBox() {
+    if (!boxClaim) return;
+    const r = await watch('DOUBLE', { targetClaimId: boxClaim.id });
+    showToast(r.ok ? `Doubled! +${r.amount} more Walk Points.` : r.message);
+    setBoxClaim(null);
+    refreshBalance();
+  }
+
+  /** No box waiting? One ad puts another one out there. */
+  async function adBox() {
+    const r = await watch('TREASURE', undefined, { lat: fix.lat, lng: fix.lng });
+    showToast(r.ok ? 'A new box has appeared - go and get it!' : r.message);
+  }
+
+  const [boostOpen, setBoostOpen] = useState(false);
+  const [dailyOpen, setDailyOpen] = useState(false);
+
+
+  // Open "Today" by itself once a day, when there is a chest waiting - the
+  // habit loop that brings people back every morning.
+  const chestReady = !!daily?.daily.available;
+  const dailyDay = daily?.today;
+  useEffect(() => {
+    if (!chestReady || !dailyDay) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const last = await AsyncStorage.getItem('fareground.dailyAutoOpen');
+        if (cancelled || last === dailyDay) return;
+        await AsyncStorage.setItem('fareground.dailyAutoOpen', dailyDay);
+        setDailyOpen(true);
+      } catch {
+        /* storage unavailable: just don't auto-open */
+      }
+    }, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [chestReady, dailyDay]);
+
+  // --- which square the claim button is aimed at ---
+  // `picked` is a square you tapped. With no pick (or once it falls out of
+  // reach) the nearest free square is chosen for you, so there is almost
+  // always a one-tap claim - including at home, standing on land you own.
+  const [picked, setPicked] = useState<Cell | null>(null);
+  /** The parcel whose doorbell is open, if any. */
+  const [doorbell, setDoorbell] = useState<string | null>(null);
+  const ownerRef = useRef(new globalThis.Map<string, NearbyParcel>());
+
+  const onTap = useCallback(
+    async (x: number, y: number) => {
+      const lngLat = await mapRef.current?.unproject([x, y]);
+      if (!lngLat) return;
+      const cell = cellForLatLng(lngLat[1], lngLat[0]);
+      const d = distanceToCell(fix.lat, fix.lng, cell);
+      if (d > reach) {
+        haptics.warn();
+        showToast(`That square is ${Math.round(d)} m away. Walk within ${reach} m to claim it.`);
+        return;
+      }
+      haptics.tap();
+      setPicked(cell);
+
+      // Somebody else's plot? That is a door, not a claim target. Ring it.
+      const owner = ownerRef.current.get(cellKey(cell));
+      if (owner && !owner.mine) setDoorbell(owner.id);
+    },
+    [fix.lat, fix.lng, reach, showToast],
+  );
+
+  const { cameraRef, viewRef, panHandlers, measure, faceNorth, swoop, bearing, initialViewState } =
+    useGameCamera(centre, onTap);
+
+  const [claiming, setClaiming] = useState(false);
+  const [fx, setFx] = useState<ClaimFxSpec | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
+  const [revealed, setRevealed] = useState<Parcel | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    const pending = timers.current;
+    const toastT = toastTimer;
+    return () => {
+      pending.forEach(clearTimeout);
+      if (toastT.current) clearTimeout(toastT.current);
+    };
+  }, []);
+
+  // The player's square only changes when you cross into a new one - so the
+  // grid (up to 74 lines) is rebuilt a few times a minute, not every fix.
+  const { cellX, cellY } = cellForLatLng(fix.lat, fix.lng);
+  const playerCell = useMemo<Cell>(() => ({ cellX, cellY }), [cellX, cellY]);
+
+  const ownerOf = useMemo(() => new globalThis.Map(parcels.map((p) => [cellKey(p), p])), [parcels]);
+  // Kept in a ref for onTap, which must NOT depend on it: a dependency there
+  // rebuilds the tap handler - and with it the camera controller - every time
+  // nearby refreshes. Written in an effect, never in render (React Compiler).
+  useEffect(() => {
+    ownerRef.current = ownerOf;
+  }, [ownerOf]);
+  const taken = useMemo(() => new Set(parcels.map(cellKey)), [parcels]);
+  const { cells: claimable, nearest } = useMemo(
+    () => claimableAround(settled.lat, settled.lng, taken, reach),
+    [settled.lat, settled.lng, taken, reach],
+  );
+
+  const pickedInReach = picked !== null && distanceToCell(fix.lat, fix.lng, picked) <= reach;
+  const selected: Cell | null = pickedInReach ? picked : nearest;
+  const selectedOwner = selected ? ownerOf.get(cellKey(selected)) : undefined;
+  const selectedDistance = selected ? Math.round(distanceToCell(fix.lat, fix.lng, selected)) : 0;
+
+  // --- screen shake, for rare finds ---
+  const [shake] = useState(() => new Animated.Value(0));
+  const doShake = useCallback(
+    (strength: number) => {
+      const seq = [strength, -strength, strength * 0.7, -strength * 0.7, strength * 0.35, 0].map((v) =>
+        Animated.timing(shake, { toValue: v, duration: 55, useNativeDriver: true }),
+      );
+      Animated.sequence(seq).start();
+    },
+    [shake],
+  );
+
+  // --- what the claim button can do, in priority order ---
+  const wp = balance?.walkPoints ?? 0;
+  const price = balance?.parcelPrice ?? DEFAULT_PARCEL_PRICE;
+  let claimState: ClaimState = { kind: 'ready' };
+  if (fix.accuracyM > MAX_CLAIM_ACCURACY_M) {
+    claimState = { kind: 'blocked', reason: `GPS is fuzzy (±${Math.round(fix.accuracyM)} m). Step outside for a clearer fix.` };
+  } else if (!selected) {
+    claimState = { kind: 'blocked', reason: 'Every square within reach is taken. Walk on a little.' };
+  } else if (selectedOwner?.mine) {
+    claimState = { kind: 'blocked', reason: `This ${MINERALS[selectedOwner.rarity].label} parcel is yours` };
+  } else if (selectedOwner) {
+    claimState = { kind: 'blocked', reason: 'Another explorer owns this parcel - tap it to ring the doorbell' };
+  } else if (wp < price) {
+    claimState = { kind: 'short', have: wp, need: price };
+  }
+
+  async function claim() {
+    if (!token || claiming || !selected) return;
+    setClaiming(true);
+    haptics.press();
+    try {
+      // Send where you ARE and the square you chose; the server checks reach.
+      const result = await api.claim(
+        token,
+        { lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM, mocked: fix.mocked },
+        { cellX: selected.cellX, cellY: selected.cellY },
+      );
+      const p = result.parcel;
+      setPicked(null); // the next nearest free square becomes the target
+
+      // 1. The moment: the block erupts, the camera leans in, the runner
+      //    cheers, gems fly - and the phone thumps, harder for rarer finds.
+      haptics.claim(MINERAL_ORDER.indexOf(p.rarity));
+      setFx({ cellX: p.cellX ?? playerCell.cellX, cellY: p.cellY ?? playerCell.cellY, rarity: p.rarity, key: Date.now() });
+      setCelebrating(true);
+      swoop();
+      refreshBalance(); // WP rolls down while you watch
+      refreshNearby();
+      refreshDaily(); // "claim a parcel" quest
+
+      // 2. Then the receipt.
+      timers.current.push(
+        setTimeout(() => {
+          setCelebrating(false);
+          setRevealed(p);
+        }, CELEBRATION_MS),
+        setTimeout(() => setFx(null), CLAIM_FX_MS + 400),
+      );
+    } catch (e) {
+      haptics.warn();
+      Alert.alert("Couldn't claim this parcel", e instanceof Error ? e.message : 'Please try again.');
+      refreshNearby(); // it may have been taken a moment ago
+    } finally {
+      setClaiming(false);
+    }
+  }
+
+  const closeReveal = useCallback(() => {
+    setRevealed(null);
+  }, []);
+
+  // Ad boosts and leaderboard prize boosts add up; show the total, and time
+  // down whichever ends first.
+  const multiplier = balance?.rewards.activeMultiplier ?? 1;
+  const boosted = multiplier > 1;
+  const chipEndsAt = boostEndsAt ?? prizeEndsAt;
+  const rate = balance?.effectiveCoinsPerHour ?? 0;
+  const perMonth = rate * HOURS_PER_MONTH;
+  const hideCell = fx ? { cellX: fx.cellX, cellY: fx.cellY } : null;
+  const reachCentre = useMemo(() => ({ lat: settled.lat, lng: settled.lng }), [settled.lat, settled.lng]);
+
+  return (
+    <Animated.View style={[styles.root, { transform: [{ translateX: shake }] }]}>
+      <Map
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        mapStyle={MAP_STYLE_URL}
+        // All gestures are ours (see useGameCamera) - the map just draws.
+        dragPan={false}
+        touchZoom={false}
+        touchRotate={false}
+        touchPitch={false}
+        doubleTapZoom={false}
+        compass={false}
+        logo={false}
+        attribution // OpenStreetMap data: attribution must stay visible
+        attributionPosition={{ top: insets.top + 64, left: 10 }}
+      >
+        <Camera ref={cameraRef} initialViewState={initialViewState} minZoom={15} maxZoom={20} />
+        <WorldLayers
+          playerCell={playerCell}
+          player={reachCentre}
+          parcels={parcels}
+          claimable={celebrating ? EMPTY : claimable}
+          selected={celebrating ? null : selected}
+          selectedIsFree={!selectedOwner}
+          hideCell={hideCell}
+          reachM={reach}
+        />
+        <TreasureMarkers boxes={boxes} distances={boxDistances} withinM={withinM} />
+        {fx && <ClaimFx spec={fx} />}
+        <PlayerMarker fix={fix} bearing={bearing} celebrating={celebrating} avatar={balance?.avatar} />
+      </Map>
+
+      {/* Our gesture surface: spin, pinch, twist. */}
+      <View ref={viewRef} onLayout={measure} style={StyleSheet.absoluteFill} {...panHandlers} />
+
+      {celebrating && fx && <ClaimCelebration rarity={fx.rarity} seed={fx.key} onShake={doShake} />}
+
+      <CommunitySheet visible={community} onClose={() => setCommunity(false)} />
+
+      {/* HUD */}
+      <View style={[styles.hud, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
+        <View style={styles.pills}>
+          {/* Your profile and badges. */}
+          <Pressable
+            onPress={() => { haptics.tap(); router.push('/profile'); }}
+            accessibilityLabel="Your profile"
+            hitSlop={6}
+          >
+            <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={42} />
+            {!!balance?.unseenBadges && (
+              <View style={styles.avatarDot}>
+                <Text style={styles.badgeText}>{balance.unseenBadges}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={styles.pill}>
+            <CoinIcon size={22} />
+            <CountUp value={balance?.coins ?? 0} style={[styles.pillValue, mono]} short />
+          </View>
+          <View style={styles.pill}>
+            <StepsIcon size={20} />
+            <CountUp value={wp} style={[styles.pillValue, mono]} short />
+            <Text style={styles.pillUnit}>WP</Text>
+          </View>
+          <Pressable
+            onPress={() => { haptics.tap(); setCommunity(true); }}
+            style={styles.communityBtn}
+            accessibilityLabel="Community"
+            hitSlop={6}
+          >
+            <Text style={styles.communityGlyph}>◎</Text>
+          </Pressable>
+        </View>
+        <View style={styles.hudRight}>
+          <Pressable
+            onPress={() => { haptics.tap(); setBoostOpen(true); }}
+            style={[styles.boostChip, boosted && styles.boostChipOn]}
+            accessibilityLabel={boosted ? 'Boost active. Open power-ups' : 'Open power-ups'}
+            hitSlop={6}
+          >
+            <BoltIcon size={18} color={boosted ? '#FFFFFF' : colors.boostHi} />
+            {boosted && chipEndsAt ? (
+              <>
+                <Text style={styles.boostX}>{multiplier}×</Text>
+                <Countdown endsAt={chipEndsAt} onDone={refreshBalance} style={[styles.boostTime, mono]} />
+              </>
+            ) : (
+              <Text style={styles.boostLabel}>Boost</Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => { haptics.tap(); setDailyOpen(true); }}
+            style={styles.compass}
+            accessibilityLabel={`Daily rewards${daily?.claimable ? `, ${daily.claimable} ready` : ''}`}
+            hitSlop={6}
+          >
+            <ChestIcon size={26} open={!chestReady} />
+            {!!daily?.claimable && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{daily.claimable}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={() => { haptics.tap(); faceNorth(); }} style={styles.compass} accessibilityLabel="Face north" hitSlop={6}>
+            <CompassIcon size={28} rotation={-bearing} />
+          </Pressable>
+        </View>
+      </View>
+
+      {!revealed && !celebrating && (
+        <View style={styles.bottom} pointerEvents="box-none">
+          {toast && (
+            <View style={styles.toast}>
+              <Text style={styles.toastText}>{toast}</Text>
+            </View>
+          )}
+          {/* Just opened a box? One ad doubles it. */}
+          {boxClaim && boxClaim.canDouble && adsAvailable() && (
+            <Pressable onPress={doubleBox} style={styles.boxBtn} accessibilityRole="button">
+              <PlayAdIcon size={22} color={colors.claimInk} />
+              <Text style={styles.boxBtnText}>
+                {adBusy === 'DOUBLE' ? 'Loading ad…' : `Double it · +${boxClaim.amount} WP`}
+              </Text>
+            </Pressable>
+          )}
+
+          {/* A box you have reached, or the offer of another one. */}
+          {reachableBox ? (
+            <Pressable onPress={grabBox} style={styles.boxBtn} accessibilityRole="button">
+              <ChestIcon size={24} open />
+              <Text style={styles.boxBtnText}>
+                {openingBox ? 'Opening…' : `Open the box · +${reachableBox.rewardWp} WP`}
+              </Text>
+            </Pressable>
+          ) : (
+            boxes.length === 0 && treasure?.nextNeedsAd && adsAvailable() && (
+              <Pressable onPress={adBox} style={styles.boxAdBtn} accessibilityRole="button">
+                <ChestIcon size={22} />
+                <Text style={styles.boxAdText}>
+                  {adBusy === 'TREASURE' ? 'Loading ad…' : 'Watch an ad for another treasure box'}
+                </Text>
+              </Pressable>
+            )
+          )}
+          {awayCoins > 0 && (
+            // Welcome back: show what the land earned, and offer to boost it.
+            <View style={styles.away}>
+              <CoinIcon size={26} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.awayTitle}>+{awayCoins.toLocaleString()} coins while you were away</Text>
+                <Text style={styles.awaySub}>Your land kept working.</Text>
+              </View>
+              {balance?.rewards.boost.canAdd && adsAvailable() ? (
+                <Pressable
+                  onPress={() => { dismissAway(); setBoostOpen(true); }}
+                  style={styles.awayBtn}
+                  accessibilityRole="button"
+                >
+                  <BoltIcon size={16} color="#FFFFFF" />
+                  <Text style={styles.awayBtnText}>Boost 2x</Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={dismissAway} hitSlop={10} accessibilityLabel="Dismiss" style={styles.awayClose}>
+                <Text style={styles.awayCloseText}>{'\u00D7'}</Text>
+              </Pressable>
+            </View>
+          )}
+          <View style={styles.dock}>
+            {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M && (
+              <View style={styles.hint}>
+                <View style={styles.hintDot} />
+                <Text style={styles.hintText} numberOfLines={1}>
+                  {sameCell(selected, playerCell)
+                    ? 'The square you are standing on'
+                    : `${pickedInReach ? 'Your pick' : 'Nearest free square'} · ${selectedDistance} m`}
+                </Text>
+                <Text style={styles.hintSub}>tap a lit square</Text>
+              </View>
+            )}
+            <ClaimButton
+              state={claimState}
+              price={price}
+              busy={claiming}
+              onPress={claim}
+              adOffer={
+                claimState.kind === 'short' && adsAvailable() && (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0
+                  ? {
+                      label: `Watch an ad · +${balance?.rewards.walkPoints.perAd ?? 5} WP`,
+                      busy: adBusy === 'WALK_POINTS',
+                      onPress: async () => {
+                        const r = await watch('WALK_POINTS');
+                        showToast(r.ok ? `+${r.amount} Walk Points!` : r.message);
+                      },
+                    }
+                  : null
+              }
+            />
+            <View style={styles.earnings}>
+              <CoinIcon size={16} />
+              <CountUp value={Math.round(perMonth)} style={[styles.earnValue, mono]} />
+              <Text style={styles.earnUnit}>coins / month</Text>
+              <View style={{ flex: 1 }} />
+              {boosted && (
+                <View style={styles.xBadge}>
+                  <Text style={styles.xBadgeText}>{multiplier}×</Text>
+                </View>
+              )}
+              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{rate}/hr</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <RevealSheet parcel={revealed} onClose={closeReveal} />
+      <BoostSheet visible={boostOpen} onClose={() => setBoostOpen(false)} />
+      <DailySheet
+        visible={dailyOpen}
+        onClose={() => setDailyOpen(false)}
+        position={{ lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM, mocked: fix.mocked }}
+      />
+      <DoorbellSheet
+        parcelId={doorbell}
+        position={{ lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM, mocked: fix.mocked }}
+        onClose={() => setDoorbell(null)}
+        onCollected={refreshBalance}
+      />
+    </Animated.View>
+  );
+}
+
+const EMPTY: Cell[] = [];
+const EMPTY_BOXES: TreasureBox[] = [];
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return <View style={styles.centered}>{children}</View>;
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+
+  hud: {
+    position: 'absolute', left: 0, right: 0, top: 0,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: space.md,
+  },
+  // flexShrink + minWidth:0 let the left group give way on a narrow phone
+  // instead of pushing the boost chip off the right edge. Without minWidth a
+  // flex row refuses to shrink below its content on React Native.
+  pills: { flexDirection: 'row', gap: space.sm, flexShrink: 1, minWidth: 0 },
+  communityBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassLine,
+  },
+  communityGlyph: { fontFamily: fonts.bold, fontSize: 20, color: colors.glassInk, includeFontPadding: false },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, height: 42,
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+    borderRadius: radius.pill, paddingLeft: 9, paddingRight: 14,
+    flexShrink: 1, minWidth: 0,
+  },
+  pillValue: { color: colors.glassInk, fontSize: 16, fontFamily: fonts.heavy, includeFontPadding: false },
+  pillUnit: { color: colors.glassInk2, fontSize: 11, fontFamily: fonts.bold, marginLeft: -3, includeFontPadding: false },
+  hudRight: { alignItems: 'flex-end', gap: space.sm, flexShrink: 0 },
+  boostChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 13,
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1, borderRadius: radius.pill,
+  },
+  boostChipOn: { backgroundColor: colors.boost, borderColor: colors.boostHi },
+  boostLabel: { color: colors.glassInk, fontFamily: fonts.heavy, fontSize: 14, includeFontPadding: false },
+  boostX: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15, includeFontPadding: false },
+  boostTime: { color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 13, includeFontPadding: false },
+  compass: {
+    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+  },
+
+  bottom: { position: 'absolute', left: space.md, right: space.md, bottom: space.md, gap: space.sm },
+  badge: {
+    position: 'absolute', top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.glass,
+  },
+  badgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, includeFontPadding: false },
+  avatarDot: {
+    position: 'absolute', top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.glass,
+  },
+  away: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md,
+    backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line,
+  },
+  awayTitle: { fontFamily: fonts.heavy, fontSize: 14, color: colors.ink, includeFontPadding: false },
+  awaySub: { fontFamily: fonts.medium, fontSize: 12, color: colors.ink3, marginTop: 2, includeFontPadding: false },
+  awayBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, paddingHorizontal: 12,
+    borderRadius: radius.pill, backgroundColor: colors.boost,
+  },
+  awayBtnText: { color: '#FFFFFF', fontFamily: fonts.heavy, fontSize: 13, includeFontPadding: false },
+  awayClose: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  awayCloseText: { fontFamily: fonts.bold, fontSize: 22, color: colors.ink3, includeFontPadding: false },
+  boxBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 54,
+    borderRadius: radius.lg, backgroundColor: colors.claim, borderBottomWidth: 4, borderBottomColor: colors.claimDeep,
+  },
+  boxBtnText: { color: colors.claimInk, fontFamily: fonts.black, fontSize: 16, includeFontPadding: false },
+  boxAdBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 46,
+    borderRadius: radius.md, backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+  },
+  boxAdText: { color: colors.glassInk, fontFamily: fonts.bold, fontSize: 13.5, includeFontPadding: false },
+  dock: {
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+    borderRadius: radius.xl, padding: space.sm + 2, gap: space.sm + 2,
+  },
+  hint: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: 6, paddingTop: 2 },
+  hintDot: { width: 10, height: 10, borderRadius: 3, backgroundColor: colors.claim },
+  hintText: { fontFamily: fonts.heavy, fontSize: 13.5, color: colors.glassInk, flexShrink: 1, includeFontPadding: false },
+  hintSub: { fontFamily: fonts.medium, fontSize: 12, color: colors.glassInk2, marginLeft: 'auto', includeFontPadding: false },
+  toast: {
+    backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 11, paddingHorizontal: space.lg,
+    borderWidth: 1, borderColor: colors.glassLine,
+  },
+  toastText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFFFFF', lineHeight: 19 },
+  earnings: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, paddingBottom: 2 },
+  earnValue: { color: colors.glassInk, fontSize: 14, fontFamily: fonts.heavy, includeFontPadding: false },
+  earnUnit: { color: colors.glassInk2, fontSize: 12, fontFamily: fonts.medium, includeFontPadding: false },
+  earnRate: { color: colors.good, fontSize: 13.5, fontFamily: fonts.heavy, includeFontPadding: false },
+  xBadge: { backgroundColor: colors.boost, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  xBadgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, includeFontPadding: false },
+
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14, backgroundColor: colors.bg },
+  centeredTitle: { ...type.title, fontSize: 20, textAlign: 'center' },
+  centeredBody: { ...type.body, textAlign: 'center' },
+});

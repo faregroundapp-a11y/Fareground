@@ -1,0 +1,701 @@
+<title>Fareground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400;12..96,75..100,700;12..96,75..100,800&family=Nunito:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ------------------------------------------------------------------
+   Fareground — one committed visual world: the map at night.
+   Deep forest ground, an isometric parcel grid, amber for anything
+   you can claim, mineral colour for what you find.
+   ------------------------------------------------------------------ */
+
+:root{
+  --night:      #0A1310;
+  --night-2:    #0F1E19;
+  --night-3:    #162C24;
+  --tile:       #2F5D50;
+  --tile-hi:    #6FB08F;
+  --moss:       #7FA894;
+
+  --bone:       #F1F5F0;
+  --bone-2:     #AFC0B6;
+  --bone-3:     #7A8D83;
+
+  --amber:      #F2A93B;
+  --amber-hi:   #FFD37A;
+  --amber-deep: #C4801E;
+  --amber-ink:  #2A1A03;
+
+  --rocky:      #98A69B;
+  --coal:       #5B6B66;
+  --amethyst:   #A98BFF;
+  --sapphire:   #4C93F5;
+  --ruby:       #D23A55;
+
+  --line:       rgba(255,255,255,0.10);
+  --line-2:     rgba(255,255,255,0.18);
+  --glass:      rgba(255,255,255,0.035);
+
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --gutter: clamp(18px, 5vw, 56px);
+  --measure: 62ch;
+  color-scheme: dark;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin:0;
+  background: var(--night);
+  color: var(--bone);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* The ground: a faint isometric survey grid, lit from where you stand. */
+.ground{
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1100px 680px at 50% -8%, rgba(111,176,143,0.22), transparent 62%),
+    radial-gradient(760px 520px at 88% 12%, rgba(242,169,59,0.10), transparent 60%),
+    linear-gradient(180deg, #0E211B 0%, var(--night) 46%, #080F0D 100%);
+}
+.ground::after{
+  content:""; position:absolute; inset:-20%;
+  background-image:
+    linear-gradient(60deg, var(--line) 1px, transparent 1px),
+    linear-gradient(-60deg, var(--line) 1px, transparent 1px);
+  background-size: 74px 128px, 74px 128px;
+  opacity:.5;
+  -webkit-mask-image: radial-gradient(900px 620px at 50% 8%, #000 0%, transparent 72%);
+          mask-image: radial-gradient(900px 620px at 50% 8%, #000 0%, transparent 72%);
+}
+
+.wrap{
+  position: relative; z-index:1;
+  max-width: 1120px; margin-inline:auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- type ---------- */
+h1,h2,h3{ font-family: var(--display); margin:0; text-wrap: balance; line-height:1.03; letter-spacing:-0.02em; }
+h1{ font-size: clamp(44px, 9.2vw, 92px); font-weight:800; font-stretch: 88%; }
+h2{ font-size: clamp(28px, 4.4vw, 42px); font-weight:800; font-stretch: 92%; }
+h3{ font-size: 19px; font-weight:700; letter-spacing:-0.01em; }
+p{ margin:0; }
+a{ color: var(--amber-hi); }
+
+.eyebrow{
+  font-family: var(--mono); font-size:11.5px; font-weight:500;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--moss);
+  display:flex; align-items:center; gap:10px;
+}
+.eyebrow::before{ content:""; width:26px; height:1px; background: var(--tile-hi); opacity:.7; }
+.lede{ font-size: clamp(16.5px, 2vw, 19px); color: var(--bone-2); max-width: var(--measure); }
+.num{ font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- header ---------- */
+header.bar{
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
+  backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(10,19,16,0.92), rgba(10,19,16,0.62));
+  border-bottom: 1px solid var(--line);
+}
+.bar-in{ display:flex; align-items:center; gap:14px; padding-block:12px; }
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--bone); }
+.brand b{ font-family: var(--display); font-size:21px; font-weight:800; letter-spacing:-0.03em; }
+.bar nav{ margin-left:auto; display:flex; gap:22px; }
+.bar nav a{
+  color: var(--bone-2); text-decoration:none; font-size:14px; font-weight:600;
+  padding-block:4px; border-bottom:1px solid transparent;
+}
+.bar nav a:hover{ color: var(--bone); border-bottom-color: var(--amber); }
+@media (max-width: 720px){ .bar nav{ display:none; } }
+
+/* ---------- hero ---------- */
+.hero{ padding-block: clamp(40px, 7vw, 76px) clamp(30px, 5vw, 56px); }
+.hero-grid{ display:grid; grid-template-columns: 1.02fr 0.98fr; gap: clamp(26px, 4vw, 54px); align-items:center; }
+@media (max-width: 900px){ .hero-grid{ grid-template-columns: 1fr; } }
+
+h1 .ln{ display:block; }
+h1 .lit{
+  background: linear-gradient(96deg, var(--amber-hi), var(--amber) 55%, var(--amber-deep));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero p.lede{ margin-top: 20px; }
+.hero-cta{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:28px; }
+
+.btn{
+  font-family: var(--body); font-weight:800; font-size:15px;
+  border-radius: 999px; padding: 13px 22px; border:1px solid transparent;
+  cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:9px;
+}
+.btn-amber{
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  color: var(--amber-ink); border-color: var(--amber-deep);
+  box-shadow: 0 10px 26px -12px rgba(242,169,59,.8);
+}
+.btn-amber:hover{ background: linear-gradient(180deg, #FFDF9B, var(--amber-hi)); }
+.btn-ghost{ background: var(--glass); color: var(--bone); border-color: var(--line-2); }
+.btn-ghost:hover{ border-color: var(--tile-hi); color:#fff; }
+:focus-visible{ outline: 2px solid var(--amber-hi); outline-offset: 3px; border-radius: 6px; }
+
+.beta-chip{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+  color: var(--bone-2); border:1px solid var(--line-2); border-radius:999px;
+  padding:6px 13px; background: rgba(255,255,255,0.03);
+}
+.dot{ width:7px; height:7px; border-radius:50%; background: var(--tile-hi); box-shadow:0 0 0 3px rgba(111,176,143,.2); }
+
+/* ---------- the claim demo ---------- */
+.demo{
+  border:1px solid var(--line-2); border-radius: 24px;
+  background: linear-gradient(170deg, rgba(47,93,80,.34), rgba(10,19,16,.7) 70%);
+  padding: 16px 16px 18px;
+  box-shadow: 0 40px 80px -50px #000;
+}
+.demo-hud{ display:flex; gap:8px; }
+.hud{
+  flex:1; min-width:0; background: rgba(6,12,10,.66); border:1px solid var(--line);
+  border-radius:14px; padding:9px 11px;
+}
+.hud .k{ font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color: var(--bone-3); }
+.hud .v{ font-family:var(--display); font-weight:800; font-size:21px; line-height:1.2; }
+.hud .v small{ font-family:var(--body); font-size:11px; font-weight:700; color:var(--bone-3); }
+.hud.wp .v{ color: var(--amber-hi); }
+.hud.coin .v{ color: var(--tile-hi); }
+
+.stage{
+  height: clamp(228px, 40vw, 292px);
+  display:grid; place-items:center; perspective: 980px; margin-block: 8px;
+}
+.plane{
+  --t: clamp(34px, 7.4vw, 46px);
+  display:grid; grid-template-columns: repeat(6, var(--t));
+  transform: rotateX(56deg) rotateZ(45deg);
+  transform-style: preserve-3d; position:relative;
+}
+.cell{
+  width: var(--t); height: var(--t); margin:0; padding:0; border:1px solid rgba(255,255,255,.11);
+  background: rgba(111,176,143,.10); cursor:pointer;
+  transform-style: preserve-3d; position:relative;
+  transition: background .25s ease, transform .3s ease, box-shadow .3s ease;
+}
+.cell:hover:not(.owned){ background: rgba(242,169,59,.30); border-color: var(--amber); }
+.cell.reach{ background: rgba(242,169,59,.14); border-color: rgba(242,169,59,.34); }
+.cell.owned{
+  cursor: default;
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  border-color: var(--amber-deep);
+  transform: translateZ(14px);
+  box-shadow: 0 0 0 1px var(--amber-deep), 0 12px 22px -12px rgba(0,0,0,.9);
+}
+.cell .gem{
+  position:absolute; inset:0; display:grid; place-items:center;
+  transform: translateZ(26px) rotateZ(-45deg) rotateX(-56deg);
+  pointer-events:none;
+}
+.gem i{
+  display:block; width:14px; height:18px; background: var(--g, var(--rocky));
+  clip-path: polygon(50% 0, 100% 34%, 50% 100%, 0 34%);
+  box-shadow: 0 0 14px -1px var(--g, var(--rocky));
+}
+.pop{ animation: pop .55s cubic-bezier(.2,1.5,.4,1); }
+@keyframes pop{ 0%{ transform: translateZ(0) scale(.6);} 60%{ transform: translateZ(34px) scale(1.12);} 100%{ transform: translateZ(14px) scale(1);} }
+
+.you{
+  position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; pointer-events:none;
+}
+.you .ring{
+  position:absolute; left:50%; top:50%; width: calc(var(--t) * 4.6); height: calc(var(--t) * 4.6);
+  transform: translate(-50%,-50%) translateZ(3px); border-radius:50%;
+  border:1px dashed rgba(242,169,59,.5); background: radial-gradient(circle, rgba(242,169,59,.12), transparent 70%);
+  animation: breathe 3.4s ease-in-out infinite;
+}
+@keyframes breathe{ 50%{ transform: translate(-50%,-50%) translateZ(3px) scale(1.05); opacity:.72; } }
+.you .me{
+  position:absolute; left:50%; top:50%; width:11px; height:11px; border-radius:50%;
+  background:#fff; transform: translate(-50%,-50%) translateZ(20px);
+  box-shadow: 0 0 0 4px rgba(255,255,255,.18), 0 0 18px rgba(255,255,255,.7);
+}
+
+.demo-foot{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.demo-foot .msg{
+  flex:1 1 150px; min-width:0; font-size:13.5px; color: var(--bone-2);
+}
+.demo-foot .msg b{ color: var(--bone); }
+.btn-walk{
+  font-family:var(--body); font-weight:800; font-size:13px; border-radius:999px;
+  padding:10px 15px; cursor:pointer; background: rgba(255,255,255,.06);
+  color: var(--bone); border:1px solid var(--line-2);
+}
+.btn-walk:hover{ border-color: var(--tile-hi); background: rgba(111,176,143,.16); }
+.btn-walk.reset{ color: var(--bone-3); }
+
+/* ---------- sections ---------- */
+section{ padding-block: clamp(52px, 8vw, 96px); }
+.sec-head{ display:flex; flex-direction:column; gap:14px; max-width: var(--measure); }
+.sec-head h2 + p{ margin-top:2px; }
+
+/* steps: a real sequence, so it is numbered */
+.steps{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top:42px; background: var(--line); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+@media (max-width: 800px){ .steps{ grid-template-columns:1fr; } }
+.step{ background: linear-gradient(180deg, rgba(22,44,36,.6), rgba(10,19,16,.6)); padding: 26px 24px 28px; display:flex; flex-direction:column; gap:12px; }
+.step .n{ font-family:var(--mono); font-size:12px; color: var(--amber); letter-spacing:.1em; }
+.step p{ color: var(--bone-2); font-size:14.5px; }
+.step .fact{
+  margin-top:auto; padding-top:14px; border-top:1px dashed var(--line-2);
+  font-family:var(--mono); font-size:12.5px; color: var(--moss);
+}
+
+/* minerals */
+.minerals{ margin-top:38px; border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+.mrow{
+  display:grid; grid-template-columns: 26px 1.1fr 1fr 1.2fr 0.9fr; gap:14px; align-items:center;
+  padding: 15px 20px; border-top:1px solid var(--line);
+}
+.mrow:first-child{ border-top:0; }
+.mrow.head{ background: rgba(255,255,255,.03); }
+.mrow.head span{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color: var(--bone-3); }
+.mrow .name{ font-family:var(--display); font-weight:700; font-size:16px; letter-spacing:.01em; }
+.mgem{ width:15px; height:19px; clip-path: polygon(50% 0, 100% 34%, 50% 100%, 0 34%); background: var(--g); box-shadow:0 0 12px -2px var(--g); }
+.bar-odds{ height:6px; border-radius:999px; background: rgba(255,255,255,.07); overflow:hidden; }
+.bar-odds i{ display:block; height:100%; background: var(--g); border-radius:999px; }
+.mrow .rate{ font-family:var(--mono); font-variant-numeric: tabular-nums; font-size:14px; }
+.mrow .yr{ font-family:var(--mono); font-size:13px; color: var(--bone-3); text-align:right; }
+@media (max-width: 720px){
+  .mrow{ grid-template-columns: 22px 1fr 1fr; row-gap:8px; }
+  .mrow .yr{ grid-column: 2 / -1; text-align:left; }
+  .mrow.head{ display:none; }
+}
+
+/* loop cards */
+.loop{ display:grid; grid-template-columns: repeat(auto-fit, minmax(232px,1fr)); gap:14px; margin-top:40px; }
+.card{
+  border:1px solid var(--line); border-radius:16px; padding:20px;
+  background: rgba(255,255,255,.028); display:flex; flex-direction:column; gap:9px;
+}
+.card h3{ color: var(--bone); }
+.card p{ font-size:14px; color: var(--bone-2); }
+.card .tag{ font-family:var(--mono); font-size:11.5px; color: var(--amber); letter-spacing:.06em; }
+
+/* split: honest money section */
+.split{ display:grid; grid-template-columns: 1fr 1fr; gap: clamp(24px,4vw,48px); align-items:start; }
+@media (max-width: 860px){ .split{ grid-template-columns:1fr; } }
+.ledger{ border:1px solid var(--line); border-radius:20px; overflow:hidden; background: rgba(255,255,255,.028); }
+.lrow{ display:flex; justify-content:space-between; gap:16px; padding:14px 20px; border-top:1px solid var(--line); font-size:14.5px; }
+.lrow:first-child{ border-top:0; }
+.lrow span:first-child{ color: var(--bone-2); }
+.lrow span:last-child{ font-family:var(--mono); font-variant-numeric: tabular-nums; }
+.note{
+  margin-top:18px; border-left:2px solid var(--amber); padding: 4px 0 4px 16px;
+  font-size:14px; color: var(--bone-2);
+}
+
+/* under the hood */
+.hood{ display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+.hood span{
+  font-family:var(--mono); font-size:12px; color: var(--bone-2);
+  border:1px solid var(--line); border-radius:999px; padding:7px 13px; background: rgba(255,255,255,.025);
+}
+
+/* closing */
+.close{ text-align:center; display:flex; flex-direction:column; align-items:center; gap:20px; padding-block: clamp(60px,9vw,110px); }
+.close h2{ font-size: clamp(32px, 6vw, 58px); }
+.close p{ color: var(--bone-2); max-width: 46ch; }
+
+footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
+.foot-in{ display:flex; flex-wrap:wrap; gap:14px 26px; align-items:center; font-size:13px; color: var(--bone-3); }
+.foot-in .brand b{ font-size:17px; }
+.foot-in .sp{ margin-left:auto; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: .001ms !important; animation-iteration-count:1 !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<div class="ground" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="brand" href="#top">
+      <svg width="30" height="33" viewBox="192 210 640 700" aria-hidden="true">
+        <defs>
+          <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FB08F"/><stop offset="1" stop-color="#3E7F63"/></linearGradient>
+          <linearGradient id="gCell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD37A"/><stop offset="1" stop-color="#F2A93B"/></linearGradient>
+          <linearGradient id="gPin" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset="0.5" stop-color="#F6AE3E"/><stop offset="1" stop-color="#DC8C1F"/></linearGradient>
+        </defs>
+        <polygon points="212,700 512,850 512,894 212,744" fill="#1E4638"/>
+        <polygon points="512,850 812,700 812,744 512,894" fill="#173A2E"/>
+        <polygon points="512,550 812,700 512,850 212,700" fill="url(#gTile)"/>
+        <g stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="6" stroke-linecap="round">
+          <line x1="612" y1="600" x2="312" y2="750"/><line x1="412" y1="600" x2="712" y2="750"/>
+          <line x1="712" y1="650" x2="412" y2="800"/><line x1="312" y1="650" x2="612" y2="800"/>
+        </g>
+        <polygon points="512,650 612,700 512,750 412,700" fill="url(#gCell)"/>
+        <ellipse cx="512" cy="712" rx="64" ry="22" fill="#000" opacity="0.28"/>
+        <path d="M512 712 C 468 632 336 530 336 404 A 176 176 0 1 1 688 404 C 688 530 556 632 512 712 Z" fill="url(#gPin)"/>
+        <path d="M512 712 C 556 632 688 530 688 404 A 176 176 0 0 0 600 252 C 650 300 660 360 652 420 C 640 520 560 620 512 712 Z" fill="#B8741A" opacity="0.35"/>
+        <circle cx="512" cy="398" r="118" fill="#FFF6E2" stroke="#E7B25A" stroke-width="6"/>
+        <polygon points="447,352 577,352 612,388 512,478 412,388" fill="#C0304A"/>
+        <polygon points="447,352 482,388 412,388" fill="#E4566E"/>
+        <polygon points="482,388 542,388 512,352 447,352" fill="#EE7086"/>
+        <polygon points="512,352 542,388 577,352" fill="#D8435C"/>
+        <polygon points="542,388 612,388 577,352" fill="#A62540"/>
+        <polygon points="412,388 482,388 512,478" fill="#D23A55"/>
+        <polygon points="482,388 542,388 512,478" fill="#B0283F"/>
+        <polygon points="542,388 612,388 512,478" fill="#8C1C31"/>
+        <polygon points="462,360 490,360 478,378" fill="#FFFFFF" opacity="0.75"/>
+      </svg>
+      <b>Fareground</b>
+    </a>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#minerals">Minerals</a>
+      <a href="#loop">Every day</a>
+      <a href="#coins">Coins</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <div class="wrap hero">
+    <div class="hero-grid">
+      <div>
+        <span class="beta-chip"><i class="dot"></i> Private beta · Android</span>
+        <h1 style="margin-top:22px">
+          <span class="ln">Walk it.</span>
+          <span class="ln lit">Claim it.</span>
+          <span class="ln">Keep it.</span>
+        </h1>
+        <p class="lede">
+          Fareground turns the steps you already take into ground you own. Every
+          100 steps is a Walk Point. Spend Walk Points on a real 9-metre square
+          of the world near you, and it pays you coins every hour from then on —
+          whether the app is open or not.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-amber" href="#how">See how it works</a>
+          <a class="btn btn-ghost" href="#minerals">What's under the ground?</a>
+        </div>
+      </div>
+
+      <!-- the live claim demo: the most characteristic moment in the game -->
+      <div class="demo" id="demo">
+        <div class="demo-hud">
+          <div class="hud wp"><div class="k">Walk points</div><div class="v"><span id="wp" class="num">20</span></div></div>
+          <div class="hud"><div class="k">Parcels</div><div class="v"><span id="owned" class="num">0</span></div></div>
+          <div class="hud coin"><div class="k">Income</div><div class="v"><span id="rate" class="num">0</span> <small>coins/hr</small></div></div>
+        </div>
+
+        <div class="stage">
+          <div class="plane" id="plane" role="group" aria-label="Demo: claim a square of ground near you">
+            <div class="you" aria-hidden="true"><span class="ring"></span><span class="me"></span></div>
+          </div>
+        </div>
+
+        <div class="demo-foot">
+          <p class="msg" id="msg">Tap a lit square inside your reach to claim it. <b>Next parcel: 20 WP.</b></p>
+          <button class="btn-walk" id="walk" type="button">Walk 500 steps</button>
+          <button class="btn-walk reset" id="reset" type="button">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HOW ============ -->
+  <section id="how"><div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The loop</span>
+      <h2>Three things happen, in this order.</h2>
+      <p class="lede">No energy bars, no waiting for a timer. The only input the game wants is the walk you were going to do anyway.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="n">01</span>
+        <h3>Your steps become Walk Points</h3>
+        <p>Fareground reads the step count your phone already keeps — Health Connect on Android, motion history on iOS — plus the live sensor while you walk. Nothing to start, nothing to stop.</p>
+        <div class="fact">100 steps = 1 WP</div>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <h3>Spend them on ground you're standing near</h3>
+        <p>The map lights up the squares within reach. Pick one, claim it, watch the block erupt. You can only claim where you actually are — and each square on Earth has exactly one owner, ever.</p>
+        <div class="fact">40 m reach · ~9 m squares</div>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <h3>It pays you, hour after hour</h3>
+        <p>Every parcel turns out to be a mineral. Rocky ground trickles. A ruby pours. The coins accumulate while the app is closed, and you collect them whenever you open it.</p>
+        <div class="fact">1–40 coins/hr, forever</div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ============ MINERALS ============ -->
+  <section id="minerals"><div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">What's under the ground</span>
+      <h2>You don't know what you've claimed until you claim it.</h2>
+      <p class="lede">Five minerals, one roll per parcel. A ruby is a one-in-a-hundred square that earns forty times what plain rock does — and the phone thumps harder the rarer the find.</p>
+    </div>
+
+    <div class="minerals">
+      <div class="mrow head"><span></span><span>Mineral</span><span>How often</span><span>Earns</span><span>Per year</span></div>
+      <div class="mrow" style="--g: var(--rocky)">
+        <i class="mgem"></i><span class="name">Rocky</span>
+        <span><span class="bar-odds"><i style="width:100%"></i></span></span>
+        <span class="rate">1 coin/hr</span><span class="yr">60% · $0.009</span>
+      </div>
+      <div class="mrow" style="--g: var(--coal)">
+        <i class="mgem"></i><span class="name">Coal</span>
+        <span><span class="bar-odds"><i style="width:41.7%"></i></span></span>
+        <span class="rate">2 coins/hr</span><span class="yr">25% · $0.018</span>
+      </div>
+      <div class="mrow" style="--g: var(--amethyst)">
+        <i class="mgem"></i><span class="name">Amethyst</span>
+        <span><span class="bar-odds"><i style="width:16.7%"></i></span></span>
+        <span class="rate">5 coins/hr</span><span class="yr">10% · $0.044</span>
+      </div>
+      <div class="mrow" style="--g: var(--sapphire)">
+        <i class="mgem"></i><span class="name">Sapphire</span>
+        <span><span class="bar-odds"><i style="width:6.7%"></i></span></span>
+        <span class="rate">12 coins/hr</span><span class="yr">4% · $0.105</span>
+      </div>
+      <div class="mrow" style="--g: var(--ruby)">
+        <i class="mgem"></i><span class="name">Ruby</span>
+        <span><span class="bar-odds"><i style="width:1.7%"></i></span></span>
+        <span class="rate">40 coins/hr</span><span class="yr">1% · $0.350</span>
+      </div>
+    </div>
+
+    <p class="note">Rarer ground also builds higher on the map, so a good street is visible from a distance. Any parcel can be upgraded four times — 25, 50, 75 then 100 WP — for an extra coin an hour each.</p>
+  </div></section>
+
+  <!-- ============ DAILY LOOP ============ -->
+  <section id="loop"><div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Every day</span>
+      <h2>Reasons to take the long way home.</h2>
+      <p class="lede">Claiming is the point, but it isn't the only thing waiting when you open the app.</p>
+    </div>
+
+    <div class="loop">
+      <div class="card">
+        <span class="tag">7-day streak</span>
+        <h3>The daily chest</h3>
+        <p>3 WP on day one, 20 by day seven. Miss a day and a streak save can cover you — twice a week.</p>
+      </div>
+      <div class="card">
+        <span class="tag">4 a day</span>
+        <h3>Quests</h3>
+        <p>Walk a target, claim something, visit somewhere, open a box. Small asks, 26 WP if you finish them all.</p>
+      </div>
+      <div class="card">
+        <span class="tag">+4, or +6 new</span>
+        <h3>Visits</h3>
+        <p>Check in at a place you're standing in. Somewhere you've never been pays more than the café you always use.</p>
+      </div>
+      <div class="card">
+        <span class="tag">6–14 WP</span>
+        <h3>Treasure boxes</h3>
+        <p>Boxes appear on the map nearby. They don't come to you — that's rather the idea.</p>
+      </div>
+      <div class="card">
+        <span class="tag">City → world</span>
+        <h3>Weekly ranks</h3>
+        <p>Steps ranked against your city, region, country and the whole map. The top of each board takes a coin boost into next week.</p>
+      </div>
+      <div class="card">
+        <span class="tag">21 badges</span>
+        <h3>A character that's yours</h3>
+        <p>Build an avatar from parts you unlock, pick a title you've earned, and carry the badges to prove it.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ============ COINS ============ -->
+  <section id="coins"><div class="wrap">
+    <div class="split">
+      <div class="sec-head">
+        <span class="eyebrow">The coins</span>
+        <h2>Straight about the money.</h2>
+        <p class="lede">
+          Coins are counted as whole numbers in a ledger that never gets rewritten —
+          every single coin you've earned has a row with a reason attached. The plan
+          is for them to be worth something real, and here is exactly what that
+          rate looks like.
+        </p>
+        <p class="note">
+          Cashing out is <b>not switched on yet</b>. Fareground is in beta, no one
+          has been paid, and the redemption side needs to be built and checked
+          properly before it is. Anything you bank now is kept and keeps earning —
+          but treat the dollar figures as the design, not a promise.
+        </p>
+      </div>
+
+      <div>
+        <div class="ledger">
+          <div class="lrow"><span>Coin value</span><span>1,000,000 = $1.00</span></div>
+          <div class="lrow"><span>A rocky parcel, per year</span><span>8,760 coins</span></div>
+          <div class="lrow"><span>A ruby parcel, per year</span><span>350,400 coins</span></div>
+          <div class="lrow"><span>First parcel costs</span><span>20 WP · 2,000 steps</span></div>
+          <div class="lrow"><span>Tenth parcel costs</span><span>65 WP · 6,500 steps</span></div>
+          <div class="lrow"><span>Boosts</span><span>up to 2× coins</span></div>
+        </div>
+        <div class="hood">
+          <span>Land is never taken from you</span>
+          <span>One owner per square, ever</span>
+          <span>No banner ads</span>
+          <span>Rewards you choose to watch</span>
+        </div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ============ CLOSE ============ -->
+  <div class="wrap close">
+    <span class="eyebrow" style="justify-content:center">Beta</span>
+    <h2>It's a walk either way.</h2>
+    <p>Fareground is being built and tested on real streets right now, on Android first. Invites go out in small batches while the map fills in.</p>
+    <a class="btn btn-amber" href="#top">Back to the map</a>
+  </div>
+
+</main>
+
+<footer><div class="wrap foot-in">
+  <span class="brand"><b>Fareground</b></span>
+  <span>Steps into ground. Ground into coins.</span>
+  <span class="sp">© 2026 Fareground · Private beta</span>
+</div></footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // The real economy, straight out of backend/src/game/rules.ts
+  var BASE_PRICE = 20, PRICE_STEP = 5, STEPS_PER_WP = 100;
+  var MINERALS = [
+    { key: 'Rocky',    odds: 60, rate: 1,  color: '#98A69B' },
+    { key: 'Coal',     odds: 25, rate: 2,  color: '#5B6B66' },
+    { key: 'Amethyst', odds: 10, rate: 5,  color: '#A98BFF' },
+    { key: 'Sapphire', odds: 4,  rate: 12, color: '#4C93F5' },
+    { key: 'Ruby',     odds: 1,  rate: 40, color: '#D23A55' }
+  ];
+
+  var SIZE = 6;               // 6 x 6 squares of ground
+  var CENTRE = (SIZE - 1) / 2; // where you are standing
+  var REACH = 2.3;             // squares, standing in for the 40 m reach
+
+  var plane = document.getElementById('plane');
+  var elWp = document.getElementById('wp'),
+      elOwned = document.getElementById('owned'),
+      elRate = document.getElementById('rate'),
+      elMsg = document.getElementById('msg');
+  if (!plane) return;
+
+  var state = { wp: 20, owned: 0, rate: 0 };
+  var cells = [];
+
+  function price() { return BASE_PRICE + PRICE_STEP * state.owned; }
+
+  function roll() {
+    var n = Math.random() * 100, acc = 0;
+    for (var i = 0; i < MINERALS.length; i++) {
+      acc += MINERALS[i].odds;
+      if (n < acc) return MINERALS[i];
+    }
+    return MINERALS[0];
+  }
+
+  function say(html) { elMsg.innerHTML = html; }
+
+  function paint() {
+    elWp.textContent = state.wp;
+    elOwned.textContent = state.owned;
+    elRate.textContent = state.rate;
+  }
+
+  function build() {
+    cells.forEach(function (c) { c.remove(); });
+    cells = [];
+    for (var y = 0; y < SIZE; y++) {
+      for (var x = 0; x < SIZE; x++) {
+        var dist = Math.sqrt(Math.pow(x - CENTRE, 2) + Math.pow(y - CENTRE, 2));
+        var cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cell' + (dist <= REACH ? ' reach' : '');
+        cell.setAttribute('aria-label', 'Square ' + (x + 1) + ', ' + (y + 1));
+        cell.dataset.reach = dist <= REACH ? '1' : '0';
+        cell.addEventListener('click', claim);
+        plane.appendChild(cell);
+        cells.push(cell);
+      }
+    }
+  }
+
+  function claim(e) {
+    var cell = e.currentTarget;
+    if (cell.classList.contains('owned')) return;
+
+    if (cell.dataset.reach !== '1') {
+      say('Too far. You can only claim ground within <b>40 m</b> of where you are standing — so walk over there.');
+      return;
+    }
+    if (state.wp < price()) {
+      var short = price() - state.wp;
+      say('Not enough yet. You need <b>' + short + ' more WP</b> — about ' +
+          (short * STEPS_PER_WP).toLocaleString() + ' steps.');
+      return;
+    }
+
+    var m = roll();
+    state.wp -= price();
+    state.owned += 1;
+    state.rate += m.rate;
+
+    cell.classList.add('owned', 'pop');
+    cell.classList.remove('reach');
+    cell.style.setProperty('--g', m.color);
+    var gem = document.createElement('span');
+    gem.className = 'gem';
+    gem.innerHTML = '<i></i>';
+    cell.appendChild(gem);
+    setTimeout(function () { cell.classList.remove('pop'); }, 600);
+
+    paint();
+    say('<b>' + m.key + '.</b> ' + m.rate + ' coin' + (m.rate === 1 ? '' : 's') +
+        ' an hour, forever. Next parcel: <b>' + price() + ' WP</b>.');
+  }
+
+  document.getElementById('walk').addEventListener('click', function () {
+    state.wp += 500 / STEPS_PER_WP;
+    paint();
+    var left = price() - state.wp;
+    say(left > 0
+      ? '500 steps, <b>+5 WP</b>. Still ' + left + ' WP short of the next parcel.'
+      : '500 steps, <b>+5 WP</b>. That covers a parcel — pick a lit square.');
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    state = { wp: 20, owned: 0, rate: 0 };
+    build();
+    paint();
+    say('Back to a fresh account. The signup bonus is <b>20 WP</b> — exactly one parcel.');
+  });
+
+  build();
+  paint();
+})();
+</script>
