@@ -134,9 +134,9 @@ export default function Settings() {
         <View style={styles.card}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={type.label}>Street names</Text>
+              <Text style={type.label}>Map labels</Text>
               <Text style={styles.sub}>
-                Show road names on the map. Town and city labels stay either way.
+                Show street, place and shop names on the map. The street-sign button on the map does the same.
               </Text>
             </View>
             <Switch

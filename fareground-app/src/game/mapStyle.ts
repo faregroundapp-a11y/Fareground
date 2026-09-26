@@ -5,39 +5,28 @@ import type { StyleSpecification } from '@maplibre/maplibre-react-native';
 import { MAP_STYLE_URL } from '@/config';
 
 /**
- * Street names on the map, on or off.
+ * Map labels on or off - ALL of them.
  *
  * WHY IT IS A STYLE SWAP AND NOT A LAYER CALL. maplibre-react-native takes a
  * whole style for the `mapStyle` prop; there is no supported way to reach in
  * and hide one layer of a style loaded from a URL. So the style JSON is
- * fetched once, and a second copy is kept with the street-name layers set to
+ * fetched once, and a second copy is kept with every text layer set to
  * `visibility: none`. Toggling swaps which copy the map is given.
  *
- * WHAT STAYS VISIBLE. Only STREET names go. Town, city and country labels
- * remain, because they are what tells you roughly where you are - and the
- * point of turning street names off is a cleaner board to claim squares on,
- * not a blank map you cannot navigate.
+ * WHAT GOES. Every layer that draws TEXT - street names, road shields, place,
+ * town and country names, points of interest, water and park names - so the
+ * map becomes a clean board of streets and squares. It was street names only
+ * at first; the product owner asked for "ANY text" gone (2026-09-26).
+ * One-way arrows stay: they have no text and read as part of the road.
  *
- * Street names were already rejected once as a permanent feature (the map is
- * a game board, and names crowd the squares). This makes it the player's
- * call instead of ours.
+ * The toggle is a street-sign button on the map itself, and in Settings; both
+ * write the same preference.
  */
 
-/**
- * The layers that draw street names and road shields, in the OpenMapTiles
- * schema that OpenFreeMap's `liberty` style follows.
- *
- * `road_one_way_arrow*` is deliberately NOT here: those are direction arrows
- * rather than names, and they read as part of the road itself.
- */
-const STREET_LABEL_LAYERS = new Set([
-  'highway-name-path',
-  'highway-name-minor',
-  'highway-name-major',
-  'highway-shield-non-us',
-  'highway-shield-us-interstate',
-  'road_shield_us',
-]);
+/** Does this layer draw text? Symbol layers with a text-field do. */
+function drawsText(layer: { type?: string; layout?: Record<string, unknown> }): boolean {
+  return layer.type === 'symbol' && layer.layout?.['text-field'] !== undefined;
+}
 
 const PREF_KEY = 'fareground.streetNames';
 
@@ -67,7 +56,7 @@ async function loadStyles(): Promise<Cached | null> {
       const withoutNames = {
         ...withNames,
         layers: (withNames.layers ?? []).map((l) =>
-          STREET_LABEL_LAYERS.has(l.id)
+          drawsText(l as { type?: string; layout?: Record<string, unknown> })
             ? { ...l, layout: { ...((l as { layout?: object }).layout ?? {}), visibility: 'none' } }
             : l,
         ),
@@ -105,26 +94,27 @@ export async function setStreetNamesPref(on: boolean): Promise<void> {
 }
 
 /**
- * The style the map should draw, following the saved preference.
+ * The style the map should draw, following the saved preference, plus the
+ * state and a toggle for the map's own street-sign button.
  *
  * Returns the plain URL until the JSON has loaded (and for ever, if it never
  * does), so the map is never blank while this resolves.
  */
-export function useMapStyle(): string | StyleSpec {
-  const [style, setStyle] = useState<string | StyleSpec>(MAP_STYLE_URL);
+export function useMapStyle(): { style: string | StyleSpec; labelsOn: boolean; toggleLabels: () => void } {
+  const [labelsOn, setLabelsOn] = useState(true);
+  const [styles, setStyles] = useState<Cached | null>(null);
 
-  // ON FOCUS, not on mount. The toggle lives in Settings, which is a
-  // different screen; with a plain effect the map would keep the old style
-  // until something else happened to remount it, and the switch would look
-  // broken. The style JSON is cached after the first fetch, so coming back to
-  // the map costs one AsyncStorage read.
+  // ON FOCUS, not on mount: Settings can change the preference on another
+  // screen, and the map must pick that up when it comes back into view. The
+  // style JSON is cached after the first fetch, so this costs one read.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [on, styles] = await Promise.all([getStreetNamesPref(), loadStyles()]);
-        if (cancelled || !styles) return;
-        setStyle(on ? styles.withNames : styles.withoutNames);
+        const [on, loaded] = await Promise.all([getStreetNamesPref(), loadStyles()]);
+        if (cancelled) return;
+        setLabelsOn(on);
+        setStyles(loaded);
       })();
       return () => {
         cancelled = true;
@@ -132,5 +122,14 @@ export function useMapStyle(): string | StyleSpec {
     }, []),
   );
 
-  return style;
+  // Instant on the map; the write follows.
+  const toggleLabels = useCallback(() => {
+    setLabelsOn((on) => {
+      void setStreetNamesPref(!on);
+      return !on;
+    });
+  }, []);
+
+  const style = styles ? (labelsOn ? styles.withNames : styles.withoutNames) : MAP_STYLE_URL;
+  return { style, labelsOn, toggleLabels };
 }

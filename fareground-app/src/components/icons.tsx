@@ -91,6 +91,33 @@ export function CompassIcon({ size = 26, rotation = 0 }: { size?: number; rotati
   );
 }
 
+/**
+ * A two-way street sign on a post - the map-labels toggle. Struck through
+ * when labels are hidden, so the button always says what state the map is in.
+ */
+export function StreetSignIcon({ size = 26, off = false }: { size?: number; off?: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 26 26">
+      <Rect x="12" y="4" width="2" height="19" rx="1" fill="#C9D2CC" />
+      {/* upper board points right, lower board points left */}
+      <Path d="M5 6.5h13.2l2.8 2.6-2.8 2.6H5z" fill="#2F9E6E" stroke="#F4F6F2" strokeWidth={1} strokeLinejoin="round" />
+      <Path d="M21 13.5H7.8L5 16.1l2.8 2.6H21z" fill="#2F9E6E" stroke="#F4F6F2" strokeWidth={1} strokeLinejoin="round" />
+      {off && <Line x1="4" y1="22" x2="22" y2="4" stroke="#FF6B5E" strokeWidth={2.4} strokeLinecap="round" />}
+    </Svg>
+  );
+}
+
+/** The treasure finder's pointer: an arrow that turns toward the nearest box. */
+export function PointerIcon({ size = 22, rotation = 0, color = '#FFD37A' }: { size?: number; rotation?: number; color?: ColorValue }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <G rotation={rotation} origin="12, 12">
+        <Path d="M12 2.5l6.5 17.2L12 16.2l-6.5 3.5z" fill={color} stroke="#2A1A03" strokeWidth={1.2} strokeLinejoin="round" />
+      </G>
+    </Svg>
+  );
+}
+
 /* ---------- tab bar ---------- */
 
 export function MapTabIcon({ size = 24, color = '#000' }: IconProps) {

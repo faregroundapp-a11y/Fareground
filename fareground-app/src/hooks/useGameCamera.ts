@@ -64,6 +64,8 @@ class CameraController {
   private dragging = false;
   private publishedBearing = 0;
   private timers: ReturnType<typeof setTimeout>[] = [];
+  /** True while the camera is off showing something else (see peek). */
+  private peeking = false;
 
   // Tap detection. The gesture layer swallows every touch, so a tap on the
   // map has to be recognised here: one finger, barely moved, quickly lifted.
@@ -83,6 +85,7 @@ class CameraController {
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
         this.dragging = true;
+        this.peeking = false; // a touch takes the camera back
         this.stopMomentum();
         this.fingers = 0; // re-seeded on the first move
         this.touchStart = { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY, t: Date.now() };
@@ -131,8 +134,33 @@ class CameraController {
   /** A new GPS fix: glide there over the same time the runner does. */
   follow(centre: LngLat) {
     this.centre = centre;
-    if (!this.dragging) this.apply(FOLLOW_MS);
+    if (!this.dragging && !this.peeking) this.apply(FOLLOW_MS);
   }
+
+  /**
+   * Fly to something and back: the treasure finder shows WHERE the box is,
+   * then returns to the player. Pulled out a little so the street around the
+   * box reads. GPS fixes that arrive meanwhile are kept, and the return goes
+   * to wherever the player now is.
+   */
+  peek = (target: LngLat, onDone?: () => void) => {
+    const cam = this.cameraRef.current;
+    if (!cam) {
+      onDone?.();
+      return;
+    }
+    this.stopMomentum();
+    this.peeking = true;
+    const zoom = Math.max(MIN_ZOOM, this.zoom - 1);
+    cam.easeTo({ center: target, zoom, bearing: this.bearing, pitch: pitchFor(zoom), duration: 1100, easing: 'ease' });
+    this.timers.push(
+      setTimeout(() => {
+        this.peeking = false;
+        this.apply(1000);
+        this.timers.push(setTimeout(() => onDone?.(), 1000));
+      }, 2400),
+    );
+  };
 
   /** Swing back to facing north along the shortest way round. */
   faceNorth = () => {
@@ -264,6 +292,7 @@ export function useGameCamera(centre: LngLat, onTap?: (x: number, y: number) => 
     measure: controller.measure,
     faceNorth: controller.faceNorth,
     swoop: controller.swoop,
+    peek: controller.peek,
     bearing,
     initialViewState,
   };

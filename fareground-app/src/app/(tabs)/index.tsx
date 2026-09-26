@@ -15,7 +15,7 @@ import { PlayerPicture } from '@/components/PlayerPicture';
 import { CountUp } from '@/components/CountUp';
 import { DailySheet } from '@/components/DailySheet';
 import { DoorbellSheet } from '@/components/DoorbellSheet';
-import { BoltIcon, ChestIcon, CoinIcon, CompassIcon, PlayAdIcon, StepsIcon } from '@/components/icons';
+import { BoltIcon, ChestIcon, CoinIcon, CompassIcon, PlayAdIcon, PointerIcon, StepsIcon, StreetSignIcon } from '@/components/icons';
 import { PlayerMarker } from '@/components/PlayerMarker';
 import { TreasureMarkers } from '@/components/TreasureMarkers';
 import { RevealSheet } from '@/components/RevealSheet';
@@ -23,7 +23,7 @@ import { Runner } from '@/components/Runner';
 import { WorldLayers } from '@/components/WorldLayers';
 import { DEFAULT_PARCEL_PRICE, MAX_CLAIM_ACCURACY_M } from '@/config';
 import { useMapStyle } from '@/game/mapStyle';
-import { CLAIM_REACH_M, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
+import { CLAIM_REACH_M, bearingBetween, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
 import { cellForLatLng, type Cell } from '@/game/grid';
 import { MINERALS, MINERAL_ORDER } from '@/game/minerals';
 import { useAreaReporter } from '@/hooks/useAreaReporter';
@@ -97,7 +97,8 @@ function GameView({ fix }: { fix: Fix }) {
   const centre = useMemo<[number, number]>(() => [fix.lng, fix.lat], [fix.lng, fix.lat]);
   const mapRef = useRef<MapRef>(null);
   // Street names on or off, following the setting. See game/mapStyle.ts.
-  const mapStyle = useMapStyle();
+  // Map labels on or off, from the street-sign button (and Settings).
+  const { style: mapStyle, labelsOn, toggleLabels } = useMapStyle();
   const settled = useSettledPosition(fix.lat, fix.lng);
   const { treasure, open: openBox, refresh: refreshTreasure } = useTreasure(settled.lat, settled.lng);
   const { watch, busy: adBusy } = useRewardedAd(() => {
@@ -227,8 +228,41 @@ function GameView({ fix }: { fix: Fix }) {
     [fix.lat, fix.lng, reach, showToast],
   );
 
-  const { cameraRef, viewRef, panHandlers, measure, faceNorth, swoop, bearing, initialViewState } =
+  const { cameraRef, viewRef, panHandlers, measure, faceNorth, swoop, peek, bearing, initialViewState } =
     useGameCamera(centre, onTap);
+
+  /**
+   * THE TREASURE FINDER. Press it and the camera flies to the nearest box and
+   * back, then a pointer stays on screen showing which way it is and how far.
+   * Press again to put it away. Follows the box list, so it quietly
+   * disappears once there is no box left to point at.
+   */
+  const [finderOn, setFinderOn] = useState(false);
+  const nearestBox = useMemo(() => {
+    let best: { box: TreasureBox; m: number } | null = null;
+    for (const box of boxes) {
+      const m = metresBetween(settled.lat, settled.lng, box.lat, box.lng);
+      if (!best || m < best.m) best = { box, m };
+    }
+    return best;
+  }, [boxes, settled.lat, settled.lng]);
+  const toggleFinder = useCallback(() => {
+    haptics.tap();
+    if (finderOn) {
+      setFinderOn(false);
+      return;
+    }
+    if (!nearestBox) {
+      showToast('No treasure box nearby right now.');
+      return;
+    }
+    setFinderOn(true);
+    peek([nearestBox.box.lng, nearestBox.box.lat]);
+  }, [finderOn, nearestBox, peek, showToast]);
+  // Screen-relative: the map turns, so subtract the camera's bearing.
+  const pointerRotation = nearestBox
+    ? bearingBetween(settled.lat, settled.lng, nearestBox.box.lat, nearestBox.box.lng) - bearing
+    : 0;
 
   const [claiming, setClaiming] = useState(false);
   const [fx, setFx] = useState<ClaimFxSpec | null>(null);
@@ -478,7 +512,26 @@ function GameView({ fix }: { fix: Fix }) {
             accessibilityLabel="Community"
             hitSlop={6}
           >
-            <Text style={styles.communityGlyph}>◎</Text>
+            <Text style={styles.communityGlyph}>🤗</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { haptics.tap(); toggleLabels(); }}
+            style={[styles.compass, !labelsOn && styles.hudBtnOn]}
+            accessibilityLabel={labelsOn ? 'Hide map labels' : 'Show map labels'}
+            hitSlop={6}
+          >
+            <StreetSignIcon size={26} off={!labelsOn} />
+          </Pressable>
+          <Pressable
+            onPress={toggleFinder}
+            style={[styles.compass, finderOn && styles.hudBtnOn]}
+            accessibilityLabel={finderOn ? 'Hide the treasure pointer' : 'Find the nearest treasure box'}
+            hitSlop={6}
+          >
+            <ChestIcon size={24} />
+            <View style={styles.finderArrow}>
+              <PointerIcon size={14} />
+            </View>
           </Pressable>
           <Pressable onPress={() => { haptics.tap(); faceNorth(); }} style={styles.compass} accessibilityLabel="Face north" hitSlop={6}>
             <CompassIcon size={28} rotation={-bearing} />
@@ -488,6 +541,15 @@ function GameView({ fix }: { fix: Fix }) {
 
       {!revealed && !celebrating && (
         <View style={styles.bottom} pointerEvents="box-none">
+          {finderOn && nearestBox && (
+            <Pressable onPress={toggleFinder} style={styles.finderPill} accessibilityLabel="Treasure pointer. Tap to hide">
+              <PointerIcon size={26} rotation={pointerRotation} />
+              <Text style={[styles.finderText, mono]}>
+                {nearestBox.m < 1000 ? `${Math.round(nearestBox.m)} m` : `${(nearestBox.m / 1000).toFixed(1)} km`}
+              </Text>
+              <Text style={styles.finderLabel}>to treasure</Text>
+            </Pressable>
+          )}
           {toast && (
             <View style={styles.toast}>
               <Text style={styles.toastText}>{toast}</Text>
@@ -536,7 +598,7 @@ function GameView({ fix }: { fix: Fix }) {
                   accessibilityRole="button"
                 >
                   <BoltIcon size={16} color="#FFFFFF" />
-                  <Text style={styles.awayBtnText}>Boost 2x</Text>
+                  <Text style={styles.awayBtnText}>Boost {balance.rewards.boost.multiplier}x</Text>
                 </Pressable>
               ) : null}
               <Pressable onPress={dismissAway} hitSlop={10} accessibilityLabel="Dismiss" style={styles.awayClose}>
@@ -630,7 +692,18 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassLine,
   },
-  communityGlyph: { fontFamily: fonts.bold, fontSize: 20, color: colors.glassInk, includeFontPadding: false },
+  // The hugging face: "come and meet everyone". An emoji, so no font.
+  communityGlyph: { fontSize: 21, includeFontPadding: false },
+  // A HUD button that is switched ON (labels hidden, finder showing).
+  hudBtnOn: { borderColor: colors.claim, borderWidth: 2 },
+  finderArrow: { position: 'absolute', top: 1, right: 1 },
+  finderPill: {
+    alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8,
+    height: 44, paddingHorizontal: 16, borderRadius: radius.pill,
+    backgroundColor: colors.glass, borderColor: colors.claim, borderWidth: 1,
+  },
+  finderText: { color: colors.glassInk, fontFamily: fonts.heavy, fontSize: 17, includeFontPadding: false },
+  finderLabel: { color: colors.glassInk2, fontFamily: fonts.bold, fontSize: 13, includeFontPadding: false },
   pill: {
     flexDirection: 'row', alignItems: 'center', gap: 7, height: 42,
     backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,

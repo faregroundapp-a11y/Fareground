@@ -13,6 +13,16 @@ export const cellKey = (c: Cell) => `${c.cellX}:${c.cellY}`;
 export const sameCell = (a: Cell | null, b: Cell | null) =>
   !!a && !!b && a.cellX === b.cellX && a.cellY === b.cellY;
 
+/** Compass bearing from A to B in degrees, 0 = north, clockwise. */
+export function bearingBetween(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const rad = Math.PI / 180;
+  const y = Math.sin((bLng - aLng) * rad) * Math.cos(bLat * rad);
+  const x =
+    Math.cos(aLat * rad) * Math.sin(bLat * rad) -
+    Math.sin(aLat * rad) * Math.cos(bLat * rad) * Math.cos((bLng - aLng) * rad);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
 /** Great-circle distance between two points, in metres. */
 export function metresBetween(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6_371_000;
