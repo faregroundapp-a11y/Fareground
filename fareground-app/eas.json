@@ -24,9 +24,12 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-PUBLIC-SERVER-URL"
+        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
       },
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     },
     "tester": {
       "distribution": "internal",
@@ -36,6 +39,11 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
       }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
     }
   }
 }

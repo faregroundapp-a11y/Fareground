@@ -16,6 +16,9 @@
       "bundleIdentifier": "com.fareground.app",
       "infoPlist": {
         "NSMotionUsageDescription": "Fareground counts your steps to turn them into Walk Points."
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
