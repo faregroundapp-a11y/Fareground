@@ -76,12 +76,16 @@ export interface RewardStatus {
   };
   /** All running boosts added up: 1 = none. */
   activeMultiplier: number;
+  /** When every adsLeftToday resets: the player's next local midnight (ISO). */
+  resetsAt: string;
   /** Take the next couple of hours of income now. */
   instantCollect: {
     hours: number;
     coins: number;
     adsLeftToday: number;
     canCollect: boolean;
+    /** No land yet, so nothing to collect - not a daily limit. */
+    needsLand: boolean;
   };
   /** A wider claim reach for a few minutes. */
   scout: {
@@ -297,6 +301,8 @@ export interface Quest {
 
 export interface DailyStatus {
   today: string;
+  /** The player's next local midnight (ISO), worked out on the server. */
+  resetsAt: string;
   daily: {
     available: boolean;
     streak: number;

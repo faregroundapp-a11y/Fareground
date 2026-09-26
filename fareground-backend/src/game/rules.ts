@@ -274,6 +274,18 @@ export const MAX_SCOUT_ADS_PER_DAY = 6;
 /** Claim reach while scouting, against MAX_CLAIM_DISTANCE_M normally. */
 export const SCOUT_CLAIM_DISTANCE_M = 75;
 
+/**
+ * Every "per day" cap in this file means per LOCAL day: it resets at the
+ * player's own midnight, computed on the server (see db/localTime.ts). Until
+ * 2026-09-26 the ad caps were a rolling 24 hours, which testers rightly
+ * reported as "the daily rewards don't reset".
+ *
+ * The only thing a player could move to reach "tomorrow" early is their time
+ * zone, so it may change at most once in this many days. A change inside the
+ * window is quietly ignored - a traveller keeps their home day for a while.
+ */
+export const TIME_ZONE_CHANGE_COOLDOWN_DAYS = 7;
+
 export function dailyAdCap(kind: AdRewardKind): number {
   if (kind === 'BOOST') return MAX_BOOST_ADS_PER_DAY;
   if (kind === 'WALK_POINTS') return MAX_WP_ADS_PER_DAY;
@@ -307,15 +319,14 @@ export function dailyChestWp(streak: number): number {
   return DAILY_CHEST_WP[i];
 }
 
-/**
- * Guards against resetting "today" by changing time zone: a reward is never
- * paid twice within this many hours. Deliberately short - opening the chest
- * at 11pm and again at 8am the next day is honest play and must work. The
- * one-per-local-day unique index does the real work; this only stops rapid
- * time-zone hopping, which could otherwise squeeze extra days out.
+/*
+ * DAILY_MIN_GAP_HOURS and QUEST_MIN_GAP_HOURS lived here until 2026-09-26: a
+ * reward could not be paid twice within 4 hours, to stop time-zone hopping.
+ * They are GONE because they broke the midnight reset - a chest opened at
+ * 11:30pm could not be opened again until 3:30am, while the app said it was
+ * ready, and a quest collected late showed "Collect" and then errored.
+ * TIME_ZONE_CHANGE_COOLDOWN_DAYS now does their job properly.
  */
-export const DAILY_MIN_GAP_HOURS = 4;
-export const QUEST_MIN_GAP_HOURS = 4;
 
 export type QuestMetric = 'STEPS' | 'CLAIMS' | 'ADS';
 

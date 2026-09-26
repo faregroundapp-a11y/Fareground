@@ -13,6 +13,7 @@
  * within TREASURE_COLLECT_DISTANCE_M, which the server checks.
  */
 import { randomInt } from 'node:crypto';
+import { localMidnightSql } from '../db/localTime';
 import { query, withTransaction } from '../db/pool';
 import { cellCenter, cellForLatLng, cellRadius } from '../game/grid';
 import {
@@ -135,7 +136,7 @@ async function counts(userId: string): Promise<Counts> {
          WHERE user_id = $1 AND local_day = (NOW() AT TIME ZONE u.time_zone)::date)::int AS used_today,
        (SELECT COUNT(*) FROM ad_rewards
          WHERE user_id = $1 AND kind = 'TREASURE' AND status = 'GRANTED'
-           AND granted_at > NOW() - INTERVAL '24 hours')::int AS ad_boxes,
+           AND granted_at >= ${localMidnightSql('u.time_zone')})::int AS ad_boxes,
        to_char((NOW() AT TIME ZONE u.time_zone)::date, 'YYYY-MM-DD') AS today
      FROM users u WHERE u.id = $1`,
     [userId],

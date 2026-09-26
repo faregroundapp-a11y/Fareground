@@ -24,6 +24,7 @@
 import { randomBytes } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { config } from '../config/env';
+import { localMidnightSql, nextLocalMidnightSql, USER_TZ } from '../db/localTime';
 import { query, withTransaction } from '../db/pool';
 import { AD_UNLOCKABLE } from '../game/avatar';
 import {
@@ -47,6 +48,13 @@ import { applyStreakSave, assertCanSaveStreak, assertDoubleable, payDouble } fro
 import { applyUpgrade, assertCanUpgrade } from './parcels.service';
 import { assertCanSpawnBox, spawnAdBox } from './treasure.service';
 import { settleCoinIncome } from './user.service';
+
+/**
+ * Every daily ad cap counts from the player's LOCAL midnight (see
+ * db/localTime.ts). It used to be a rolling 24 hours, so an ad watched at
+ * 9pm blocked the next one until 9pm the following day.
+ */
+const TODAY_BEGAN = localMidnightSql(USER_TZ);
 
 export interface RewardStatus {
   boost: {
@@ -83,6 +91,8 @@ export interface RewardStatus {
     coins: number;
     adsLeftToday: number;
     canCollect: boolean;
+    /** True when the player owns no land - there is no income to collect. */
+    needsLand: boolean;
   };
   /** A wider claim reach for a few minutes. */
   scout: {
@@ -95,6 +105,8 @@ export interface RewardStatus {
     adsLeftToday: number;
     canAdd: boolean;
   };
+  /** When every "adsLeftToday" above resets: the player's next local midnight. */
+  resetsAt: Date;
 }
 
 export interface AdTicket {
@@ -131,6 +143,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
     scout_remaining_s: number;
     scout_ends_at: Date | null;
     coins_per_hour: number;
+    resets_at: Date;
   }>(
     `SELECT
        (SELECT MAX(ends_at) FROM boosts WHERE user_id = $1 AND source = 'AD' AND ends_at > NOW()) AS ends_at,
@@ -144,17 +157,18 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
        COALESCE((SELECT SUM(multiplier - 1) FROM boosts WHERE user_id = $1
            AND starts_at <= NOW() AND ends_at > NOW()), 0)::int AS active_extra,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'BOOST'
-           AND status = 'GRANTED' AND granted_at > NOW() - INTERVAL '24 hours')::int AS boost_ads,
+           AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS boost_ads,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'WALK_POINTS'
-           AND status = 'GRANTED' AND granted_at > NOW() - INTERVAL '24 hours')::int AS wp_ads,
+           AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS wp_ads,
        (SELECT COUNT(*) FROM parcels WHERE owner_id = $1)::int AS parcels,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'INSTANT_COLLECT'
-           AND status = 'GRANTED' AND granted_at > NOW() - INTERVAL '24 hours')::int AS collect_ads,
+           AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS collect_ads,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'SCOUT'
-           AND status = 'GRANTED' AND granted_at > NOW() - INTERVAL '24 hours')::int AS scout_ads,
+           AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS scout_ads,
        COALESCE((SELECT GREATEST(EXTRACT(EPOCH FROM (scout_until - NOW())), 0) FROM users WHERE id = $1), 0)::double precision AS scout_remaining_s,
        (SELECT CASE WHEN scout_until > NOW() THEN scout_until END FROM users WHERE id = $1) AS scout_ends_at,
-       COALESCE((SELECT SUM(coins_per_hour + upgrade_level) FROM parcels WHERE owner_id = $1), 0)::int AS coins_per_hour`,
+       COALESCE((SELECT SUM(coins_per_hour + upgrade_level) FROM parcels WHERE owner_id = $1), 0)::int AS coins_per_hour,
+       ${nextLocalMidnightSql(USER_TZ)} AS resets_at`,
     [userId],
   );
   const row = r.rows[0];
@@ -184,6 +198,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
       coins: row.coins_per_hour * INSTANT_COLLECT_HOURS,
       adsLeftToday: Math.max(0, MAX_INSTANT_COLLECT_ADS_PER_DAY - row.collect_ads),
       canCollect: row.coins_per_hour > 0 && row.collect_ads < MAX_INSTANT_COLLECT_ADS_PER_DAY,
+      needsLand: row.coins_per_hour === 0,
     },
     scout: {
       active: Math.floor(row.scout_remaining_s) > 0,
@@ -202,6 +217,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
       remainingSeconds: Math.floor(row.prize_remaining_s),
     },
     activeMultiplier: 1 + row.active_extra,
+    resetsAt: row.resets_at,
   };
 }
 
@@ -211,7 +227,7 @@ function assertCanEarn(status: RewardStatus, kind: AdRewardKind): void {
       throw new HttpError(409, 'Claim some land first - a boost doubles what your land earns.');
     }
     if (status.boost.adsLeftToday <= 0) {
-      throw new HttpError(429, 'You have used all of today\'s boosts. They come back over the next day.');
+      throw new HttpError(429, 'You have used all of today\'s boosts. They come back at midnight.');
     }
     if (!status.boost.canAdd) {
       throw new HttpError(409, `Your boost is already full (${BOOST_MAX_BANKED_SECONDS / 3600} hours). Top it up later.`);
@@ -219,15 +235,18 @@ function assertCanEarn(status: RewardStatus, kind: AdRewardKind): void {
   } else if (kind === 'WALK_POINTS' && status.walkPoints.adsLeftToday <= 0) {
     throw new HttpError(429, 'You have collected all of today\'s bonus Walk Points. Walking still counts!');
   } else if (kind === 'INSTANT_COLLECT') {
-    if (status.instantCollect.adsLeftToday <= 0) {
-      throw new HttpError(429, "That's all the instant collects for today. They come back over the next day.");
-    }
-    if (!status.instantCollect.canCollect) {
+    // Land first: with none, the real reason is "nothing to collect", and
+    // saying "none left today" sent players to wait for a reset that could
+    // never help them.
+    if (status.instantCollect.needsLand) {
       throw new HttpError(409, 'Claim some land first - there is nothing to collect yet.');
+    }
+    if (status.instantCollect.adsLeftToday <= 0) {
+      throw new HttpError(429, "That's all the instant collects for today. They come back at midnight.");
     }
   } else if (kind === 'SCOUT') {
     if (status.scout.adsLeftToday <= 0) {
-      throw new HttpError(429, "That's all the scouting for today. It comes back over the next day.");
+      throw new HttpError(429, "That's all the scouting for today. It comes back at midnight.");
     }
     if (!status.scout.canAdd) throw new HttpError(409, 'You already have scouting running.');
   }

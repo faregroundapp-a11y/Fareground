@@ -6,23 +6,25 @@
  *   POST /daily/quests/:key     collect a finished quest
  *   POST /user/timezone         so "today" is the player's today
  *
- * "Today" is the player's local calendar day (users.time_zone). Changing time
- * zone to get a second "today" is blocked by minimum gaps between claims
- * (DAILY_MIN_GAP_HOURS / QUEST_MIN_GAP_HOURS), and every claim is unique per
- * local day in the database.
+ * "Today" is the player's local calendar day (users.time_zone), computed on
+ * the server - the phone's clock is never asked. Everything resets at that
+ * midnight. The zone can move at most once per TIME_ZONE_CHANGE_COOLDOWN_DAYS,
+ * and a claim is refused for any day at or before one already claimed, so a
+ * zone hop can never replay a day. Every claim is also unique per local day
+ * in the database.
  */
 import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { nextLocalMidnightSql } from '../db/localTime';
 import { query, withTransaction } from '../db/pool';
 import {
   AD_STREAK_REWARD_WP,
   AD_STREAK_TARGET,
   DAILY_CHEST_WP,
-  DAILY_MIN_GAP_HOURS,
   DAILY_QUESTS,
   DOUBLE_WINDOW_HOURS,
   MAX_STREAK_SAVES_PER_WEEK,
-  QUEST_MIN_GAP_HOURS,
   STREAK_SAVE_WITHIN_DAYS,
+  TIME_ZONE_CHANGE_COOLDOWN_DAYS,
   dailyChestWp,
   type QuestDefinition,
   type QuestMetric,
@@ -44,6 +46,8 @@ export interface ClaimSummary {
 
 export interface DailyStatus {
   today: string;
+  /** The player's next local midnight - when the chest and quests reset. */
+  resetsAt: Date;
   daily: {
     available: boolean;
     /** The streak day you are on (the one you would open now, or opened today). */
@@ -102,10 +106,11 @@ const summary = (r: ClaimRow): ClaimSummary => ({
 
 /** Today in the player's zone, plus yesterday, as YYYY-MM-DD strings. */
 async function days(client: Db, userId: string) {
-  const r = await client.query<{ tz: string; today: string; yesterday: string }>(
+  const r = await client.query<{ tz: string; today: string; yesterday: string; resets_at: Date }>(
     `SELECT time_zone AS tz,
             to_char((NOW() AT TIME ZONE time_zone)::date, 'YYYY-MM-DD') AS today,
-            to_char((NOW() AT TIME ZONE time_zone)::date - 1, 'YYYY-MM-DD') AS yesterday
+            to_char((NOW() AT TIME ZONE time_zone)::date - 1, 'YYYY-MM-DD') AS yesterday,
+            ${nextLocalMidnightSql('time_zone')} AS resets_at
        FROM users WHERE id = $1`,
     [userId],
   );
@@ -211,7 +216,7 @@ function saveableDay(lastDaily: ClaimRow | undefined, today: string, saved: Set<
 
 export async function dailyStatus(userId: string): Promise<DailyStatus> {
   const client: Db = { query: (text, params) => query(text, params ?? []) };
-  const { tz, today, yesterday } = await days(client, userId);
+  const { tz, today, yesterday, resets_at: resetsAt } = await days(client, userId);
   const [claims, progress, checkin, saves, ads] = await Promise.all([
     recentClaims(client, userId),
     progressToday(client, userId, tz, today),
@@ -221,13 +226,14 @@ export async function dailyStatus(userId: string): Promise<DailyStatus> {
   ]);
 
   const lastDaily = claims.find((c) => c.source === 'DAILY');
-  const claimedToday = lastDaily && lastDaily.local_day === today ? lastDaily : null;
+  // `>=` to match claimDaily: a day already opened in an earlier zone counts.
+  const claimedToday = lastDaily && lastDaily.local_day >= today ? lastDaily : null;
   const streak = nextStreak(lastDaily, today, yesterday, saves.days);
   const missedDay = saveableDay(lastDaily, today, saves.days);
   const adStreakClaim = claims.find((c) => c.source === 'ADSTREAK' && c.local_day === today) ?? null;
 
   const quests = DAILY_QUESTS.map((q) => {
-    const claim = claims.find((c) => c.source === 'QUEST' && c.quest_key === q.key && c.local_day === today) ?? null;
+    const claim = claims.find((c) => c.source === 'QUEST' && c.quest_key === q.key && c.local_day >= today) ?? null;
     const p = Math.min(q.target, progress[q.metric]);
     return {
       key: q.key,
@@ -243,6 +249,7 @@ export async function dailyStatus(userId: string): Promise<DailyStatus> {
   const dailyAvailable = !claimedToday;
   return {
     today,
+    resetsAt,
     daily: {
       available: dailyAvailable,
       streak,
@@ -362,20 +369,18 @@ export async function claimDaily(userId: string): Promise<ClaimResult> {
     await lockUser(client, userId);
     const { today, yesterday } = await days(client, userId);
     const last = (
-      await client.query<ClaimRow & { hours_ago: number }>(
+      await client.query<ClaimRow>(
         `SELECT id, source, quest_key, to_char(local_day, 'YYYY-MM-DD') AS local_day, amount, streak, doubled_at,
-                TRUE AS can_double,
-                (EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0)::double precision AS hours_ago
+                TRUE AS can_double
            FROM reward_claims WHERE user_id = $1 AND source = 'DAILY'
           ORDER BY created_at DESC LIMIT 1`,
         [userId],
       )
     ).rows[0];
 
-    if (last && last.local_day === today) throw new HttpError(409, "You've already opened today's chest. Come back tomorrow!");
-    if (last && last.hours_ago < DAILY_MIN_GAP_HOURS) {
-      throw new HttpError(409, 'Your next chest is not ready yet. Come back tomorrow!');
-    }
+    // `>=`, not `===`: after a zone change westwards "today" can be a day the
+    // player already opened in the old zone, and that must not pay twice.
+    if (last && last.local_day >= today) throw new HttpError(409, "You've already opened today's chest. Come back tomorrow!");
 
     const saves = await savedDays(client, userId);
     const streak = nextStreak(last, today, yesterday, saves.days);
@@ -408,8 +413,8 @@ export async function claimQuest(userId: string, key: string): Promise<ClaimResu
     const recent = await client.query(
       `SELECT 1 FROM reward_claims
         WHERE user_id = $1 AND source = 'QUEST' AND quest_key = $2
-          AND (local_day = $3::date OR created_at > NOW() - ($4 || ' hours')::interval)`,
-      [userId, key, today, QUEST_MIN_GAP_HOURS],
+          AND local_day >= $3::date`,
+      [userId, key, today],
     );
     if ((recent.rowCount ?? 0) > 0) throw new HttpError(409, 'You already collected that quest today.');
 
@@ -460,18 +465,45 @@ export async function payDouble(client: PoolClient, userId: string, claimId: str
   return r.rows[0].amount;
 }
 
-/** Remember the player's time zone. Postgres itself validates the name. */
-export async function setTimeZone(userId: string, timeZone: string): Promise<{ timeZone: string; today: string }> {
+/**
+ * Remember the player's time zone. Postgres itself validates the name.
+ *
+ * A change inside TIME_ZONE_CHANGE_COOLDOWN_DAYS is IGNORED, not refused (see
+ * migration 027): hopping zones is the one way left to reach "tomorrow" early
+ * once every daily reset runs on the server's clock. The answer always says
+ * which zone is actually in force, so the app never has to guess.
+ */
+export async function setTimeZone(
+  userId: string,
+  timeZone: string,
+): Promise<{ timeZone: string; today: string; changed: boolean }> {
   try {
     await query('SELECT NOW() AT TIME ZONE $1', [timeZone]);
   } catch {
     throw new HttpError(400, 'Unknown time zone.');
   }
-  const r = await query<{ today: string }>(
-    `UPDATE users SET time_zone = $2 WHERE id = $1
-     RETURNING to_char((NOW() AT TIME ZONE time_zone)::date, 'YYYY-MM-DD') AS today`,
-    [userId, timeZone],
+  // One statement, so two launches racing cannot both slip a change through.
+  const r = await query<{ time_zone: string; today: string; changed: boolean }>(
+    `WITH prev AS (SELECT time_zone AS old FROM users WHERE id = $1 FOR UPDATE)
+     UPDATE users u
+        SET time_zone = $2, time_zone_changed_at = NOW()
+       FROM prev
+      WHERE u.id = $1
+        AND prev.old <> $2
+        AND (u.time_zone_changed_at IS NULL
+             OR u.time_zone_changed_at < NOW() - ($3 || ' days')::interval)
+     RETURNING u.time_zone, to_char((NOW() AT TIME ZONE u.time_zone)::date, 'YYYY-MM-DD') AS today, TRUE AS changed`,
+    [userId, timeZone, TIME_ZONE_CHANGE_COOLDOWN_DAYS],
   );
-  if (r.rowCount === 0) throw new HttpError(401, 'User no longer exists.');
-  return { timeZone, today: r.rows[0].today };
+  if (r.rowCount) {
+    return { timeZone: r.rows[0].time_zone, today: r.rows[0].today, changed: true };
+  }
+  // Same zone, or inside the cooldown: report the zone that stands.
+  const cur = await query<{ time_zone: string; today: string }>(
+    `SELECT time_zone, to_char((NOW() AT TIME ZONE time_zone)::date, 'YYYY-MM-DD') AS today
+       FROM users WHERE id = $1`,
+    [userId],
+  );
+  if (cur.rowCount === 0) throw new HttpError(401, 'User no longer exists.');
+  return { timeZone: cur.rows[0].time_zone, today: cur.rows[0].today, changed: false };
 }

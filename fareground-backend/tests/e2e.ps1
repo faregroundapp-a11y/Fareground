@@ -598,6 +598,12 @@ $p = New-Player
 Sql "UPDATE users SET walk_points_balance = 0 WHERE email = '$($p.email)';" | Out-Null
 $tz = Invoke-Api POST '/user/timezone' @{ timeZone = 'Europe/London' } -Token $p.token
 Check 'time zone accepted' ($tz.status -eq 200 -and $tz.body.timeZone -eq 'Europe/London') "got $($tz.status)"
+# A second zone inside the cooldown is ignored, not refused: hopping zones is
+# the one way left to reach "tomorrow" early (migration 027).
+$hop = Invoke-Api POST '/user/timezone' @{ timeZone = 'Asia/Tokyo' } -Token $p.token
+Check 'a zone hop inside the cooldown is ignored' ($hop.status -eq 200 -and $hop.body.timeZone -eq 'Europe/London' -and $hop.body.changed -eq $false) "got $($hop.status) $($hop.body.timeZone)"
+$d = (Invoke-Api GET '/daily' -Token $p.token).body
+Check 'daily status says when it resets' ([bool]$d.resetsAt) "got $($d.resetsAt)"
 $bad = Invoke-Api POST '/user/timezone' @{ timeZone = 'Mars/Olympus_Mons' } -Token $p.token
 Check 'unknown time zone -> 400' ($bad.status -eq 400) "got $($bad.status)"
 $d = (Invoke-Api GET '/daily' -Token $p.token).body

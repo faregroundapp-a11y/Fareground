@@ -157,7 +157,7 @@ export const api = {
 
   /** So "today" on the server is the player's today. */
   setTimeZone: (token: string, timeZone: string) =>
-    request<{ timeZone: string; today: string }>('POST', '/user/timezone', { token, body: { timeZone } }),
+    request<{ timeZone: string; today: string; changed: boolean }>('POST', '/user/timezone', { token, body: { timeZone } }),
   completeReward: (token: string, nonce: string, at?: { lat: number; lng: number } | null) =>
     request<AdCompleteResult>('POST', '/rewards/complete', { token, body: { nonce, ...(at ?? {}) } }),
 
