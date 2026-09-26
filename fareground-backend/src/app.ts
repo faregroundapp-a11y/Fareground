@@ -16,6 +16,7 @@ import { checkinRouter, leaderboardRouter, treasureRouter } from './routes/leade
 import { pitStopRouter } from './routes/pitstop.routes';
 import { profileRouter } from './routes/profile.routes';
 import { referralRouter } from './routes/referral.routes';
+import { storeRouter } from './routes/store.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { config } from './config/env';
 import { PHOTO_URL_PREFIX, readPhotoFile } from './services/photo.service';
@@ -98,6 +99,7 @@ export function createApp() {
   app.use('/pitstops', apiLimiter, pitStopRouter); // stop on claimed land for WP
   app.use('/profile', apiLimiter, profileRouter); // profiles and badges
   app.use('/referral', apiLimiter, referralRouter); // invite a friend
+  app.use('/store', apiLimiter, storeRouter); // trade coins for Walk Points
   app.use('/user', apiLimiter, userRouter); // GET  /user/balance
 
   // --- Fallbacks. These MUST be registered last. ---

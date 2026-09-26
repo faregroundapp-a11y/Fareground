@@ -145,6 +145,13 @@ export const api = {
 
   /** Invite a friend: your code, and using someone else's. */
   referral: (token: string) => request<ReferralStatus>('GET', '/referral', { token }),
+  /** Spend coins on Walk Points (COINS_PER_WALK_POINT on the server). */
+  tradeWalkPoints: (token: string, walkPoints: number) =>
+    request<{ walkPoints: number; coinsSpent: number; walkPointsBalance: number; coins: number }>(
+      'POST',
+      '/store/walk-points',
+      { token, body: { walkPoints } },
+    ),
   redeemReferral: (token: string, code: string) =>
     request<RedeemResult>('POST', '/referral/redeem', { token, body: { code } }),
 

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api, ApiError } from '@/api/client';
 import type { AdRewardKind } from '@/api/types';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance, useGameDaily } from '@/state/game';
+import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
@@ -27,6 +29,28 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
     refreshDaily();
   });
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
+  const { token } = useSession();
+  const [trading, setTrading] = useState(false);
+
+  /**
+   * Coins into land: one parcel's worth of Walk Points at a time. Not an ad -
+   * it lives here because this is where players go to "get more", and it is
+   * the one offer that turns what their land earned into more land.
+   */
+  async function trade(walkPoints: number) {
+    if (!token) return;
+    setNote(null);
+    setTrading(true);
+    try {
+      const t = await api.tradeWalkPoints(token, walkPoints);
+      setNote({ text: `+${t.walkPoints} Walk Points for ${t.coinsSpent.toLocaleString()} coins.`, good: true });
+      refresh();
+    } catch (e) {
+      setNote({ text: e instanceof ApiError ? e.message : 'Something went wrong. Please try again.', good: false });
+    } finally {
+      setTrading(false);
+    }
+  }
 
   async function run(kind: AdRewardKind) {
     setNote(null);
@@ -142,6 +166,23 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
                 }}
                 left={`${r.scout.adsLeftToday} left today`}
                 disabledAll={busy !== null}
+              />
+
+              {/* coins into land - no ad, just a trade */}
+              <Offer
+                icon={<CoinIcon size={26} />}
+                wellColor="#FFF3DC"
+                title={`Turn coins into land`}
+                subtitle={`${(balance.parcelPrice * balance.coinsPerWalkPoint).toLocaleString()} coins buys ${balance.parcelPrice} WP - a whole parcel`}
+                button={{
+                  label: `Trade · +${balance.parcelPrice} WP`,
+                  variant: 'light',
+                  disabled: balance.coins < balance.parcelPrice * balance.coinsPerWalkPoint,
+                  busy: trading,
+                  onPress: () => trade(balance.parcelPrice),
+                }}
+                left={`${balance.coins.toLocaleString()} coins`}
+                disabledAll={busy !== null || trading}
               />
 
               <Text style={[type.caption, { textAlign: 'center', marginTop: space.xs }]}>

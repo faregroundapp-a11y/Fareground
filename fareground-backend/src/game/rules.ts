@@ -20,69 +20,30 @@ export const STEPS_PER_WALK_POINT = 100;
 
 /**
  * ---------------------------------------------------------------------------
- *  PARCEL PRICE - 50 WP, plus 1 WP for every parcel you already own.
+ *  PARCEL PRICE - FLAT. 50 WP, your first parcel and your five hundredth.
  * ---------------------------------------------------------------------------
- *  1st 50 WP, 10th 59, 50th 99, 100th 149, 200th 249. The welcome bonus
- *  covers the first one.
+ *  5,000 steps buys a parcel, always. The product owner's decision
+ *  (2026-09-26): "I don't want prices to increase." It is also TerraMine's
+ *  shape (a flat 100 TB a mine) and the easiest rule in the game to explain.
  *
- *  2026-09-26: the flat price below was made to rise again, gently. Testers
- *  worked the numbers out and were right: with a flat price AND a boost that
- *  covered the whole day, a regular walker's land paid out about ten times
- *  what their ads earned us - a loss on every engaged player the moment coins
- *  are worth cash. The step is +1, not the old +8: early land stays almost as
- *  cheap as flat (the first 50 parcels average 75 WP), and only a player
- *  holding hundreds feels it. Modelled for a regular walker (8,000 steps and
- *  the daily rewards): ~200 parcels after a year, ~370 after three, first
- *  $0.25 in about 2-3 months - and ad revenue covers the land at 1.0-2.1x
- *  for a 3-ad player and 1.7-3.9x for a 12-ad one, from year one to three.
+ *  History, because the trade is the same whoever tunes this next: it rose
+ *  (20 WP + 8 per parcel owned) until 2026-09-24, went flat at 20 then 50,
+ *  rose gently again (+1) for two days, and is flat for good now.
  *
- *  The history, kept because the trade is the same whoever tunes this next:
- *
- *  This replaced a RISING price (20 WP + 8 per parcel owned) on 2026-09-24,
- *  at the product owner's decision. It went flat at 20 WP first and was
- *  raised to 50 the same day. Both halves of the flat-price trade are real
- *  and whoever reads this next should understand them:
- *
- *  WHAT A FLAT PRICE BUYS. It is the single biggest thing separating us from
- *  TerraMine, whose mines are a flat 100 TB. Flat means land grows in a
- *  STRAIGHT LINE with walking; rising means it grows like a square root. It
- *  is why their players reach 1,400 mines where ours reached a few hundred,
- *  and it is why their totals read as worth playing for. It is also simply
- *  easier to understand: "5,000 steps is a parcel" needs no explaining, and
- *  a price that climbs is a treadmill the player feels even if they cannot
- *  name it.
- *
- *  WHY 50 AND NOT 20. At 20 WP a 10,000-step day bought FIVE parcels, every
- *  day, for ever - about 1,800 in the first year. That is more land than the
- *  map around one person can absorb, it makes a claim feel like nothing, and
- *  it piles up liability at a rate no ad revenue could ever meet. 50 WP is
- *  half a normal day's walking per parcel: still roughly six times the land
- *  the old rising price gave, still simple to explain, and 2.5x cheaper to
- *  us than the 20 WP version.
- *
- *  WHAT IT STILL COSTS. Parcels pay FOREVER, so every one is an annuity.
- *  With a flat price what we owe grows in a straight line with time walked,
- *  with no ceiling - just a shallower line than at 20 WP. A player walking
- *  8,000 steps a day gains ~0.6 parcels a day for ever instead of tapering.
- *
- *  >> THAT ONLY COSTS REAL MONEY IF CASH REDEMPTION IS SWITCHED ON. <<
- *
- *  Nothing writes a PAYOUT ledger row today, so the liability is currently
- *  notional. If redemption is ever built, THIS NUMBER IS THE FIRST THING TO
- *  REVISIT - either restore the rising step, or cap total parcels, or price
- *  redemption against a flat-price world from the start. Do not build
- *  payouts on top of a flat price without redoing the solvency model in
- *  rules.test.ts; the old one assumed a square root and is no longer valid.
+ *  WHAT A FLAT PRICE COSTS. Every parcel pays for ever, so land owed grows in
+ *  a straight line with walking. That is only affordable because of the
+ *  valves further down this file: the boost tapers once a player holds a lot
+ *  of land (BOOST_TIERS), coins trade back into Walk Points
+ *  (COINS_PER_WALK_POINT), and cash-out starts at $5 (MIN_REDEMPTION_COINS).
+ *  Take one of those away and the price has to start rising again.
  */
 export const PARCEL_BASE_PRICE_WP = 50;
 
 /**
- * The rise per parcel owned. 0 made the price flat (2026-09-24 to -26), 8 was
- * the original steep curve. 1 is what keeps land growing more slowly than
- * walking - which is the whole solvency argument - without making the tenth
- * parcel feel expensive.
+ * The rise per parcel owned. ZERO - flat. Kept as a number rather than
+ * deleted so a future rising price is one edit, not an archaeology exercise.
  */
-export const PARCEL_PRICE_STEP_WP: number = 1;
+export const PARCEL_PRICE_STEP_WP: number = 0;
 
 /** What the NEXT parcel costs, given how many the player already owns. */
 export function parcelPriceWp(owned: number): number {
@@ -106,21 +67,12 @@ export const SIGNUP_BONUS_WP = PARCEL_BASE_PRICE_WP;
  * ---------------------------------------------------------------------------
  *  REWARDED ADS - the revenue engine.
  * ---------------------------------------------------------------------------
- *  A player chooses to watch an ad and gets one of two rewards:
- *
- *   BOOST        30 minutes of DOUBLE coin income. These stack, but at most 4
- *                hours can be banked ahead, so a boost is something you top
- *                up, not something you farm.
- *   WALK_POINTS  +5 WP (worth 500 steps) straight away.
- *
- *  Both have daily caps (a rolling 24 hours). The caps protect us: every
- *  reward is a real cost, and ad networks pay less for a player who watches
- *  forty ads in a row. They also keep walking the main way to earn.
- *
- *  Liability of a boost: at most 12 x 30 min = 6 hours of 2x income a day,
- *  which is +25% on that player's income. One rewarded ad earns us roughly
- *  $0.01-0.03. A player with 100 parcels makes ~0.03 coins' worth of dollars
- *  per boosted hour, so every boost pays for itself many times over.
+ *  Every ad is opt-in: a player chooses to watch one for a reward. The two
+ *  plainest are BOOST (20x coins for 30 minutes) and WALK_POINTS (+5 WP);
+ *  the rest are listed below. Each has a cap per LOCAL day - they protect
+ *  us, since every reward is a real cost, and ad networks pay less for a
+ *  player who watches forty in a row. One rewarded ad earns us roughly
+ *  $0.008-0.025 depending mostly on the viewer's country.
  */
 export type AdRewardKind =
   | 'BOOST'
@@ -137,95 +89,54 @@ export type AdRewardKind =
   | 'PHOTO';
 
 /**
- * BOOSTS ARE THE EARNING LEVER, not the base rate. It is the single most
- * important thing about the economy and it took three goes to get right.
+ * ---------------------------------------------------------------------------
+ *  THE BOOST - TerraMine's shape, because testers compare us with it.
+ * ---------------------------------------------------------------------------
+ *  20x coins, 30 minutes per rewarded ad, banking up to 8 hours, and enough
+ *  ads a day to stay boosted around the clock if a player wants to. That is
+ *  exactly TerraMine's boost (researched 2026-09-26), and it is what makes
+ *  "400 parcels fully boosted is about $1 a day" true here as it is there.
  *
- * SHAPED AFTER TERRAMINE, the closest comparable game. It is worth being
- * precise about why, because the first assumption about it was wrong:
- * TerraMine mines are NOT bought with real money. They are claimed for
- * 100 TerraBucks earned by walking, exactly like our parcels. It is a true
- * peer, so its numbers are the right target.
+ *  THE PROBLEM A BIG BOOST HAS, and the valve for it. What one ad COSTS us
+ *  grows with the land it multiplies, while what the ad EARNS us does not. At
+ *  20x and 400 parcels a 30-minute ad pays the player about $0.02 - roughly
+ *  what the ad itself earns. Beyond that, every ad would lose money. So the
+ *  multiplier TAPERS as land grows (BOOST_TIERS below), the way Atlas Earth's
+ *  does: a new or ordinary player always gets the full 20x, and only a very
+ *  large holder sees it ease off. The cost of one ad stays roughly level
+ *  however much land is behind it.
  *
- * Its boost reaches 20x, handed out in 30-minute pieces, stacking to at most
- * 8 hours a day - a daily average of (8x20 + 16)/24 = 7.3x.
- *
- * Ours were: 30 min per ad, 4h bank, 2x (about +25% on a day). Then 2 hours
- * per ad, 24h bank, still 2x (a flat doubling). Both were the wrong SHAPE: a
- * small multiplier spread thin, where the genre uses a big multiplier in
- * short bursts. A burst is something a player plans a walk around; a flat 2x
- * is wallpaper.
- *
- * Now 20x, in THIRTY-MINUTE pieces, banking to 12 hours - two days of ads. (It was two-hour pieces and a 24-hour bank for two days; the
- * paragraphs below still describe that setting and why it was cut.)
- *
- * SECONDS PER AD IS THE LEVER, NOT THE BANK - and that lever has now been
- * pulled all the way. What a player earns per day is capped by
- * MAX_BOOST_ADS_PER_DAY x BOOST_SECONDS_PER_AD; the bank only decides when
- * those hours may be spent. At two hours an ad, twelve ads buy the whole
- * day, so the two coincide and the day-average is 20x.
- *
- * The bank being 24 hours is still the reason hours can be SAVED rather than
- * burned: a player who watches six ads today and six tomorrow gets the same
- * total boost as one who watches twelve in a morning.
- *
- * At 20 minutes an ad the heavy player's margin at the worst ad price was
- * 2.7x; at 15 it is 3.3x, and that is the row where the real money sits
- * because it carries the highest absolute cost.
- *
- * The three-ads-a-day case stays around 1.75x and that is accepted. Pushing
- * it to 2.0x needs 10-minute pieces, which costs EVERY engaged player 38% of
- * their boost to protect a player who is worth $8.76 a year in the first
- * place. Bad trade. If the ad rates turn out worse than assumed, 10 minutes
- * is the setting to fall back to.
+ *  Boosts are stored with the multiplier they were bought at, so a player who
+ *  crosses a tier mid-boost keeps what they watched for.
  */
 export const BOOST_MULTIPLIER = 20;
 
-/**
- * THIRTY MINUTES PER AD - TerraMine's piece size. A day's twelve ads buy six
- * hours at 20x, a day-average of 5.75x. Cut from two hours on 2026-09-26
- * together with the rising price - see PARCEL_BASE_PRICE_WP - first to 20
- * minutes, then set to 30 by the product owner the same day. It keeps the
- * 20x burst players plan a walk around, and ends the "20x all day" that made
- * every parcel owned cost more than the ads paying for it.
- *
- * 30 rather than 20 costs about 40% more boosted land for a player watching
- * all twelve ads. If ad revenue comes in low, PARCEL_PRICE_STEP_WP = 2 is the
- * lever that pays for it (see the handoff, section 25).
- *
- * WHAT FOLLOWS IS THE HISTORY OF THE TWO-HOUR SETTING, kept for its reasoning.
- * TWO HOURS PER AD made a day's twelve ads fill a 24-hour bank exactly.
- *
- * This is a deliberate, product-owner decision to make the boost feel worth
- * watching an ad for, and it is a BIG change: a player who watches all
- * twelve now spends the whole day at 20x instead of three hours of it. The
- * day-average goes 3.38x -> 20x.
- *
- * >> WHAT THIS WOULD COST IF COINS WERE EVER REDEEMABLE FOR CASH <<
- *
- * The economy report's own "flat 20x" analysis: about $63 of land per
- * engaged player per year, against ad revenue of $8.76 (pessimistic),
- * $32.85 (middling) or $91.25 (good). That is a LOSS in two of the three
- * cases - the report has said so since before this change, and it is still
- * right.
- *
- * It is free today because CASH_REDEMPTION_ENABLED is false: nothing writes
- * a PAYOUT row, so coins cost nothing to mint. The guard in rules.test.ts
- * fails the build the moment anyone flips that flag, and it now checks the
- * boost as well as the parcel price.
- *
- * IF REDEMPTION IS EVER SWITCHED ON, THIS IS THE FIRST NUMBER TO CUT. 15
- * minutes an ad (3.38x over a day) is the setting it came from and the one
- * the solvency model was built on.
- */
+/** Thirty minutes per ad - TerraMine's piece size. */
 export const BOOST_SECONDS_PER_AD = 30 * 60;
 
+/** Eight hours banked at most - TerraMine's cap. Top it up through the day. */
+export const BOOST_MAX_BANKED_SECONDS = 8 * 60 * 60;
+
+/** 48 x 30 min = a whole day, for a player who really wants it. */
+export const MAX_BOOST_ADS_PER_DAY = 48;
+
 /**
- * Twelve hours: two days' worth of ads (12 x 30 min = 6 h a day). Hours can be
- * saved up for a long walk, but what a player can EARN per day is still
- * bounded by MAX_BOOST_ADS_PER_DAY, not by this.
+ * The taper: the multiplier a boost ad buys, by land held. Full 20x up to
+ * 400 parcels (TerraMine's "$1 a day" point), then easing so that one ad's
+ * cost to us stays near what the ad earns.
  */
-export const BOOST_MAX_BANKED_SECONDS = 12 * 60 * 60;
-export const MAX_BOOST_ADS_PER_DAY = 12;
+export const BOOST_TIERS: readonly { upToParcels: number; multiplier: number }[] = [
+  { upToParcels: 400, multiplier: 20 },
+  { upToParcels: 700, multiplier: 15 },
+  { upToParcels: 1_000, multiplier: 10 },
+  { upToParcels: Number.POSITIVE_INFINITY, multiplier: 5 },
+] as const;
+
+/** The multiplier a boost ad buys for a player holding `parcels`. */
+export function boostMultiplierFor(parcels: number): number {
+  const n = Math.max(0, Math.floor(parcels));
+  return (BOOST_TIERS.find((t) => n <= t.upToParcels) ?? BOOST_TIERS[BOOST_TIERS.length - 1]).multiplier;
+}
 
 /**
  * BONUS WALK POINTS - the plainest ad in the game.
@@ -528,17 +439,15 @@ export function pitStopWp(mine: boolean, firstEver: boolean): number {
  *  PARCEL UPGRADES - a Walk Point sink that is CHEAPER for us than more land.
  * ---------------------------------------------------------------------------
  *  A parcel can be upgraded four times. Each level costs Walk Points AND a
- *  rewarded ad, and adds a flat +1 coin/hour:
+ *  rewarded ad, and adds a flat +1 coin a month:
  *
  *      level 1   25 WP + 1 ad     level 3   75 WP + 1 ad
  *      level 2   50 WP + 1 ad     level 4  100 WP + 1 ad
  *
  *  Fully upgrading one parcel costs 250 WP (25,000 steps) and four ads, and
- *  adds 4 coins/hour = $0.035 a year of liability.
- *
- *  Why this HELPS solvency: those same 250 WP would otherwise buy several
- *  early parcels worth more than $0.035/yr between them. Upgrading is the
- *  cheaper way for a player to spend Walk Points, and it pays us four ads.
+ *  adds 4 coins a month = $0.048 a year - it more than doubles a rocky
+ *  parcel. Those 250 WP would otherwise buy five parcels earning about as
+ *  much between them, so upgrading costs us no more, and it pays four ads.
  */
 export const PARCEL_MAX_UPGRADE = 4;
 export const PARCEL_UPGRADE_COINS_PER_LEVEL = 1;
@@ -548,9 +457,9 @@ export function parcelUpgradeCostWp(level: number): number {
   return 25 * (Math.max(0, Math.floor(level)) + 1);
 }
 
-/** A parcel's real rate: its mineral plus whatever it has been upgraded by. */
-export function parcelCoinsPerHour(baseCoinsPerHour: number, upgradeLevel: number): number {
-  return baseCoinsPerHour + PARCEL_UPGRADE_COINS_PER_LEVEL * Math.max(0, Math.min(PARCEL_MAX_UPGRADE, upgradeLevel));
+/** A parcel's real monthly rate: its mineral plus whatever it has been upgraded by. */
+export function parcelCoinsPerMonth(baseCoinsPerMonth: number, upgradeLevel: number): number {
+  return baseCoinsPerMonth + PARCEL_UPGRADE_COINS_PER_LEVEL * Math.max(0, Math.min(PARCEL_MAX_UPGRADE, upgradeLevel));
 }
 
 /**
@@ -614,8 +523,14 @@ export const REFERRAL_MAX_REWARDED = 25;
  * Coin maths is done in MICRO-coins (millionths) so that time never has to be
  * rounded away. Only whole coins are ever credited; the fraction is carried
  * on the user row. See settleCoinIncome in services/user.service.ts.
+ *
+ * It matters more than ever with rates per MONTH: a rocky parcel earns about
+ * 1.16 micro-coins a second, and every one of them is kept.
  */
 export const MICRO_PER_COIN = 1_000_000;
+
+/** A "month" of income is 30 days, so every month pays the same. */
+export const SECONDS_PER_MONTH = 30 * 24 * 60 * 60;
 
 /**
  * Micro-coins earned over a stretch of time.
@@ -625,21 +540,21 @@ export const MICRO_PER_COIN = 1_000_000;
  * (multiplier - 1) extra for the boosted part.
  */
 export function accruedMicroCoins(input: {
-  coinsPerHour: number;
+  coinsPerMonth: number;
   elapsedSeconds: number;
   boostedSeconds: number;
   multiplier?: number;
 }): number {
-  const { coinsPerHour, multiplier = BOOST_MULTIPLIER } = input;
+  const { coinsPerMonth, multiplier = BOOST_MULTIPLIER } = input;
   const elapsed = Math.max(0, input.elapsedSeconds);
   const boosted = Math.min(elapsed, Math.max(0, input.boostedSeconds));
-  return microCoinsFor(coinsPerHour, elapsed + boosted * (multiplier - 1));
+  return microCoinsFor(coinsPerMonth, elapsed + boosted * (multiplier - 1));
 }
 
-/** Micro-coins for `weightedSeconds` of income at `coinsPerHour`. */
-export function microCoinsFor(coinsPerHour: number, weightedSeconds: number): number {
-  if (coinsPerHour <= 0 || weightedSeconds <= 0) return 0;
-  return Math.floor((coinsPerHour * weightedSeconds * MICRO_PER_COIN) / 3600);
+/** Micro-coins for `weightedSeconds` of income at `coinsPerMonth`. */
+export function microCoinsFor(coinsPerMonth: number, weightedSeconds: number): number {
+  if (coinsPerMonth <= 0 || weightedSeconds <= 0) return 0;
+  return Math.floor((coinsPerMonth * weightedSeconds * MICRO_PER_COIN) / SECONDS_PER_MONTH);
 }
 
 /** Split a micro-coin total into whole coins plus the remainder carried over. */
@@ -1346,173 +1261,91 @@ export interface RarityDefinition {
    * 100% - no rounding surprises in a system that hands out real value.
    */
   readonly weightBasisPoints: number;
-  readonly coinsPerHour: number;
+  /** Coins a month. A "month" is SECONDS_PER_MONTH (30 days). */
+  readonly coinsPerMonth: number;
 }
 
 /**
- * The drop table. Order does not matter for fairness, only for readability.
+ * The drop table - TerraMine's rates, with our ruby as the jackpot.
  *
- * NOTE ON THE HOURLY RATES: the drop chances were specified, the rates were
- * not, so these are a proposal. Changing them is a one-line edit here plus a
- * migration to update the CHECK constraint - see db/migrations/003.
+ * Researched 2026-09-26. TerraMine pays exactly what Atlas Earth does per
+ * parcel (Atlas Common = TerraMine Rock = $0.00285 a month), with 60/30/9/1%
+ * odds, and testers compare us with both. So a rocky parcel here pays what
+ * theirs does - 3 coins a month at 1,000 coins to the dollar - and each tier
+ * climbs from there. The ruby, one in a hundred, pays about twice their
+ * diamond: finding one should still change an account.
  *
- * For what it is worth, the average parcel is worth 3.08 coins/hour:
- *   0.60x1 + 0.25x2 + 0.10x5 + 0.04x12 + 0.01x100
- * The floor is about 1.6 whatever you do, because coins are whole numbers and
- * the commonest tier cannot pay less than 1. So the spread between tiers is
- * really a lever on EXCITEMENT, not on how fast coins pile up.
+ *      mineral    odds   coins/month   $/year
+ *      ROCKY      60%        3         $0.036
+ *      COAL       25%        4         $0.048
+ *      AMETHYST   10%        5         $0.060
+ *      SAPPHIRE    4%        8         $0.096
+ *      RUBY        1%       25         $0.300
  *
- * RUBY went 40 -> 100 in the same change that cut the coin's dollar value by
- * 60%. That is the point: the CUT lands on the four common tiers, and the
- * one-in-a-hundred find comes out worth exactly what it was worth before.
- * A rebalance that also flattened the jackpot would have taken the reason to
- * keep claiming along with the liability. Needs migration 017 (a CHECK
- * constraint pins the rate).
+ *  Average parcel: 3.87 coins a month ($0.0039), against TerraMine's
+ *  $0.0035. Changing a rate is a one-line edit here plus a migration for the
+ *  CHECK constraint that pins it (see db/migrations/029).
  */
 export const RARITY_TABLE: readonly RarityDefinition[] = [
-  { rarity: 'ROCKY',    weightBasisPoints: 6_000, coinsPerHour: 1 },  // 60%
-  { rarity: 'COAL',     weightBasisPoints: 2_500, coinsPerHour: 2 },  // 25%
-  { rarity: 'AMETHYST', weightBasisPoints: 1_000, coinsPerHour: 5 },  // 10%
-  { rarity: 'SAPPHIRE', weightBasisPoints:   400, coinsPerHour: 12 }, //  4%
-  { rarity: 'RUBY',     weightBasisPoints:   100, coinsPerHour: 100 }, //  1%
+  { rarity: 'ROCKY',    weightBasisPoints: 6_000, coinsPerMonth: 3 },  // 60%
+  { rarity: 'COAL',     weightBasisPoints: 2_500, coinsPerMonth: 4 },  // 25%
+  { rarity: 'AMETHYST', weightBasisPoints: 1_000, coinsPerMonth: 5 },  // 10%
+  { rarity: 'SAPPHIRE', weightBasisPoints:   400, coinsPerMonth: 8 },  //  4%
+  { rarity: 'RUBY',     weightBasisPoints:   100, coinsPerMonth: 25 }, //  1%
 ] as const;
 
 /**
  * ---------------------------------------------------------------------------
- *  REDEMPTION - the most consequential number in the product.
+ *  WHAT A COIN IS WORTH - 1,000 coins = $1.
  * ---------------------------------------------------------------------------
- *  Coins are redeemable for real money, so every coin this server mints is a
- *  liability. The rate is calibrated against Atlas Earth, whose published
- *  rates annualise like this:
- *
- *      Atlas Common      $0.0000000011/sec  =  $0.035 / year
- *      Atlas Legendary   $0.0000000044/sec  =  $0.139 / year
- *
- *  Fourteen cents a year for their TOP tier. That is not stinginess, it is
- *  the only shape that funds itself: a parcel pays out forever, so its cost
- *  is an annuity, while ad revenue per player is flat. Anything generous
- *  enough to feel like wages goes insolvent within a year.
- *
- *  So: one coin is worth half a millionth of a dollar. Put another way,
- *  TWO MILLION COINS IS ONE DOLLAR.
- *
- *  That lands our average parcel on $0.0135/year, or $0.0456 once a full
- *  day of boost ads is counted in - against $0.0496 for an Atlas Earth
- *  parcel and $0.0415 for an average TerraMine mine. Under both on the base
- *  rate on purpose, level with them once the player has paid for it in ads.
- *  Each tier:
- *
- *      ROCKY      1 coin/hr   $0.00438 / year
- *      COAL       2           $0.00876 / year
- *      AMETHYST   5           $0.0219  / year
- *      SAPPHIRE  12           $0.0526  / year
- *      RUBY     100           $0.438   / year
- *
- *  NOTE THE WIDER SPREAD than Atlas, who run only 4x from bottom to top, or
- *  TerraMine, whose Diamond pays 4x a Rock. We run 100x, on purpose: they
- *  sell or flat-price their land, so the rarity roll is minor flavour on it.
- *  Here the only way to get a parcel is to walk for it, so the roll has to be
- *  worth the walk - finding a ruby should change your account.
- *
- *  SOLVENCY CHECK, with the rising parcel price and every way to earn.
- *
- *  A VERY engaged player earns about 200 WP a day: 80 from 8,000 steps, ~16
- *  from the chest, ~50 from quests, ~20 from a check-in and ~30 from bonus-WP
- *  ads (most of those doubled by watching an ad). They hold, and cost us:
- *
- *      end of year 1  ~133 parcels   ~$1.79/yr
- *      end of year 2  ~190 parcels   ~$2.56/yr
- *      end of year 3  ~233 parcels   ~$3.14/yr
- *
- *  Those are BASE figures. A player who boosts all day costs 3.38x that
- *  ($10.61/yr at year three) - but to do it they must watch twelve ads.
- *
- *  Growth slows every year, because each parcel costs more than the last.
- *  That same player watches something like 8-12 rewarded ads a day; even at a
- *  pessimistic $0.008 a view, three a day is ~$8.76/year of revenue against
- *  ~$5/year of land. The engagement features PAY for the land they buy,
- *  which is the whole point of putting the rewards behind ads.
- *
- *  It only works because the coin rate is this small. Raise it tenfold and we
- *  are underwater in the first year.
- *
- *  THE HONEST CONSEQUENCE: nobody earns a living here. A year of hard walking
- *  buys a few pence. What makes the cash defensible is the rate per HOUR OF
- *  ADS - $0.18 for a Regular player, against a published Atlas Earth figure
- *  of about $0.003 - and not the annual total, which is small and always
- *  will be. The money is a hook, not a wage, and the real reward has to be
- *  the map, the collection and the streak. Design accordingly.
+ *  It was 2,000,000 = $1, which testers read, fairly, as an inflation
+ *  problem: balances in the millions, each coin worth nothing. Now balances
+ *  read in the thousands and a coin is a tenth of a cent. Every balance was
+ *  converted at 2,000 old coins to 1 new one (migration 029): the same money.
  *
  *  Money is NEVER stored as a floating-point number anywhere in this system.
- *  Integer coins are the unit of account; dollars are a derived display value
- *  computed at the edge. That is not fussiness - binary floats cannot
- *  represent most decimal money exactly, and the errors accumulate.
+ *  Integer coins (and micro-coins for fractions) are the unit of account;
+ *  dollars are a derived display value computed at the edge.
+ *
+ *  >> CASH REDEMPTION IS STILL OFF. <<  These rates are TerraMine-level, and
+ *  like TerraMine they only hold up with the valves: the boost taper
+ *  (BOOST_TIERS), coins traded back into Walk Points (COINS_PER_WALK_POINT)
+ *  and a $5 minimum cash-out. Ad revenue per player has to be measured for
+ *  real before this pays anybody anything.
  */
+export const COIN_REDEMPTION_USD = 0.001;
 
 /**
- * One coin in US dollars. TWO MILLION COINS = $1.00.
- *
- * Cut from $0.000002 -> $0.000001 -> $0.0000004, then raised to $0.0000005
- * in the player-side rebalance, as more ways to earn were
- * added. Each cut has the same cause: land pays FOREVER, so every parcel is
- * an annuity we owe for the life of the account, while an ad pays us once.
- * When the faucets widened, the rate had to come down to match.
- *
- * This is the lever that costs the player the least to pull. Coin COUNTS are
- * untouched - the balance still climbs, the counter still ticks, a ruby is
- * still a hundred times a rock. Only the dollar figure at the very edge moves.
- * Trimming the chest or the quests would have been felt on every screen.
- *
- * It is also the honest comparison with Atlas Earth: their parcels are BOUGHT
- * with money, ours are earned by walking, so ours should be worth less each.
+ * Coins a player must bank before they may request a payout: 5,000 = $5,
+ * the same minimum as Atlas Earth and TerraMine. It was $0.25, which cost
+ * more in payment fees than it paid. Coins are spendable from the very first
+ * one (COINS_PER_WALK_POINT), so nobody waits on this to use what they earn.
  */
-export const COIN_REDEMPTION_USD = 0.0000005;
+export const MIN_REDEMPTION_COINS = 5_000;
 
 /**
- * Coins a player must bank before they may request a payout. 500,000 = $0.25.
- *
- * Was $1.00, which measured out as: a casual player waiting TWO YEARS to be
- * allowed to collect anything at all, and even a player squeezing every
- * source waiting a full year. Nobody stays for that, and a reward nobody
- * reaches is not a reward - it is a number going up next to a locked door.
- *
- * Lowering it costs the business nothing. It does not change a single rate;
- * it only changes when somebody may take what they have already earned.
- * Everything about solvency is decided by the coin value and the parcel
- * price, both of which are untouched.
- *
- * ONE CAVEAT FOR WHOEVER BUILDS REDEMPTION: sending $0.25 as CASH costs more
- * in processing than it is worth. A threshold this low only makes sense if
- * redemption is a gift-card balance, an in-app credit, or accrues toward a
- * larger withdrawal. Decide that before switching payouts on, and raise this
- * number if the answer turns out to be bank transfers.
- */
-export const MIN_REDEMPTION_COINS = 500_000;
-
-/**
- * ---------------------------------------------------------------------------
- *  IS CASH REDEMPTION LIVE? The most consequential boolean in the codebase.
- * ---------------------------------------------------------------------------
- *  FALSE today. Nothing writes a PAYOUT ledger row, so every coin minted is
- *  a number on a screen and costs us nothing at all.
- *
- *  This exists because the parcel price went FLAT on 2026-09-24 (see
- *  PARCEL_BASE_PRICE_WP). A flat price makes the land we owe grow in a
- *  straight line with time walked, with no ceiling - which is free while
- *  this is false and ruinous the moment it is true. Modelled at the current
- *  rates, a hard-walking player would cost about $50/yr of land in year one
- *  against $9-91/yr of ad revenue.
- *
- *  So: FLIPPING THIS TO TRUE FAILS THE BUILD until the solvency model in
- *  rules.test.ts is redone. That is deliberate. It converts a mistake nobody
- *  would notice for a year into a red test on the day it is made.
- *
- *  When that day comes, the options are: restore PARCEL_PRICE_STEP_WP to 8,
- *  cap total parcels per account, or price redemption for a flat-price world
- *  from the start. Pick one and rewrite the model; do not just delete the
- *  guard.
+ * IS CASH REDEMPTION LIVE? FALSE. Nothing writes a PAYOUT ledger row, so every
+ * coin minted costs nothing yet. Flipping this fails the build until the
+ * solvency model in rules.test.ts has been re-checked against real ad data.
  */
 export const CASH_REDEMPTION_ENABLED = false;
+
+/**
+ * ---------------------------------------------------------------------------
+ *  TRADING COINS FOR WALK POINTS - TerraMine's real secret.
+ * ---------------------------------------------------------------------------
+ *  TerraMine lets players swap their cash earnings back into TerraBucks at
+ *  200 per $1, and a mine costs 100 TB - so a mine is $0.50 of earnings, for
+ *  land that pays ~$0.04 a year. Players do it constantly anyway, because land
+ *  compounds and it is the part they enjoy. Every dollar traded is a dollar
+ *  never cashed out.
+ *
+ *  Ours is the same deal: 10 coins = 1 WP, so a 50 WP parcel costs 500 coins
+ *  ($0.50). It is the valve that makes TerraMine-level rates affordable.
+ */
+export const COINS_PER_WALK_POINT = 10;
+/** The most Walk Points one trade can buy - a typo must not empty a balance. */
+export const MAX_WALK_POINTS_PER_TRADE = 1_000;
 
 /** Seconds in a year, for annualising a rate. */
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
@@ -1523,36 +1356,25 @@ export function coinsToUsd(coins: number): number {
 }
 
 /**
- * How many decimal places it takes to show ONE coin.
- *
- * This is not a style choice, it is arithmetic: a coin is worth $0.0000005,
- * so anything less than seven decimal places literally cannot represent the
- * smallest unit of the currency. At two places a player would read $0.00 for
- * over a year; at four they would read $0.0000 for two days after buying their
- * first parcel, and reasonably conclude the app was broken.
- *
- * It went 6 -> 7 when the coin was recut. That is the rule of
- * thumb for whoever retunes COIN_REDEMPTION_USD next: the display must always
- * be able to show a single coin, and a test enforces it.
+ * How many decimal places it takes to show ONE coin. A coin is $0.001, so
+ * three. The rule for whoever retunes COIN_REDEMPTION_USD: the display must
+ * always be able to show a single coin, and a test enforces it.
  */
-export const USD_DISPLAY_DECIMALS = 7;
+export const USD_DISPLAY_DECIMALS = 3;
 
 /** Format a coin balance as dollars for the UI. Display only. */
 export function formatCoinsAsUsd(coins: number): string {
   return coinsToUsd(coins).toFixed(USD_DISPLAY_DECIMALS);
 }
 
-/**
- * The rate a parcel earns, expressed the way Atlas Earth shows it. Useful for
- * comparing tiers against theirs, and for a "per second" ticker in the app.
- */
-export function coinsPerHourToUsdPerSecond(coinsPerHour: number): number {
-  return (coinsPerHour / 3600) * COIN_REDEMPTION_USD;
+/** A monthly rate in dollars per second - for a live "per second" ticker. */
+export function coinsPerMonthToUsdPerSecond(coinsPerMonth: number): number {
+  return (coinsPerMonth / SECONDS_PER_MONTH) * COIN_REDEMPTION_USD;
 }
 
-/** What a rate is worth over a year - the number that actually matters to us. */
-export function coinsPerHourToUsdPerYear(coinsPerHour: number): number {
-  return coinsPerHourToUsdPerSecond(coinsPerHour) * SECONDS_PER_YEAR;
+/** What a monthly rate is worth over a year - the number that matters to us. */
+export function coinsPerMonthToUsdPerYear(coinsPerMonth: number): number {
+  return coinsPerMonthToUsdPerSecond(coinsPerMonth) * SECONDS_PER_YEAR;
 }
 
 /** Whether a balance has reached the payout threshold. */

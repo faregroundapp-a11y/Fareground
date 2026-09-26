@@ -160,7 +160,7 @@ export function ClaimCelebration({
         <View>
           <Text style={[styles.tier, { color: m.color }]}>{TIER_LABEL[rarity]}</Text>
           <Text style={styles.name}>{m.label}</Text>
-          <Text style={styles.rate}>+{m.coinsPerHour} coins / hour</Text>
+          <Text style={styles.rate}>+{m.coinsPerMonth} coins / month</Text>
         </View>
       </Animated.View>
     </View>

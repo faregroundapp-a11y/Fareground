@@ -37,8 +37,13 @@ import {
   COIN_REDEMPTION_USD,
   MIN_REDEMPTION_COINS,
   canRedeem,
-  coinsPerHourToUsdPerSecond,
-  coinsPerHourToUsdPerYear,
+  coinsPerMonthToUsdPerSecond,
+  coinsPerMonthToUsdPerYear,
+  BOOST_TIERS,
+  boostMultiplierFor,
+  COINS_PER_WALK_POINT,
+  MAX_WALK_POINTS_PER_TRADE,
+  SECONDS_PER_MONTH,
   coinsToUsd,
   formatCoinsAsUsd,
   USD_DISPLAY_DECIMALS,
@@ -88,98 +93,80 @@ test('the headline economy numbers are what the design doc says', () => {
   assert.equal(SIGNUP_BONUS_WP, 50);
 });
 
-test('each parcel costs a little more than the last', () => {
-  // 50 WP + 1 per parcel owned, since 2026-09-26 (flat for two days before).
+test('every parcel costs the same - flat, for ever', () => {
+  // The product owner's decision, 2026-09-26: "I don't want prices to increase."
+  assert.equal(PARCEL_PRICE_STEP_WP, 0);
   assert.equal(parcelPriceWp(0), 50, 'the first parcel is exactly the welcome bonus');
-  assert.equal(parcelPriceWp(9), 59);
-  assert.equal(parcelPriceWp(99), 149);
   assert.equal(parcelPriceWp(-3), 50, 'never below the base price');
   for (let n = 0; n < 500; n++) {
-    assert.equal(parcelPriceWp(n + 1) - parcelPriceWp(n), 1, `the step changed at parcel ${n}`);
+    assert.equal(parcelPriceWp(n + 1), parcelPriceWp(n), `the price moved at parcel ${n}`);
   }
-
-  // Gentle on purpose: the tenth parcel must not feel like a wall.
-  assert.ok(parcelPriceWp(9) <= 60, `the tenth parcel costs ${parcelPriceWp(9)} WP`);
-
-  // The consequence, stated as a property: land grows SLOWER than walking.
-  // Each hundred days buys less than the hundred before, which is the whole
-  // solvency argument - a flat price made this an equality.
-  const first = parcelsAfter(100, 100) - parcelsAfter(0, 100);
-  const second = parcelsAfter(200, 100) - parcelsAfter(100, 100);
-  assert.ok(second < first, `days 100-200 bought ${second} parcels, days 0-100 bought ${first}`);
+  // The consequence, stated as a property: land grows in a STRAIGHT LINE with
+  // walking. That is what the boost taper and the coin trade exist to absorb.
+  assert.equal(parcelsAfter(200, 100) - parcelsAfter(100, 100), parcelsAfter(100, 100) - parcelsAfter(0, 100));
 });
 
-test('the boost is a big multiplier in short bursts, and the bank caps it', () => {
+test("the boost is TerraMine's: 20x, 30 minutes an ad, 8 hours banked", () => {
   assert.equal(BOOST_MULTIPLIER, 20);
   assert.equal(BOOST_SECONDS_PER_AD, 1_800, 'thirty minutes an ad');
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 43_200, 'the bank holds twelve hours');
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 28_800, 'eight hours banked');
+  // Enough ads to stay boosted all day, for a player who wants to.
+  assert.ok(MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD >= 86_400, 'a whole day must be reachable');
+  // Bank must hold at least one ad, or an ad could buy nothing.
+  assert.ok(BOOST_MAX_BANKED_SECONDS >= BOOST_SECONDS_PER_AD);
+});
 
-  // Shaped after TerraMine, whose boost reaches 20x in 30-minute pieces up to
-  // 8 hours. A big burst is something a player plans a walk around; a small
-  // multiplier spread across a day is wallpaper.
-  assert.ok(BOOST_MULTIPLIER >= 10, 'a burst has to be worth interrupting a walk for');
+test('the boost tapers only for very large holders', () => {
+  // Full 20x for every ordinary player, TerraMine's "$1 a day" point included.
+  assert.equal(boostMultiplierFor(0), 20);
+  assert.equal(boostMultiplierFor(1), 20);
+  assert.equal(boostMultiplierFor(400), 20);
+  assert.equal(boostMultiplierFor(401), 15);
+  assert.equal(boostMultiplierFor(1_000), 10);
+  assert.equal(boostMultiplierFor(50_000), 5);
+  // Never rises with more land, never falls below a real boost.
+  for (let n = 1; n < 3_000; n++) {
+    assert.ok(boostMultiplierFor(n) <= boostMultiplierFor(n - 1), `the boost rose at ${n} parcels`);
+  }
+  assert.ok(BOOST_TIERS[BOOST_TIERS.length - 1].multiplier >= 2, 'the last tier must still be a boost');
 
-  // THE BANK NO LONGER BOUNDS THE DAILY RATE - the ad cap does.
-  //
-  // This test used to assert `a day of ads fills the bank exactly`, which was
-  // true when the bank was 3h. The bank is now 24h so that hours can be SAVED
-  // for a long walk instead of expiring. What a player can earn in a day is
-  // unchanged, because MAX_BOOST_ADS_PER_DAY is what limits it.
-  const boughtPerDay = MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD;
-  assert.ok(
-    BOOST_MAX_BANKED_SECONDS >= boughtPerDay,
-    'the bank must hold at least one day of ads, or the last ads of the day buy nothing',
-  );
-
-  // The bank holds TWO days of ads, so hours can be saved for a long walk.
-  // It must never hold so little that a day's ads are wasted (checked above).
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 2 * boughtPerDay, "the bank should hold two days' ads");
-
-  const hours = boughtPerDay / 3600;
-  const dayAverage = (hours * BOOST_MULTIPLIER + (24 - hours)) / 24;
-  assert.ok(dayAverage >= 3, `a boosted day averages only ${dayAverage.toFixed(2)}x, barely worth the ads`);
-  // The affordability ceiling MOVED rather than vanished: it is now the
-  // redemption guard that holds it, because a 20x day is only free while
-  // nothing pays out. See 'CASH REDEMPTION CANNOT BE SWITCHED ON'.
-  assert.ok(dayAverage <= BOOST_MULTIPLIER, 'a day cannot average more than the multiplier itself');
-
-  // THE ROW THAT IS EASY TO FORGET: a player who watches only a FEW ads still
-  // gets boost from them, and is worth very little in ad revenue. What each ad
-  // buys - not the bank - is what decides whether that player is profitable.
-  const lightAds = 3;
-  const lightHours = Math.min((lightAds * BOOST_SECONDS_PER_AD) / 3600, BOOST_MAX_BANKED_SECONDS / 3600);
-  const lightMultiplier = (lightHours * BOOST_MULTIPLIER + (24 - lightHours)) / 24;
-  // At two hours an ad this was 5.75x - far beyond what a three-ad player is
-  // worth in revenue. Thirty minutes brings it to about 2.2x.
-  assert.ok(lightMultiplier <= 2.5, `three ads a day buys ${lightMultiplier.toFixed(2)}x`);
+  // THE POINT OF THE TAPER: what one 30-minute ad hands out stays level
+  // however much land is behind it, instead of growing without limit. Here it
+  // never goes past about $0.03 (at 20x with 400 parcels it is ~$0.02).
+  const avgPerMonth = RARITY_TABLE.reduce((s, e) => s + (e.weightBasisPoints / 10_000) * e.coinsPerMonth, 0);
+  const perAdUsd = (parcels: number) =>
+    parcels * coinsPerMonthToUsdPerSecond(avgPerMonth) * BOOST_SECONDS_PER_AD * (boostMultiplierFor(parcels) - 1);
+  for (const n of [100, 400, 700, 1_000, 2_000]) {
+    assert.ok(perAdUsd(n) < 0.035, `one ad at ${n} parcels hands out $${perAdUsd(n).toFixed(4)}`);
+  }
 });
 
 test('income is exact in micro-coins, and nothing is lost to rounding', () => {
-  // 1 coin/hr for 5 minutes = 1/12 of a coin.
-  const fiveMinutes = accruedMicroCoins({ coinsPerHour: 1, elapsedSeconds: 300, boostedSeconds: 0 });
-  assert.equal(fiveMinutes, 83_333);
-  // Twelve polls of five minutes add up to (nearly) a whole coin - the old
-  // "reset the clock and round down" bug would have paid 0.
+  // 3 coins a month for one day = a tenth of a coin.
+  const oneDay = accruedMicroCoins({ coinsPerMonth: 3, elapsedSeconds: 86_400, boostedSeconds: 0 });
+  assert.equal(oneDay, 100_000);
+  // Ten polls of a day add up to a whole coin - the old "reset the clock and
+  // round down" bug would have paid 0.
   let carried = 0, coins = 0;
-  for (let i = 0; i < 13; i++) {
-    const split = splitMicroCoins(carried + fiveMinutes);
+  for (let i = 0; i < 10; i++) {
+    const split = splitMicroCoins(carried + oneDay);
     coins += split.coins;
     carried = split.remainderMicro;
   }
   assert.equal(coins, 1);
+  assert.equal(SECONDS_PER_MONTH, 30 * 86_400);
 });
 
 test('a boost multiplies only the boosted seconds, not the whole window', () => {
-  // At 20x the arithmetic matters much more than it did at 2x: getting the
-  // window wrong would now overpay by twenty times, not two.
-  const hour = { coinsPerHour: 10, elapsedSeconds: 3_600 };
-  assert.equal(accruedMicroCoins({ ...hour, boostedSeconds: 0 }), 10_000_000);
-  // A fully boosted hour: 10 x 20 = 200 coins.
-  assert.equal(accruedMicroCoins({ ...hour, boostedSeconds: 3_600 }), 200_000_000);
+  // At 20x getting the window wrong would overpay twenty times over.
+  const month = { coinsPerMonth: 10, elapsedSeconds: SECONDS_PER_MONTH };
+  assert.equal(accruedMicroCoins({ ...month, boostedSeconds: 0 }), 10_000_000);
+  // A fully boosted month: 10 x 20 = 200 coins.
+  assert.equal(accruedMicroCoins({ ...month, boostedSeconds: SECONDS_PER_MONTH }), 200_000_000);
   // Half boosted: 5 normal + 5 at 20x = 105 coins. NOT half of 200.
-  assert.equal(accruedMicroCoins({ ...hour, boostedSeconds: 1_800 }), 105_000_000);
+  assert.equal(accruedMicroCoins({ ...month, boostedSeconds: SECONDS_PER_MONTH / 2 }), 105_000_000);
   // Boost claimed beyond the window is clamped to the window.
-  assert.equal(accruedMicroCoins({ ...hour, boostedSeconds: 99_999 }), 200_000_000);
+  assert.equal(accruedMicroCoins({ ...month, boostedSeconds: 99_999_999 }), 200_000_000);
   assert.deepEqual(splitMicroCoins(15_500_000), { coins: 15, remainderMicro: 500_000 });
 });
 
@@ -188,20 +175,20 @@ test('the drop table adds up to exactly 100%', () => {
   assert.equal(total, 10_000, 'drop chances must sum to 10,000 basis points');
 });
 
-test('each mineral pays the correct hourly rate', () => {
-  const expected: Record<ParcelRarity, { chance: number; coinsPerHour: number }> = {
-    ROCKY: { chance: 6_000, coinsPerHour: 1 },
-    COAL: { chance: 2_500, coinsPerHour: 2 },
-    AMETHYST: { chance: 1_000, coinsPerHour: 5 },
-    SAPPHIRE: { chance: 400, coinsPerHour: 12 },
-    RUBY: { chance: 100, coinsPerHour: 100 },
+test('each mineral pays the correct monthly rate', () => {
+  const expected: Record<ParcelRarity, { chance: number; coinsPerMonth: number }> = {
+    ROCKY: { chance: 6_000, coinsPerMonth: 3 },
+    COAL: { chance: 2_500, coinsPerMonth: 4 },
+    AMETHYST: { chance: 1_000, coinsPerMonth: 5 },
+    SAPPHIRE: { chance: 400, coinsPerMonth: 8 },
+    RUBY: { chance: 100, coinsPerMonth: 25 },
   };
 
   assert.equal(RARITY_TABLE.length, 5);
 
   for (const entry of RARITY_TABLE) {
     assert.equal(entry.weightBasisPoints, expected[entry.rarity].chance, `${entry.rarity} chance`);
-    assert.equal(entry.coinsPerHour, expected[entry.rarity].coinsPerHour, `${entry.rarity} rate`);
+    assert.equal(entry.coinsPerMonth, expected[entry.rarity].coinsPerMonth, `${entry.rarity} rate`);
   }
 });
 
@@ -255,7 +242,7 @@ test('every roll returns a valid parcel', () => {
     const known = RARITY_TABLE.find((entry) => entry.rarity === drop.rarity);
 
     assert.ok(known, `unknown rarity: ${drop.rarity}`);
-    assert.equal(drop.coinsPerHour, known.coinsPerHour);
+    assert.equal(drop.coinsPerMonth, known.coinsPerMonth);
   }
 });
 
@@ -298,19 +285,19 @@ test('the tiers get rarer and richer in step, with no ties', () => {
     const prev = RARITY_TABLE[i - 1];
     const here = RARITY_TABLE[i];
     assert.ok(here.weightBasisPoints < prev.weightBasisPoints, `${here.rarity} not rarer`);
-    assert.ok(here.coinsPerHour > prev.coinsPerHour, `${here.rarity} pays no better`);
+    assert.ok(here.coinsPerMonth > prev.coinsPerMonth, `${here.rarity} pays no better`);
   }
 });
 
-test('the average parcel is worth 3.08 coins per hour', () => {
+test('the average parcel is worth 3.87 coins a month', () => {
   // Pins the economy down: if someone retunes a rate, this says by how much
   // the whole game's coin flow just moved.
   const expectedValue = RARITY_TABLE.reduce(
-    (sum, entry) => sum + (entry.weightBasisPoints / 10_000) * entry.coinsPerHour,
+    (sum, entry) => sum + (entry.weightBasisPoints / 10_000) * entry.coinsPerMonth,
     0,
   );
 
-  assert.equal(Number(expectedValue.toFixed(4)), 3.08);
+  assert.equal(Number(expectedValue.toFixed(4)), 3.87);
 });
 
 // ---------------------------------------------------------------------------
@@ -515,71 +502,59 @@ const ATLAS = { common: 1.1e-9, rare: 1.6e-9, epic: 2.2e-9, legendary: 4.4e-9 };
 const RIVALS_PER_PARCEL_YEAR = { atlasBase: 0.0496, terramineRock: 0.0342, terramineAverage: 0.0415 };
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 
+/** The average parcel's monthly coins, across the drop table. */
+const averageCoinsPerMonth = RARITY_TABLE.reduce((sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerMonth, 0);
+
 /** Compare two dollar figures to the nearest hundredth of a cent. */
 function nearlyEqual(a: number, b: number, tolerance = 1e-4): boolean {
   return Math.abs(a - b) < tolerance;
 }
 
-test('two million coins is one dollar', () => {
-  assert.equal(COIN_REDEMPTION_USD, 0.0000005);
-  assert.ok(nearlyEqual(coinsToUsd(2_000_000), 1, 1e-9));
-  assert.equal(MIN_REDEMPTION_COINS, 500_000);
-  assert.ok(nearlyEqual(coinsToUsd(MIN_REDEMPTION_COINS), 0.25, 1e-9));
+test('a thousand coins is one dollar', () => {
+  // Balances read in the thousands, never the millions (2026-09-26).
+  assert.equal(COIN_REDEMPTION_USD, 0.001);
+  assert.ok(nearlyEqual(coinsToUsd(1_000), 1, 1e-9));
+  // $5 to cash out - the same minimum as Atlas Earth and TerraMine.
+  assert.equal(MIN_REDEMPTION_COINS, 5_000);
+  assert.ok(nearlyEqual(coinsToUsd(MIN_REDEMPTION_COINS), 5, 1e-9));
 });
 
-test('the average parcel costs us about half an Atlas Earth parcel', () => {
-  // THE solvency test. Atlas is the only public calibration point we have, and
-  // their model demonstrably funds itself. We deliberately sit UNDER it: their
-  // parcels are bought with money, ours are earned by walking, and a walker
-  // ends up with far more parcels than a buyer tends to buy.
-  const atlasAveragePerSecond =
-    0.65 * ATLAS.common + 0.25 * ATLAS.rare + 0.08 * ATLAS.epic + 0.02 * ATLAS.legendary;
-  const atlasPerYear = atlasAveragePerSecond * SECONDS_PER_YEAR;
-
-  const oursPerYear = RARITY_TABLE.reduce(
-    (sum, entry) =>
-      sum + (entry.weightBasisPoints / 10_000) * coinsPerHourToUsdPerYear(entry.coinsPerHour),
-    0,
-  );
-
-  assert.ok(nearlyEqual(atlasPerYear, 0.0435, 5e-4), `Atlas: ${atlasPerYear}`);
-  assert.ok(nearlyEqual(oursPerYear, 0.0135, 5e-4), `ours: ${oursPerYear}`);
-  assert.ok(oursPerYear < atlasPerYear, 'ours must stay under the Atlas calibration');
+test('a parcel pays TerraMine rates: between their average and Atlas base', () => {
+  // Testers compare us with both, and TerraMine's rates ARE Atlas's. So the
+  // average parcel sits just above TerraMine's and under Atlas's base - which
+  // is only affordable with the valves (taper, trade, $5 minimum).
+  const oursPerYear = coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
+  const terramineAverage = (0.6 * 0.002851 + 0.3 * 0.004147 + 0.09 * 0.00507 + 0.01 * 0.011405) * 12;
+  assert.ok(oursPerYear > terramineAverage, `ours $${oursPerYear.toFixed(4)}/yr, TerraMine $${terramineAverage.toFixed(4)}`);
+  assert.ok(oursPerYear < RIVALS_PER_PARCEL_YEAR.atlasBase, 'must stay under Atlas base');
 });
 
 test('each tier annualises to the documented dollar figure', () => {
-  // The 2026-09-23 recut: the four common tiers lost 60%, RUBY is unchanged.
+  // Monthly rates x 365/30 months a year.
   const expected: Record<string, number> = {
-    ROCKY: 0.0044,
-    COAL: 0.0088,
-    AMETHYST: 0.0219,
-    SAPPHIRE: 0.0526,
-    RUBY: 0.4380,
+    ROCKY: 0.0365,
+    COAL: 0.0487,
+    AMETHYST: 0.0608,
+    SAPPHIRE: 0.0973,
+    RUBY: 0.3042,
   };
-
   for (const entry of RARITY_TABLE) {
-    const perYear = coinsPerHourToUsdPerYear(entry.coinsPerHour);
+    // A "month" is 30 days, so a year is 365/30 of them - hence the tolerance.
+    const perYear = coinsPerMonthToUsdPerYear(entry.coinsPerMonth);
     assert.ok(
-      nearlyEqual(perYear, expected[entry.rarity], 5e-4),
+      nearlyEqual(perYear, expected[entry.rarity], 1e-3),
       `${entry.rarity}: expected ~$${expected[entry.rarity]}/yr, got $${perYear.toFixed(4)}`,
     );
   }
 });
 
-test('our top tier is generous next to Atlas, our bottom tier is not', () => {
-  // The deliberate shape: a lower average, far wider spread. Atlas can run a
-  // flat 4x ladder because they sell parcels; here the only way to get one is
-  // to walk for it, so the roll has to be worth the walk.
-  const rocky = coinsPerHourToUsdPerSecond(1);
-  const ruby = coinsPerHourToUsdPerSecond(100);
-
-  assert.ok(rocky < ATLAS.common, 'ROCKY should undercut Atlas Common');
-  assert.ok(ruby > ATLAS.legendary * 2, 'RUBY should still beat Atlas Legendary');
-  // Widened from 40x when the coin was recut: the whole point of that change
-  // was to take the cut out of the average and leave the jackpot alone.
-  // Floating point: the ratio is 100 but not always exactly, depending on
-  // the coin value. Compare with a tolerance rather than ===.
-  assert.ok(Math.abs(ruby / rocky - 100) < 1e-6, 'the ladder is 100x end to end');
+test('a rocky parcel matches TerraMine, and the ruby is still the jackpot', () => {
+  const rocky = coinsPerMonthToUsdPerSecond(3);
+  const ruby = coinsPerMonthToUsdPerSecond(25);
+  // Rocky = TerraMine Rock = Atlas Common, to within a tenth.
+  assert.ok(Math.abs(rocky / ATLAS.common - 1) < 0.1, `rocky is ${(rocky / ATLAS.common).toFixed(2)}x Atlas Common`);
+  // Ruby about twice their best tier: finding one should change an account.
+  assert.ok(ruby > ATLAS.legendary * 2, 'RUBY should beat Atlas Legendary twice over');
 });
 
 /** How many parcels someone earning `wpPerDay` holds after `days`, buying as soon as they can. */
@@ -594,69 +569,33 @@ function parcelsAfter(days: number, wpPerDay: number): number {
   return owned;
 }
 
-test('a hard-walking player gains land ever more slowly - and what that costs', () => {
-  // 10,000 steps a day = 100 WP a day, every day, and nothing else.
-  //
-  // With the rising price the land owed grows more slowly every year. (Under
-  // the flat price of 2026-09-24 it grew in a straight line for ever.)
-  const averageCoinsPerHour = RARITY_TABLE.reduce(
-    (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
-    0,
-  );
-  const costAt = (years: number) => parcelsAfter(365 * years, 100) * coinsPerHourToUsdPerYear(averageCoinsPerHour);
-
+test('a hard-walking player gains land in a straight line - and what that costs', () => {
+  // 10,000 steps a day = 100 WP a day, every day, and nothing else. With the
+  // flat price, two parcels a day for ever.
+  const costAt = (years: number) => parcelsAfter(365 * years, 100) * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
   const y1 = parcelsAfter(365, 100);
-  // ~225. It was ~730 under the flat 50 WP price and ~95 under the old +8 step.
-  assert.ok(y1 >= 180 && y1 <= 280, `year one: ${y1} parcels`);
-
-  // Each year adds LESS than the last - the property the flat price lost.
+  assert.ok(y1 >= 700 && y1 <= 760, `year one: ${y1} parcels`);
   const addedY2 = costAt(2) - costAt(1);
   const addedY3 = costAt(3) - costAt(2);
-  assert.ok(addedY3 < addedY2, 'the land owed must grow more slowly each year');
-
-  // Unboosted land cost per year, pinned so a silent rate change shows up here.
-  assert.ok(costAt(3) > 4 && costAt(3) < 8, `year three costs $${costAt(3).toFixed(2)}/yr`);
+  assert.ok(Math.abs(addedY3 - addedY2) < 0.5, 'a flat price adds the same liability every year');
+  // Unboosted land per year, pinned so a silent rate change shows up here.
+  // It is REAL money only if cash redemption is switched on - see below.
+  assert.ok(costAt(1) > 25 && costAt(1) < 45, `year one costs $${costAt(1).toFixed(2)}/yr`);
 });
 
 test('CASH REDEMPTION CANNOT BE SWITCHED ON WITHOUT A REVIEW', () => {
   // The guard that turns a slow disaster into a red build.
   //
-  // A flat price plus real payouts loses money on every engaged player: the
-  // land owed grows linearly and for ever, while ad revenue per player is
-  // flat. At today's rates a hard walker costs ~$50/yr of land in year one
-  // against $9-91/yr of revenue.
+  // Option A (2026-09-26): TerraMine-level rates, a flat price and a
+  // TerraMine boost, with cash-out OFF. The economy report shows a regular
+  // walker's land costing more than their ads earn once coins are cash, so
+  // payouts must not be switched on as things stand.
   //
-  // IF YOU ARE HERE BECAUSE THIS TEST FAILED: you have set
-  // CASH_REDEMPTION_ENABLED to true. Do not delete this test. Pick one -
-  // restore PARCEL_PRICE_STEP_WP to 8, cap parcels per account, or reprice
-  // redemption for a flat-price world - then rewrite the model above to
-  // match what you chose.
-  if (CASH_REDEMPTION_ENABLED) {
-    assert.ok(
-      PARCEL_PRICE_STEP_WP > 0,
-      'cash redemption is on with a FLAT parcel price. The liability grows without limit. ' +
-        'Read the comment on CASH_REDEMPTION_ENABLED in rules.ts before going further.',
-    );
-    // ...and the boost, which is the other half of the same bill. A day's
-    // ads now buy a WHOLE DAY at 20x, which the economy report costs at
-    // about $63 of land per player per year against $9-91 of ad revenue.
-    const boostedFraction = Math.min(
-      (MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD) / 86_400,
-      BOOST_MAX_BANKED_SECONDS / 86_400,
-    );
-    const dayAverage = 1 + boostedFraction * (BOOST_MULTIPLIER - 1);
-    assert.ok(
-      dayAverage <= 5,
-      `cash redemption is on with a ${dayAverage.toFixed(1)}x daily boost. A flat 20x loses money ` +
-        'at two of the three ad rates. Cut BOOST_SECONDS_PER_AD back to 15 minutes first.',
-    );
-  }
-
-  // The price rises again and the boost is back to short bursts, so both
-  // checks above pass - but the heaviest players are only just covered at the
-  // worst ad price (see 'a day of ads'), and payouts need KYC, fraud checks
-  // and legal advice first. Switching this on stays a deliberate decision.
-  assert.equal(CASH_REDEMPTION_ENABLED, false, 'if this changed on purpose, read the test above');
+  // IF YOU ARE HERE BECAUSE THIS TEST FAILED: you set CASH_REDEMPTION_ENABLED
+  // to true. The owner's plan is option B - pay a fixed share of real ad
+  // revenue each month, split by coins earned, so payouts can never exceed
+  // what came in - or option C, lower rates. Build one, then rewrite this.
+  assert.equal(CASH_REDEMPTION_ENABLED, false, 'read the comment above before switching payouts on');
 });
 
 test('a new player gets their first land fast', () => {
@@ -667,32 +606,30 @@ test('a new player gets their first land fast', () => {
 });
 
 test('the dollar display can always show a single coin', () => {
-  // This caught a real bug: at four decimal places a player with one ROCKY
-  // parcel reads $0.0000 for fifty hours and assumes the app is broken. The
-  // display must be able to represent the smallest unit of the currency.
+  // At too few decimals a player reads $0.00 and assumes the app is broken.
   assert.notEqual(Number(formatCoinsAsUsd(1)), 0, 'one coin must be visible');
-  assert.equal(formatCoinsAsUsd(1), '0.0000005');
-  assert.equal(formatCoinsAsUsd(0), '0.0000000');
-  assert.equal(formatCoinsAsUsd(1_000_000), '0.5000000');
-  assert.equal(formatCoinsAsUsd(2_000_000), '1.0000000');
-
-  // The guard for anyone who retunes the rate later.
+  assert.equal(formatCoinsAsUsd(1), '0.001');
+  assert.equal(formatCoinsAsUsd(0), '0.000');
+  assert.equal(formatCoinsAsUsd(500), '0.500');
+  assert.equal(formatCoinsAsUsd(1_000), '1.000');
   const smallestVisible = Number('1e-' + USD_DISPLAY_DECIMALS);
-  assert.ok(
-    COIN_REDEMPTION_USD >= smallestVisible,
-    `a coin ($${COIN_REDEMPTION_USD}) is smaller than the display can show`,
-  );
+  assert.ok(COIN_REDEMPTION_USD >= smallestVisible, `a coin ($${COIN_REDEMPTION_USD}) is smaller than the display can show`);
 });
 
 test('the payout threshold gates redemption', () => {
   assert.equal(canRedeem(MIN_REDEMPTION_COINS - 1), false);
   assert.equal(canRedeem(MIN_REDEMPTION_COINS), true);
+});
 
-  // Sanity on how long the threshold takes: a year-one player (~165 parcels,
-  // see the solvency test) earns ~3.6M coins a year, so $1 is reachable
-  // within the first year of walking - and $3.58 of it, not $1.79.
-  const coinsPerYear = 165 * 2.48 * 24 * 365;
-  assert.ok(coinsPerYear > MIN_REDEMPTION_COINS, `only ${Math.round(coinsPerYear)} coins/yr`);
+test('coins trade into Walk Points at TerraMine\'s price for land', () => {
+  // A parcel is $0.50 of earnings, exactly TerraMine's 100 TB at 200 TB/$.
+  assert.equal(COINS_PER_WALK_POINT, 10);
+  assert.ok(nearlyEqual(coinsToUsd(parcelPriceWp(0) * COINS_PER_WALK_POINT), 0.5, 1e-9));
+  // And the land it buys pays back slowly - reinvesting is fun, not a money
+  // machine. Payback in years, unboosted:
+  const payback = coinsToUsd(parcelPriceWp(0) * COINS_PER_WALK_POINT) / coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
+  assert.ok(payback > 5, `a traded-for parcel pays for itself in ${payback.toFixed(1)} years`);
+  assert.ok(MAX_WALK_POINTS_PER_TRADE >= parcelPriceWp(0), 'one trade must at least buy a parcel');
 });
 
 test('the daily chest climbs to a big day 7, then repeats', () => {
@@ -724,23 +661,14 @@ test('EVERY way to earn together still funds itself', () => {
   // Moves with the bonus-WP ad cap: 6/day -> 20 -> 10 -> 20 again.
   assert.ok(perDay >= 250 && perDay <= 300, `a maxed-out day is ${perDay} WP`);
 
-  const averageCoinsPerHour = RARITY_TABLE.reduce(
-    (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
-    0,
-  );
-  const costAt = (years: number) =>
-    parcelsAfter(365 * years, perDay) * coinsPerHourToUsdPerYear(averageCoinsPerHour);
+  const costAt = (years: number) => parcelsAfter(365 * years, perDay) * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
 
-  // Unboosted land for this player: ~$5.40/yr in year one, ~$9.75 by year
-  // three (it was ~$20 and rising in a straight line at the flat price). They
-  // watch 20 bonus-WP ads a day on top of any boost ads - $58-110/yr of
-  // revenue from those alone - so the land is covered many times over.
-  const wpAdRevenue = MAX_WP_ADS_PER_DAY * 365 * 0.008;
-  assert.ok(costAt(3) * 2 < wpAdRevenue, `year three costs $${costAt(3).toFixed(2)}/yr`);
-
-  // Pinned so a silent change to the rates shows up here rather than in a
-  // bank statement.
-  assert.ok(costAt(1) > 3 && costAt(1) < 8, `year one costs $${costAt(1).toFixed(2)}/yr`);
+  // OPTION A, stated honestly (2026-09-26). This player's UNBOOSTED land is
+  // ~$90/yr in year one, rising in a straight line - more than any realistic
+  // ad revenue. It costs nothing while cash redemption is off, which is the
+  // whole of why option A is allowed; the guard above keeps it that way.
+  assert.equal(CASH_REDEMPTION_ENABLED, false);
+  assert.ok(costAt(1) > 60 && costAt(1) < 120, `year one costs $${costAt(1).toFixed(2)}/yr - did a rate move?`);
 });
 
 test('an invite costs far less than a player is worth, and cannot be farmed', () => {
@@ -751,9 +679,10 @@ test('an invite costs far less than a player is worth, and cannot be farmed', ()
   const wp = REFERRAL_REWARD_REFEREE_WP + REFERRAL_REWARD_REFERRER_WP;
   let spent = 0, owned = 0;
   while (spent + parcelPriceWp(owned) <= wp) { spent += parcelPriceWp(owned); owned++; }
-  const averageCoinsPerHour = RARITY_TABLE.reduce((s2, e) => s2 + (e.weightBasisPoints / 10_000) * e.coinsPerHour, 0);
-  const cost = owned * coinsPerHourToUsdPerYear(averageCoinsPerHour);
-  assert.ok(cost < 0.25, `an invite costs $${cost.toFixed(3)}/yr of land`);
+  const cost = owned * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
+  // Six parcels at TerraMine-level rates is ~$0.28/yr - still far less than
+  // an active invited player earns us in ads.
+  assert.ok(cost < 0.5, `an invite costs $${cost.toFixed(3)}/yr of land`);
   assert.ok(REFERRAL_MAX_REWARDED * REFERRAL_REWARD_REFERRER_WP <= 6_000, 'lifetime invite WP must stay bounded');
 });
 
@@ -808,10 +737,6 @@ test('pit stop cooldowns make farming slower than walking', () => {
 
 /** Days until `wpPerDay` of walking banks enough coins to reach the threshold. */
 function daysToThreshold(wpPerDay: number): number {
-  const averageCoinsPerHour = RARITY_TABLE.reduce(
-    (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
-    0,
-  );
   let wp = SIGNUP_BONUS_WP;
   let owned = 0;
   let coins = 0;
@@ -825,15 +750,14 @@ function daysToThreshold(wpPerDay: number): number {
   for (let d = 1; d <= 365 * 10; d++) {
     wp += wpPerDay;
     spend();
-    coins += owned * averageCoinsPerHour * 24;
+    coins += (owned * averageCoinsPerMonth) / 30;
     if (coins >= MIN_REDEMPTION_COINS) return d;
   }
   return Infinity;
 }
 
-test('a regular player can reach the payout threshold inside a year', () => {
-  // 8,000 steps a day plus the chest and quests - a real person who uses the
-  // app properly, not someone optimising it.
+test('a regular player can reach the $5 cash-out inside a year', () => {
+  // 8,000 steps a day plus the chest and quests, WITHOUT a single boost ad.
   const days = daysToThreshold(80);
   assert.ok(days <= 365, `a regular player waits ${Math.round(days / 30.4)} months to cash out`);
 });
@@ -842,58 +766,22 @@ test('even a casual player gets there eventually', () => {
   // 3,000 steps and the daily chest. If THIS one runs past about 18 months
   // the bottom of the funnel has nothing to hope for and will not stay.
   const days = daysToThreshold(30);
-  assert.ok(days <= 550, `a casual player waits ${Math.round(days / 30.4)} months to cash out`);
+  assert.ok(days <= 450, `a casual player waits ${Math.round(days / 30.4)} months to cash out`);
 });
 
-test('we sit under both comparable games per parcel, on purpose', () => {
-  const averageCoinsPerHour = RARITY_TABLE.reduce(
-    (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
-    0,
-  );
-  const ours = coinsPerHourToUsdPerYear(averageCoinsPerHour);
+test('a day of ads is worth staying boosted for, and every ad still earns its keep', () => {
+  // A full day of boost ads reaches a whole day at 20x for an ordinary player.
+  const boostedHours = Math.min((MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD) / 3600, 24);
+  assert.equal(boostedHours, 24);
 
-  // Their parcels are BOUGHT; ours are earned by walking, and ads are our only
-  // revenue. Matching them per parcel would mean paying purchase-funded rates
-  // out of ad money, which does not work.
-  assert.ok(ours < RIVALS_PER_PARCEL_YEAR.terramineAverage, 'must stay under TerraMine');
-  assert.ok(ours < RIVALS_PER_PARCEL_YEAR.atlasBase, 'must stay under Atlas base');
-
-  // But not SO far under that a parcel is meaningless. Below about a fifth of
-  // TerraMine's and the land stops feeling like it is worth walking for.
-  assert.ok(
-    ours > RIVALS_PER_PARCEL_YEAR.terramineAverage / 5,
-    `a parcel is only $${ours.toFixed(4)}/yr, under a fifth of TerraMine's`,
-  );
-});
-
-test('a day of ads is worth several times the base rate, and still pays for itself', () => {
-  // The alignment that makes the whole model work: the player who costs us
-  // most is also the one paying us most. Someone who watches nothing earns
-  // the base rate, which is deliberately modest.
-  const capped = Math.min(
-    (MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD) / 86_400,
-    BOOST_MAX_BANKED_SECONDS / 86_400,
-  );
-  const multiplierOverADay = 1 + capped * (BOOST_MULTIPLIER - 1);
-  // 3x, not 4x: seconds-per-ad came down from 20 to 15 minutes to lift the
-  // margin on heavy players, which is where the absolute cost sits.
-  assert.ok(multiplierOverADay >= 3, `a full day of boost ads only gives ${multiplierOverADay.toFixed(2)}x`);
-
-  // The margin check only means anything if the land is a real cost. With a
-  // flat price and redemption off it is not, so this is conditional now.
-  const adRevenue = MAX_BOOST_ADS_PER_DAY * 365 * 0.008;
-  const averageCoinsPerHour = RARITY_TABLE.reduce(
-    (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
-    0,
-  );
-  const cost = parcelsAfter(365 * 3, 202) * coinsPerHourToUsdPerYear(averageCoinsPerHour) * multiplierOverADay;
-  if (CASH_REDEMPTION_ENABLED) {
-    assert.ok(adRevenue / cost >= 2, `only ${(adRevenue / cost).toFixed(1)}x margin on a fully boosted player`);
+  // What ONE ad hands out, in dollars, against what one ad earns us at the
+  // pessimistic $0.008. With the taper it stays within ~4x of that at any
+  // size - a flat 20x would hand out $0.10+ an ad at 2,000 parcels.
+  const perAdUsd = (parcels: number) =>
+    parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * BOOST_SECONDS_PER_AD * (boostMultiplierFor(parcels) - 1);
+  for (const n of [50, 200, 400, 1_000, 3_000]) {
+    assert.ok(perAdUsd(n) <= 0.035, `an ad at ${n} parcels hands out $${perAdUsd(n).toFixed(4)}`);
   }
-
-  // The ALIGNMENT still has to hold whatever the price does: the player who
-  // costs most must be the one who pays most. That is not about money here,
-  // it is about the twelve ads it takes to reach the multiplier at all.
   assert.ok(MAX_BOOST_ADS_PER_DAY >= 10, 'a full day of boost must cost a real number of ads');
 });
 

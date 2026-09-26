@@ -119,9 +119,9 @@ export interface Balance {
   coins: number;
   totalParcels: number;
   /** Base income from land. */
-  coinsPerHour: number;
+  coinsPerMonth: number;
   /** Income right now, boost included. */
-  effectiveCoinsPerHour: number;
+  effectiveCoinsPerMonth: number;
   coinsJustEarned: number;
   lastCoinClaimAt: string;
   /** What the NEXT parcel costs - it rises with land owned. */
@@ -139,6 +139,8 @@ export interface Balance {
   /** Dollars, as a string - display only. `coins` is the real number. */
   redeemableUsd: string;
   usdPerSecond: number;
+  /** Coins that buy one Walk Point in the store. */
+  coinsPerWalkPoint: number;
   minRedemptionCoins: number;
   canRedeem: boolean;
 }
@@ -192,9 +194,9 @@ export interface Parcel {
   id: string;
   rarity: Mineral;
   /** What it earns now, upgrades included. */
-  coinsPerHour: number;
+  coinsPerMonth: number;
   /** The mineral's own rate, before upgrades. */
-  baseCoinsPerHour: number;
+  baseCoinsPerMonth: number;
   upgradeLevel: number;
   maxUpgradeLevel: number;
   /** Walk Points for the next upgrade, or null when fully upgraded. */

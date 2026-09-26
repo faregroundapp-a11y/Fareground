@@ -137,8 +137,9 @@ async function comeback(exclude: Set<string>): Promise<Candidate[]> {
   const r = await pool.query<Candidate>(
     `SELECT u.id AS user_id, ${LOCAL_DAY} AS local_day,
             FLOOR(
-              COALESCE((SELECT SUM(p.coins_per_hour + p.upgrade_level) FROM parcels p WHERE p.owner_id = u.id), 0)
-              * LEAST(EXTRACT(EPOCH FROM (NOW() - u.last_coin_claim_at)) / 3600.0, 24 * 60)
+              COALESCE((SELECT SUM(p.coins_per_month + p.upgrade_level) FROM parcels p WHERE p.owner_id = u.id), 0)
+              -- the rate is per 30-day month; hours are capped at 60 days
+              * LEAST(EXTRACT(EPOCH FROM (NOW() - u.last_coin_claim_at)) / 3600.0, 24 * 60) / 720.0
             )::bigint AS n
        FROM users u
       WHERE ${CONTACTABLE}

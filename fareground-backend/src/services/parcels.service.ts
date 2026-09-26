@@ -11,7 +11,7 @@ import { query, withTransaction } from '../db/pool';
 import {
   PARCEL_MAX_UPGRADE,
   SCOUT_CLAIM_DISTANCE_M,
-  parcelCoinsPerHour,
+  parcelCoinsPerMonth,
   parcelPriceWp,
   parcelUpgradeCostWp,
   rollParcelRarity,
@@ -64,9 +64,9 @@ export interface Parcel {
   id: string;
   rarity: ParcelRarity;
   /** What it earns now: its mineral plus any upgrades. */
-  coinsPerHour: number;
+  coinsPerMonth: number;
   /** The mineral's own rate, before upgrades. */
-  baseCoinsPerHour: number;
+  baseCoinsPerMonth: number;
   upgradeLevel: number;
   maxUpgradeLevel: number;
   /** Walk Points for the next upgrade, or null when fully upgraded. */
@@ -102,7 +102,7 @@ export interface NearbyParcel {
 type ParcelRow = {
   id: string;
   rarity: ParcelRarity;
-  coins_per_hour: number;
+  coins_per_month: number;
   upgrade_level: number;
   cell_x: number | null;
   cell_y: number | null;
@@ -114,8 +114,8 @@ function toParcel(row: ParcelRow): Parcel {
   return {
     id: row.id,
     rarity: row.rarity,
-    coinsPerHour: parcelCoinsPerHour(row.coins_per_hour, level),
-    baseCoinsPerHour: row.coins_per_hour,
+    coinsPerMonth: parcelCoinsPerMonth(row.coins_per_month, level),
+    baseCoinsPerMonth: row.coins_per_month,
     upgradeLevel: level,
     maxUpgradeLevel: PARCEL_MAX_UPGRADE,
     nextUpgradeCostWp: level >= PARCEL_MAX_UPGRADE ? null : parcelUpgradeCostWp(level),
@@ -241,12 +241,12 @@ export async function claimParcel(
       const drop = rollParcelRarity({ forceBest: lucky });
       const inserted = await client.query<ParcelRow>(
         `INSERT INTO parcels
-           (owner_id, rarity, coins_per_hour, cell_x, cell_y,
+           (owner_id, rarity, coins_per_month, cell_x, cell_y,
             claimed_lat, claimed_lng, claimed_accuracy_m)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, rarity, coins_per_hour, upgrade_level, cell_x, cell_y, purchased_at`,
+         RETURNING id, rarity, coins_per_month, upgrade_level, cell_x, cell_y, purchased_at`,
         [
-          userId, drop.rarity, drop.coinsPerHour, cellX, cellY,
+          userId, drop.rarity, drop.coinsPerMonth, cellX, cellY,
           position.lat, position.lng, position.accuracyM,
         ],
       );
@@ -303,7 +303,7 @@ export async function nearbyParcels(
 /** Everything this player owns, newest first. */
 export async function myParcels(userId: string): Promise<Parcel[]> {
   const result = await query<ParcelRow>(
-    `SELECT id, rarity, coins_per_hour, upgrade_level, cell_x, cell_y, purchased_at
+    `SELECT id, rarity, coins_per_month, upgrade_level, cell_x, cell_y, purchased_at
        FROM parcels
       WHERE owner_id = $1
       ORDER BY purchased_at DESC`,

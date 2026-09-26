@@ -5,11 +5,10 @@ import { useGameBalance, useGameDaily } from '@/state/game';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Parcel } from '@/api/types';
-import { COIN_USD, MINERALS, MINERAL_ORDER } from '@/game/minerals';
+import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR } from '@/game/minerals';
 import { colors, fonts, mono, radius } from '@/theme';
 import { CoinIcon, GemIcon, PlayAdIcon } from './icons';
 
-const HOURS_PER_YEAR = 8760;
 
 /**
  * The receipt that follows the celebration: what you got, what it earns,
@@ -59,12 +58,12 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
       <View style={styles.stats}>
         <View style={styles.stat}>
           <CoinIcon size={18} />
-          <Text style={[styles.statValue, mono]}>+{parcel.coinsPerHour}</Text>
-          <Text style={styles.statLabel}>coins / hour</Text>
+          <Text style={[styles.statValue, mono]}>+{parcel.coinsPerMonth}</Text>
+          <Text style={styles.statLabel}>coins / month</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.stat}>
-          <Text style={[styles.statValue, mono]}>${(parcel.coinsPerHour * HOURS_PER_YEAR * COIN_USD).toFixed(3)}</Text>
+          <Text style={[styles.statValue, mono]}>${(parcel.coinsPerMonth * MONTHS_PER_YEAR * COIN_USD).toFixed(3)}</Text>
           <Text style={styles.statLabel}>per year</Text>
         </View>
         {/* The cell reference was here. A grid coordinate tells a player

@@ -39,8 +39,6 @@ import { useGameBalance, useGameDaily } from '@/state/game';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, TOUCH, type } from '@/theme';
 
-const HOURS_PER_MONTH = 730;
-
 /**
  * Below this much movement the lit squares and reach circle are left alone.
  * GPS wobbles a metre or two even when you stand still; redrawing the map's
@@ -353,8 +351,10 @@ function GameView({ fix }: { fix: Fix }) {
   const multiplier = balance?.rewards.activeMultiplier ?? 1;
   const boosted = multiplier > 1;
   const chipEndsAt = boostEndsAt ?? prizeEndsAt;
-  const rate = balance?.effectiveCoinsPerHour ?? 0;
-  const perMonth = rate * HOURS_PER_MONTH;
+  const rate = balance?.effectiveCoinsPerMonth ?? 0;
+  // The server's rate is already per month; the chip shows a day of it.
+  const perMonth = rate;
+  const perDay = rate / 30;
   const hideCell = fx ? { cellX: fx.cellX, cellY: fx.cellY } : null;
   const reachCentre = useMemo(() => ({ lat: settled.lat, lng: settled.lng }), [settled.lat, settled.lng]);
 
@@ -584,7 +584,7 @@ function GameView({ fix }: { fix: Fix }) {
                   <Text style={styles.xBadgeText}>{multiplier}×</Text>
                 </View>
               )}
-              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{rate}/hr</Text>
+              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
             </View>
           </View>
         </View>

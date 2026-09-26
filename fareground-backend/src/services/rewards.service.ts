@@ -31,7 +31,6 @@ import {
   AD_TICKET_TTL_SECONDS,
   AD_WALK_POINTS,
   BOOST_MAX_BANKED_SECONDS,
-  BOOST_MULTIPLIER,
   BOOST_SECONDS_PER_AD,
   INSTANT_COLLECT_HOURS,
   MAX_INSTANT_COLLECT_ADS_PER_DAY,
@@ -39,7 +38,10 @@ import {
   SCOUT_CLAIM_DISTANCE_M,
   SCOUT_MAX_BANKED_SECONDS,
   SCOUT_SECONDS_PER_AD,
+  boostMultiplierFor,
   dailyAdCap,
+  microCoinsFor,
+  splitMicroCoins,
   type AdRewardKind,
 } from '../game/rules';
 import { HttpError } from '../utils/httpError';
@@ -142,7 +144,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
     scout_ads: number;
     scout_remaining_s: number;
     scout_ends_at: Date | null;
-    coins_per_hour: number;
+    coins_per_month: number;
     resets_at: Date;
   }>(
     `SELECT
@@ -167,7 +169,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS scout_ads,
        COALESCE((SELECT GREATEST(EXTRACT(EPOCH FROM (scout_until - NOW())), 0) FROM users WHERE id = $1), 0)::double precision AS scout_remaining_s,
        (SELECT CASE WHEN scout_until > NOW() THEN scout_until END FROM users WHERE id = $1) AS scout_ends_at,
-       COALESCE((SELECT SUM(coins_per_hour + upgrade_level) FROM parcels WHERE owner_id = $1), 0)::int AS coins_per_hour,
+       COALESCE((SELECT SUM(coins_per_month + upgrade_level) FROM parcels WHERE owner_id = $1), 0)::int AS coins_per_month,
        ${nextLocalMidnightSql(USER_TZ)} AS resets_at`,
     [userId],
   );
@@ -178,7 +180,9 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
   return {
     boost: {
       active: remaining > 0,
-      multiplier: BOOST_MULTIPLIER,
+      // The multiplier the NEXT boost ad buys: 20x, easing for very large
+      // holders (BOOST_TIERS).
+      multiplier: boostMultiplierFor(row.parcels),
       endsAt: row.ends_at,
       remainingSeconds: remaining,
       secondsPerAd: BOOST_SECONDS_PER_AD,
@@ -195,10 +199,11 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
     },
     instantCollect: {
       hours: INSTANT_COLLECT_HOURS,
-      coins: row.coins_per_hour * INSTANT_COLLECT_HOURS,
+      // A preview only - the grant accrues in micro-coins and keeps the fraction.
+      coins: Math.max(1, Math.floor((row.coins_per_month * INSTANT_COLLECT_HOURS) / 720)),
       adsLeftToday: Math.max(0, MAX_INSTANT_COLLECT_ADS_PER_DAY - row.collect_ads),
-      canCollect: row.coins_per_hour > 0 && row.collect_ads < MAX_INSTANT_COLLECT_ADS_PER_DAY,
-      needsLand: row.coins_per_hour === 0,
+      canCollect: row.coins_per_month > 0 && row.collect_ads < MAX_INSTANT_COLLECT_ADS_PER_DAY,
+      needsLand: row.coins_per_month === 0,
     },
     scout: {
       active: Math.floor(row.scout_remaining_s) > 0,
@@ -390,14 +395,27 @@ async function grant(
     // income brought FORWARD: the clock is pushed on by the same amount, so
     // nothing is created out of thin air.
     const settled = await settleCoinIncome(client, ticket.user_id);
-    amount = settled.coinsPerHour * INSTANT_COLLECT_HOURS;
-    if (amount <= 0) throw new HttpError(409, 'Claim some land first - there is nothing to collect yet.');
+    if (settled.coinsPerMonth <= 0) throw new HttpError(409, 'Claim some land first - there is nothing to collect yet.');
+    // Rates are per month, so a couple of hours is usually a fraction of a
+    // coin per parcel: accrue it in micro-coins and carry the remainder, the
+    // same as ordinary income, so nothing is rounded away.
+    const earnedMicro = microCoinsFor(settled.coinsPerMonth, INSTANT_COLLECT_HOURS * 3600);
+    const cur = await client.query<{ coin_remainder_micro: number }>(
+      'SELECT coin_remainder_micro FROM users WHERE id = $1',
+      [ticket.user_id],
+    );
+    const split = splitMicroCoins(cur.rows[0].coin_remainder_micro + earnedMicro);
+    // At least ONE coin: with a handful of parcels two hours is a fraction of
+    // a coin, and an ad that visibly pays nothing feels broken. A coin is a
+    // tenth of a cent and this is capped at three a day.
+    amount = Math.max(1, split.coins);
     const paid = await client.query<{ coin_balance: number }>(
       `UPDATE users
           SET coin_balance = coin_balance + $2,
+              coin_remainder_micro = $4,
               last_coin_claim_at = last_coin_claim_at + ($3 || ' hours')::interval
         WHERE id = $1 RETURNING coin_balance`,
-      [ticket.user_id, amount, INSTANT_COLLECT_HOURS],
+      [ticket.user_id, amount, INSTANT_COLLECT_HOURS, split.remainderMicro],
     );
     await client.query(
       `INSERT INTO coin_ledger (user_id, entry_type, amount, balance_after, note)
@@ -439,10 +457,15 @@ async function grant(
     const win = w.rows[0];
     amount = Math.floor(win.seconds);
     if (amount <= 0) throw new HttpError(409, `Your boost is already full (${BOOST_MAX_BANKED_SECONDS / 3600} hours). Top it up later.`);
+    // Bought at the player's current tier, and stored with the boost, so
+    // crossing a tier later never changes what an ad already paid for.
+    const land = await client.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM parcels WHERE owner_id = $1', [
+      ticket.user_id,
+    ]);
     await client.query(
       `INSERT INTO boosts (user_id, starts_at, ends_at, multiplier, ad_reward_id)
        VALUES ($1, $2, $3, $4, $5)`,
-      [ticket.user_id, win.starts_at, win.ends_at, BOOST_MULTIPLIER, ticket.id],
+      [ticket.user_id, win.starts_at, win.ends_at, boostMultiplierFor(land.rows[0].n), ticket.id],
     );
   }
 

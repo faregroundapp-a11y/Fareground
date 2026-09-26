@@ -479,10 +479,23 @@ Work from a CLOUD session (Claude Code on the web), on branch
 | 5b | Profile pictures vanish: Render wipes its disk on every deploy | **Done** - pictures live in Postgres (migration 028); also fixed the old-picture cleanup, which never ran |
 | 5c | Treasure boxes indoors (placed beside parcels, which are mostly homes) | **Done** - placed ON footpaths/park paths/quiet streets from OpenStreetMap (Overpass), falling back to the old heuristics |
 | 5d | Street-name toggle, today's area name + maps button + claim-inside-then-2x, tappable boxes, no "(you)" brackets | **Verified present** (PC session's work, merged) |
-| 6 | Economy rebuild (spec below) | **Next** |
+| 6 | Economy rebuild (spec below) - **option A**: TerraMine-level rates, cash-out OFF | **Done** - migration 029, `store.service.ts`, app screens say coins/month |
 | 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
 ### Economy - what the product owner decided (supersedes everything above)
+
+**LIVE since migration 029.** Balances were converted 2,000 old = 1 new (a
+test account at 1,234,567 old coins became 617 with the fraction kept, ledger
+still balancing). `POST /store/walk-points` trades coins for WP. Boosts are
+stored at the tier they were bought at. Instant collect pays at least 1 coin.
+
+**Option A was chosen with the numbers on the table:** with a flat 50 WP and
+TerraMine rates the economy report shows every player type costing more than
+their ads earn IF coins were cash (a regular walker's unboosted land is ~$27
+a year in year one). It is free because CASH_REDEMPTION_ENABLED is false, and
+a test fails the build if anyone flips it. **Before any payout: option B** (a
+fixed share of real ad revenue each month, split by coins earned - it can
+never pay out more than came in) **or option C** (lower rates).
 
 Researched against Atlas Earth and TerraMine (TerraMine copies Atlas's
 rates exactly; both only let players cash out from $5):

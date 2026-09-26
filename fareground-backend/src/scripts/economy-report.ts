@@ -36,7 +36,8 @@ import {
   TREASURE_FREE_PER_DAY,
   TREASURE_MAX_WP,
   TREASURE_MIN_WP,
-  coinsPerHourToUsdPerYear,
+  boostMultiplierFor,
+  coinsPerMonthToUsdPerYear,
   dailyChestWp,
   parcelPriceWp,
   parcelUpgradeCostWp,
@@ -98,21 +99,21 @@ rule('=');
 line();
 line(`  ${(1 / COIN_REDEMPTION_USD).toLocaleString()} coins = $1.00      payout threshold ${MIN_REDEMPTION_COINS.toLocaleString()} coins (${money(MIN_REDEMPTION_COINS * COIN_REDEMPTION_USD)})`);
 line();
-line('     mineral      odds    coins/hr     per day      per year');
+line('     mineral      odds   coins/month   per day      per year');
 let avg = 0;
 for (const e of RARITY_TABLE) {
   const pct = e.weightBasisPoints / 100;
-  avg += (e.weightBasisPoints / 10_000) * e.coinsPerHour;
+  avg += (e.weightBasisPoints / 10_000) * e.coinsPerMonth;
   line(
-    `     ${e.rarity.padEnd(10)} ${String(pct).padStart(4)}%   ${String(e.coinsPerHour).padStart(6)}   ` +
-      `${String(e.coinsPerHour * 24).padStart(7)} coins   ${money(coinsPerHourToUsdPerYear(e.coinsPerHour)).padStart(9)}`,
+    `     ${e.rarity.padEnd(10)} ${String(pct).padStart(4)}%   ${String(e.coinsPerMonth).padStart(6)}   ` +
+      `${(e.coinsPerMonth / 30).toFixed(2).padStart(7)} coins   ${money(coinsPerMonthToUsdPerYear(e.coinsPerMonth)).padStart(9)}`,
   );
 }
 line();
-line(`     AVERAGE parcel:  ${avg.toFixed(2)} coins/hr  =  ${money(coinsPerHourToUsdPerYear(avg))} per year`);
+line(`     AVERAGE parcel:  ${avg.toFixed(2)} coins/month  =  ${money(coinsPerMonthToUsdPerYear(avg))} per year`);
 line();
 line(`  A boost pays ${BOOST_MULTIPLIER}x for ${BOOST_SECONDS_PER_AD / 60} min per ad, banking to `
-     + `${BOOST_MAX_BANKED_SECONDS / 3600}h (${MAX_BOOST_ADS_PER_DAY} ads/day fills it exactly).`);
+     + `${BOOST_MAX_BANKED_SECONDS / 3600}h (up to ${MAX_BOOST_ADS_PER_DAY} ads/day), tapering above 400 parcels.`);
 
 // ---------------------------------------------------------------- projections
 function parcelsAfter(days: number, wpPerDay: number): number {
@@ -132,7 +133,7 @@ function parcelsAfter(days: number, wpPerDay: number): number {
   return owned;
 }
 
-const perParcelYear = coinsPerHourToUsdPerYear(avg);
+const perParcelYear = coinsPerMonthToUsdPerYear(avg);
 
 /**
  * What a full day of boost ads is worth, averaged over 24 hours.
@@ -209,7 +210,7 @@ for (const p of PROFILES) {
   for (let d = 1; d <= 365 * 6; d++) {
     wp += p.wp;
     spend();
-    coins += owned * avg * 24; // a day of income at today's holding
+    coins += (owned * avg) / 30; // a day of income at today's holding
     const usd = coins * COIN_REDEMPTION_USD;
     for (const target of ['0.25', '0.5', '1']) {
       if (marks[target] === 'never' && usd >= Number(target)) {
@@ -253,7 +254,9 @@ const landY3 = parcelsAfter(365 * 3, maxed.wp) * perParcelYear;
 function boostedCostFor(adsPerDay: number): number {
   const boostAds = Math.min(adsPerDay, MAX_BOOST_ADS_PER_DAY);
   const hours = Math.min((boostAds * BOOST_SECONDS_PER_AD) / 3600, BOOST_MAX_BANKED_SECONDS / 3600);
-  const dayMultiplier = (hours * BOOST_MULTIPLIER + (24 - hours)) / 24;
+  // The multiplier this player's land actually gets, after the taper.
+  const m = boostMultiplierFor(parcelsAfter(365 * 3, maxed.wp));
+  const dayMultiplier = (hours * m + (24 - hours)) / 24;
   return landY3 * dayMultiplier;
 }
 
@@ -275,10 +278,9 @@ line(`  Land cost is the WORST case: a maxed player, three years in (${money(lan
 line(`  In year one the same player costs ${money(landY1)}.`);
 line();
 line('  ONE THING THAT TABLE GLOSSES OVER: a player who boosts all day costs');
-line(`  ${boostMultiplier.toFixed(2)}x that (${money(landY3 * boostMultiplier)}/yr) - but to do it they must watch 12 ads, so`);
-line('  they cannot be in the 3-ads-a-day row at all. Even at the worst price');
-line(`  per ad, 12 a day is ${money(12 * 365 * 0.008)}/yr against ${money(landY3 * boostMultiplier)} of land:`);
-line(`  ${((12 * 365 * 0.008) / (landY3 * boostMultiplier)).toFixed(1)}x. The expensive players are the ones paying for it.`);
+line(`  ${boostMultiplier.toFixed(2)}x that (${money(landY3 * boostMultiplier)}/yr) - but to do it they must watch ${MAX_BOOST_ADS_PER_DAY} ads,`);
+line(`  which at the worst price is ${money(MAX_BOOST_ADS_PER_DAY * 365 * 0.008)}/yr against ${money(landY3 * boostMultiplier)} of land:`);
+line(`  ${((MAX_BOOST_ADS_PER_DAY * 365 * 0.008) / (landY3 * boostMultiplier)).toFixed(1)}x.`);
 line();
 line('  THE BIG CAVEAT, and it is the whole business:');
 line('  land only costs anything IF REDEMPTION IS SWITCHED ON. Nothing writes a');

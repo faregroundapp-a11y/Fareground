@@ -4,10 +4,11 @@
 import type { PoolClient } from 'pg';
 import { query, withTransaction } from '../db/pool';
 import {
+  COINS_PER_WALK_POINT,
   MIN_REDEMPTION_COINS,
   STEPS_PER_WALK_POINT,
   canRedeem,
-  coinsPerHourToUsdPerSecond,
+  coinsPerMonthToUsdPerSecond,
   formatCoinsAsUsd,
   microCoinsFor,
   parcelPriceWp,
@@ -24,9 +25,9 @@ export interface BalanceResult {
   coins: number;
   totalParcels: number;
   /** Base income from land, before any boost. */
-  coinsPerHour: number;
+  coinsPerMonth: number;
   /** What land is earning right now, boost included. */
-  effectiveCoinsPerHour: number;
+  effectiveCoinsPerMonth: number;
   /** How many coins this particular call just credited. Nice for a UI pop-up. */
   coinsJustEarned: number;
   /** The moment income is now paid up to. */
@@ -50,6 +51,8 @@ export interface BalanceResult {
   /** Coins needed before a payout can be requested, and whether we are there. */
   minRedemptionCoins: number;
   canRedeem: boolean;
+  /** Coins that buy one Walk Point in the store (POST /store/walk-points). */
+  coinsPerWalkPoint: number;
 }
 
 /**
@@ -106,14 +109,14 @@ export async function settleCoinIncome(
   // windows never overlap (they are stacked end to end), so a plain SUM of
   // each window's overlap with [paidFrom, NOW] is exact.
   const facts = await client.query<{
-    coins_per_hour: number;
+    coins_per_month: number;
     parcel_count: number;
     elapsed_s: number;
     boosted_extra_s: number;
     boosted_s: number;
   }>(
     `SELECT
-       (SELECT COALESCE(SUM(coins_per_hour + upgrade_level), 0)::bigint FROM parcels WHERE owner_id = $1) AS coins_per_hour,
+       (SELECT COALESCE(SUM(coins_per_month + upgrade_level), 0)::bigint FROM parcels WHERE owner_id = $1) AS coins_per_month,
        (SELECT COUNT(*)::bigint FROM parcels WHERE owner_id = $1)                        AS parcel_count,
        GREATEST(EXTRACT(EPOCH FROM ($3::timestamptz - $2::timestamptz)), 0)::double precision AS elapsed_s,
        COALESCE((
@@ -133,7 +136,7 @@ export async function settleCoinIncome(
 
   // boosted_extra_s already carries the (multiplier - 1) weighting, so the
   // weighted time is simply elapsed + boosted_extra_s.
-  const earnedMicro = microCoinsFor(f.coins_per_hour, f.elapsed_s + f.boosted_extra_s);
+  const earnedMicro = microCoinsFor(f.coins_per_month, f.elapsed_s + f.boosted_extra_s);
 
   const { coins: coinsEarned, remainderMicro } = splitMicroCoins(user.coin_remainder_micro + earnedMicro);
 
@@ -151,7 +154,7 @@ export async function settleCoinIncome(
             last_coin_claim_at = GREATEST(last_coin_claim_at, $4::timestamptz)
       WHERE id = $1
       RETURNING coin_balance, last_coin_claim_at`,
-    [userId, coinsEarned, f.coins_per_hour === 0 ? 0 : remainderMicro, user.now],
+    [userId, coinsEarned, f.coins_per_month === 0 ? 0 : remainderMicro, user.now],
   );
   const row = updated.rows[0];
 
@@ -161,31 +164,32 @@ export async function settleCoinIncome(
   if (coinsEarned > 0) {
     await client.query(
       `INSERT INTO coin_ledger
-         (user_id, entry_type, amount, balance_after, earned_from, earned_to, coins_per_hour, boosted_seconds)
+         (user_id, entry_type, amount, balance_after, earned_from, earned_to, coins_per_month, boosted_seconds)
        VALUES ($1, 'ACCRUAL', $2, $3, $4, $5, $6, $7)`,
-      [userId, coinsEarned, row.coin_balance, paidFrom, row.last_coin_claim_at, f.coins_per_hour, Math.round(f.boosted_s)],
+      [userId, coinsEarned, row.coin_balance, paidFrom, row.last_coin_claim_at, f.coins_per_month, Math.round(f.boosted_s)],
     );
   }
 
   const rewards = await rewardStatus(client, userId);
   // Ad and prize boosts add up (a 3x prize plus a 2x ad boost is 4x).
-  const effectiveCoinsPerHour = f.coins_per_hour * rewards.activeMultiplier;
+  const effectiveCoinsPerMonth = f.coins_per_month * rewards.activeMultiplier;
 
   return {
     walkPoints: user.walk_points_balance,
     coins: row.coin_balance,
     totalParcels: f.parcel_count,
-    coinsPerHour: f.coins_per_hour,
-    effectiveCoinsPerHour,
+    coinsPerMonth: f.coins_per_month,
+    effectiveCoinsPerMonth,
     coinsJustEarned: coinsEarned,
     lastCoinClaimAt: row.last_coin_claim_at,
     parcelPrice: parcelPriceWp(f.parcel_count),
     stepsPerWalkPoint: STEPS_PER_WALK_POINT,
     rewards,
     redeemableUsd: formatCoinsAsUsd(row.coin_balance),
-    usdPerSecond: coinsPerHourToUsdPerSecond(effectiveCoinsPerHour),
+    usdPerSecond: coinsPerMonthToUsdPerSecond(effectiveCoinsPerMonth),
     minRedemptionCoins: MIN_REDEMPTION_COINS,
     canRedeem: canRedeem(row.coin_balance),
+    coinsPerWalkPoint: COINS_PER_WALK_POINT,
   };
 }
 
