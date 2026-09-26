@@ -17,6 +17,7 @@ import {
   type HealthStatus,
   type StepSources,
 } from '@/native/healthSteps';
+import { registerBackgroundStepSync } from '@/native/backgroundSteps';
 import { useSession } from '@/state/session';
 import { startWalkTrace, takeTraceQuality, takeWalkDistance } from '@/native/walkTrace';
 
@@ -195,6 +196,105 @@ async function phoneTotalToday(): Promise<number | null> {
   }
 }
 
+/**
+ * ONE STEP SYNC: read the phone's count, decide the batch, write it down,
+ * send it. Shared by the app (useStepSync) and the background task
+ * (native/backgroundSteps.ts), so a closed-app sync is exactly the same code
+ * as an open-app one - idempotency key and all, which is what makes two of
+ * them racing harmless: the server replays the first answer.
+ *
+ * Throws on failure; a batch the server refused outright is dropped first,
+ * since retrying it cannot help.
+ */
+export async function runStepSync(
+  token: string,
+  opts: { background?: boolean; onTotal?: (total: number) => void } = {},
+): Promise<{ total: number; result: StepSyncResult | null }> {
+  try {
+    // 0. A new day? Read yesterday's final total first (outside the lock).
+    const before = await loadLedger();
+    const yesterdayTotal = before.day !== today() ? await phoneTotalForDay(before.day) : null;
+
+    // Read the phone's own count, outside the lock.
+    const phoneTotal = await phoneTotalToday();
+
+    // 1. Decide the batch and WRITE IT DOWN before anything is sent.
+    const { batch, total } = await withLedger((ledger) => {
+      if (ledger.day !== today()) rollOver(ledger, yesterdayTotal);
+      const dayTotal = Math.max(phoneTotal ?? 0, ledger.appToday);
+      if (ledger.needsBaseline) {
+        ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);
+        ledger.needsBaseline = false;
+      }
+      if (!ledger.pending) {
+        const fresh = Math.max(0, dayTotal - ledger.syncedToday) + ledger.carry;
+        ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);
+        ledger.carry = 0;
+        if (fresh > 0) ledger.pending = { key: Crypto.randomUUID(), steps: fresh };
+      }
+      return { batch: ledger.pending, total: dayTotal };
+    });
+    opts.onTotal?.(total);
+    if (!batch) return { total, result: null };
+
+    // 2. Send it - no lock held.
+    //
+    // WHERE THE COUNT CAME FROM. iOS history is written only by the OS.
+    // On Android, Health Connect is a shared store that ANY app can write
+    // into (including a fake-steps app), so a count sourced from it is
+    // weaker evidence than the live sensor. `total` is the larger of the
+    // two, so whichever one produced it is the one to name.
+    const source =
+      Platform.OS === 'ios'
+        ? 'MOTION_HISTORY'
+        : phoneTotal !== null && phoneTotal >= total
+          ? 'HEALTH_STORE'
+          : 'DEVICE_SENSOR';
+
+    // HOW FAR THE GROUND ACTUALLY MOVED over the same window. This is
+    // what separates walking from a shaken phone: the step signal is
+    // identical, the displacement is not. Taken (and reset) only when a
+    // batch is actually being sent, so a failed send does not discard it.
+    // Order matters: straightness is measured against the path length,
+    // which takeWalkDistance clears.
+    //
+    // In the BACKGROUND there is no trace - the GPS is not being followed -
+    // and none is sent. The server treats "no trace" as "cannot tell", not
+    // as zero, so an honest closed-app walk is never capped for it.
+    const quality = opts.background ? undefined : takeTraceQuality();
+    const walked = opts.background ? undefined : takeWalkDistance();
+
+    const result = await api.syncSteps(
+      token,
+      {
+        steps: batch.steps,
+        platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
+        deviceId: await deviceId(),
+        source,
+        mockedLocation: opts.background ? undefined : await mockedLocation(),
+        ...(walked === undefined ? {} : { distanceM: walked }),
+        ...(quality === undefined ? {} : { trace: quality }),
+      },
+      batch.key,
+    );
+
+    // 3. Delivered (or replayed). Only now forget it - and only if it is
+    //    still the same batch.
+    await withLedger((ledger) => {
+      if (ledger.pending?.key === batch.key) ledger.pending = null;
+    });
+    return { total, result };
+  } catch (e) {
+    if (e instanceof ApiError && !e.retryable) {
+      // The server refused this batch outright; retrying cannot help.
+      await withLedger((ledger) => {
+        ledger.pending = null;
+      });
+    }
+    throw e;
+  }
+}
+
 export interface StepSyncState {
   /** Can this phone count steps at all? null while checking. */
   available: boolean | null;
@@ -232,84 +332,14 @@ export function useStepSync(onSynced?: () => void) {
     if (!token || busy.current) return;
     busy.current = true;
     try {
-      // 0. A new day? Read yesterday's final total first (outside the lock).
-      const before = await loadLedger();
-      const yesterdayTotal = before.day !== today() ? await phoneTotalForDay(before.day) : null;
-
-      // Read the phone's own count, outside the lock.
-      const phoneTotal = await phoneTotalToday();
-
-      // 1. Decide the batch and WRITE IT DOWN before anything is sent.
-      const { batch, total } = await withLedger((ledger) => {
-        if (ledger.day !== today()) rollOver(ledger, yesterdayTotal);
-        const dayTotal = Math.max(phoneTotal ?? 0, ledger.appToday);
-        if (ledger.needsBaseline) {
-          ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);
-          ledger.needsBaseline = false;
-        }
-        if (!ledger.pending) {
-          const fresh = Math.max(0, dayTotal - ledger.syncedToday) + ledger.carry;
-          ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);
-          ledger.carry = 0;
-          if (fresh > 0) ledger.pending = { key: Crypto.randomUUID(), steps: fresh };
-        }
-        return { batch: ledger.pending, total: dayTotal };
+      const { result } = await runStepSync(token, {
+        onTotal: (total) => setState((s) => (s.stepsToday === total ? s : { ...s, stepsToday: total })),
       });
-      setState((s) => (s.stepsToday === total ? s : { ...s, stepsToday: total }));
-      if (!batch) return;
-
-      // 2. Send it - no lock held.
-      //
-      // WHERE THE COUNT CAME FROM. iOS history is written only by the OS.
-      // On Android, Health Connect is a shared store that ANY app can write
-      // into (including a fake-steps app), so a count sourced from it is
-      // weaker evidence than the live sensor. `total` is the larger of the
-      // two, so whichever one produced it is the one to name.
-      const source =
-        Platform.OS === 'ios'
-          ? 'MOTION_HISTORY'
-          : phoneTotal !== null && phoneTotal >= total
-            ? 'HEALTH_STORE'
-            : 'DEVICE_SENSOR';
-
-      // HOW FAR THE GROUND ACTUALLY MOVED over the same window. This is
-      // what separates walking from a shaken phone: the step signal is
-      // identical, the displacement is not. Taken (and reset) only when a
-      // batch is actually being sent, so a failed send does not discard it.
-      // Order matters: straightness is measured against the path length,
-      // which takeWalkDistance clears.
-      const quality = takeTraceQuality();
-      const walked = takeWalkDistance();
-
-      const result = await api.syncSteps(
-        token,
-        {
-          steps: batch.steps,
-          platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
-          deviceId: await deviceId(),
-          source,
-          mockedLocation: await mockedLocation(),
-          ...(walked === undefined ? {} : { distanceM: walked }),
-          ...(quality === undefined ? {} : { trace: quality }),
-        },
-        batch.key,
-      );
-
-      // 3. Delivered (or replayed). Only now forget it - and only if it is
-      //    still the same batch.
-      await withLedger((ledger) => {
-        if (ledger.pending?.key === batch.key) ledger.pending = null;
-      });
+      if (!result) return;
       if (result.wpEarned > 0 && !result.replayed) haptics.success();
       setState((s) => ({ ...s, lastResult: result, lastSyncedAt: new Date(), error: null }));
       onSyncedRef.current?.();
     } catch (e) {
-      if (e instanceof ApiError && !e.retryable) {
-        // The server refused this batch outright; retrying cannot help.
-        await withLedger((ledger) => {
-          ledger.pending = null;
-        });
-      }
       setState((s) => ({ ...s, error: e instanceof Error ? e.message : 'Step sync failed.' }));
     } finally {
       busy.current = false;
@@ -372,6 +402,8 @@ export function useStepSync(onSynced?: () => void) {
         syncNow();
         refreshSources();
       }
+      // Keep syncing when the app is closed (see native/backgroundSteps.ts).
+      if (health === 'ready' || Platform.OS === 'ios') void registerBackgroundStepSync();
       if (Platform.OS === 'ios' || !available || !permission.granted) return;
 
       // Android live sensor: steps since the watch STARTED, turned into

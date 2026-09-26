@@ -45,14 +45,30 @@ export async function healthStatus(): Promise<HealthStatus> {
   }
 }
 
-/** Show Health Connect's own permission screen. Resolves true if granted. */
+/**
+ * Show Health Connect's own permission screen. Resolves true if steps were
+ * granted.
+ *
+ * Asks for READING IN THE BACKGROUND in the same screen, so the periodic step
+ * sync (native/backgroundSteps.ts) works without a second prompt. Older
+ * Health Connect versions do not know that permission and reject the whole
+ * request, so on failure it asks again for steps alone.
+ */
 export async function requestHealthPermission(): Promise<boolean> {
   if (!hc || !(await init())) return false;
+  const steps = { accessType: 'read', recordType: 'Steps' } as const;
+  const hasSteps = (granted: { recordType: string; accessType?: string }[]) =>
+    granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
   try {
-    const granted = await hc.requestPermission([{ accessType: 'read', recordType: 'Steps' }]);
-    return granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
+    return hasSteps(
+      await hc.requestPermission([steps, { accessType: 'read', recordType: 'BackgroundAccessPermission' }]),
+    );
   } catch {
-    return false;
+    try {
+      return hasSteps(await hc.requestPermission([steps]));
+    } catch {
+      return false;
+    }
   }
 }
 

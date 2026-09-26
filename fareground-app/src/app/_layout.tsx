@@ -9,6 +9,9 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LoadingScreen } from '@/components/LoadingScreen';
+// Side effect: defines the background step-sync task at load time, which the
+// OS needs when it wakes the app headless to run it.
+import '@/native/backgroundSteps';
 import { SessionProvider } from '@/state/session';
 
 export default function RootLayout() {
