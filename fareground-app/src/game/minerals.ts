@@ -25,3 +25,12 @@ export const COIN_USD = 0.001;
 
 /** Rates are per 30-day month, so a year is this many of them. */
 export const MONTHS_PER_YEAR = 365 / 30;
+
+/**
+ * A boost multiplier for display: "20" or "19.4". Since the taper became
+ * brackets (rules.ts, BOOST_TIERS) a large holder's boost is an average and
+ * rarely whole - one decimal is plenty on a chip.
+ */
+export function formatMultiplier(m: number): string {
+  return Number.isInteger(m) ? String(m) : m.toFixed(1);
+}

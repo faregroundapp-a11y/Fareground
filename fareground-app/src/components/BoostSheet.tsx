@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, ApiError } from '@/api/client';
+import { formatMultiplier } from '@/game/minerals';
 import type { AdRewardKind } from '@/api/types';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { adsAvailable } from '@/native/ads';
@@ -63,7 +64,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
     const said: Record<string, string> = {
       // The multiplier is no longer 2, so never say "double" - read it from
       // the server, which is the only place that knows.
-      BOOST: `Boost on! +${Math.round(r.amount / 60)} minutes at ${balance?.rewards.boost.multiplier ?? ''}× coins.`,
+      BOOST: `Boost on! +${Math.round(r.amount / 60)} minutes at ${formatMultiplier(balance?.rewards.boost.multiplier ?? 1)}× coins.`,
       WALK_POINTS: `+${r.amount} Walk Points added.`,
       INSTANT_COLLECT: `+${r.amount.toLocaleString()} coins collected early.`,
       SCOUT: `Scouting for ${Math.round(r.amount / 60)} minutes - your reach is wider.`,
@@ -87,7 +88,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
               <Offer
                 icon={<BoltIcon size={26} />}
                 wellColor={colors.boostSoft}
-                title={`${r.boost.multiplier}× coins`}
+                title={`${formatMultiplier(r.boost.multiplier)}× coins`}
                 subtitle={`+${Math.round(r.boost.secondsPerAd / 60)} min per ad · up to ${r.boost.maxBankedSeconds / 3600} h banked`}
                 right={r.boost.active && boostEndsAt ? <Live endsAt={boostEndsAt} /> : null}
                 bar={{ fill: r.boost.remainingSeconds / r.boost.maxBankedSeconds, color: colors.boost, track: colors.boostSoft }}

@@ -106,38 +106,50 @@ test('every parcel costs the same - flat, for ever', () => {
   assert.equal(parcelsAfter(200, 100) - parcelsAfter(100, 100), parcelsAfter(100, 100) - parcelsAfter(0, 100));
 });
 
-test('the boost is 20x, 30 minutes an ad, 12 hours banked', () => {
+test('the boost is 20x, 30 minutes an ad, and can cover the whole day', () => {
   assert.equal(BOOST_MULTIPLIER, 20);
   assert.equal(BOOST_SECONDS_PER_AD, 1_800, 'thirty minutes an ad');
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 43_200, 'twelve hours banked');
-  // A day's ads fill the 12-hour bank exactly.
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 86_400, 'a whole day banked');
+  // A day's ads fill the 24-hour bank exactly: boosted around the clock.
   assert.equal(MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD, BOOST_MAX_BANKED_SECONDS);
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 86_400);
   // Bank must hold at least one ad, or an ad could buy nothing.
   assert.ok(BOOST_MAX_BANKED_SECONDS >= BOOST_SECONDS_PER_AD);
 });
 
-test('the boost tapers only for very large holders', () => {
-  // Full 20x for every ordinary player, TerraMine's "$1 a day" point included.
+test('the boost tapers only for very large holders, and never cuts income', () => {
+  // Full 20x for every ordinary player - the $1-a-day point included.
   assert.equal(boostMultiplierFor(0), 20);
   assert.equal(boostMultiplierFor(1), 20);
   assert.equal(boostMultiplierFor(400), 20);
-  assert.equal(boostMultiplierFor(401), 15);
-  assert.equal(boostMultiplierFor(1_000), 10);
-  assert.equal(boostMultiplierFor(50_000), 5);
-  // Never rises with more land, never falls below a real boost.
-  for (let n = 1; n < 3_000; n++) {
-    assert.ok(boostMultiplierFor(n) <= boostMultiplierFor(n - 1), `the boost rose at ${n} parcels`);
+  // Brackets, averaged: 400 at 20x + 1 at 15x.
+  assert.equal(boostMultiplierFor(401), 19.9875);
+  assert.ok(boostMultiplierFor(50_000) > 5 && boostMultiplierFor(50_000) < 5.5);
+
+  // THE BUG THIS REPLACED: as steps, parcel 401 dropped the whole holding to
+  // 15x and cut boosted income by a quarter. Boosted land-units must RISE
+  // with every parcel bought.
+  for (let n = 1; n < 5_000; n++) {
+    assert.ok(
+      n * boostMultiplierFor(n) > (n - 1) * boostMultiplierFor(n - 1),
+      `buying parcel ${n} lowered boosted income`,
+    );
   }
   assert.ok(BOOST_TIERS[BOOST_TIERS.length - 1].multiplier >= 2, 'the last tier must still be a boost');
 
-  // THE POINT OF THE TAPER: what one 30-minute ad hands out stays level
-  // however much land is behind it, instead of growing without limit. Here it
-  // never goes past about $0.03 (at 20x with 400 parcels it is ~$0.02).
-  const avgPerMonth = RARITY_TABLE.reduce((s, e) => s + (e.weightBasisPoints / 10_000) * e.coinsPerMonth, 0);
-  const perAdUsd = (parcels: number) =>
-    parcels * coinsPerMonthToUsdPerSecond(avgPerMonth) * BOOST_SECONDS_PER_AD * (boostMultiplierFor(parcels) - 1);
-  for (const n of [100, 400, 700, 1_000, 2_000]) {
-    assert.ok(perAdUsd(n) < 0.035, `one ad at ${n} parcels hands out $${perAdUsd(n).toFixed(4)}`);
+  // The product owner's target: ~400 parcels fully boosted is ~$1 a day.
+  const perDayUsd = (parcels: number) =>
+    parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * 86_400 * boostMultiplierFor(parcels);
+  assert.ok(perDayUsd(400) >= 0.95 && perDayUsd(400) <= 1.1, `400 parcels boosted all day: $${perDayUsd(400).toFixed(2)}`);
+
+  // THE POINT OF THE TAPER: what one 30-minute ad hands out grows far more
+  // slowly than it would at a flat 20x. At 400 parcels it is ~$0.02 - about
+  // what the ad earns - and past that it climbs at a quarter of the flat rate.
+  const perAdUsd = (parcels: number, m = boostMultiplierFor(parcels)) =>
+    parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * BOOST_SECONDS_PER_AD * (m - 1);
+  assert.ok(perAdUsd(400) < 0.025, `an ad at 400 parcels hands out $${perAdUsd(400).toFixed(4)}`);
+  for (const n of [2_000, 5_000]) {
+    assert.ok(perAdUsd(n) < perAdUsd(n, 20) * 0.6, `the taper barely bites at ${n} parcels`);
   }
 });
 
@@ -770,18 +782,13 @@ test('even a casual player gets there eventually', () => {
 });
 
 test('a day of ads is worth staying boosted for, and every ad still earns its keep', () => {
-  // A full day of boost ads buys twelve hours at 20x for an ordinary player.
+  // A full day of boost ads buys the whole day at 20x for an ordinary player.
   const boostedHours = Math.min((MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD) / 3600, 24);
-  assert.equal(boostedHours, 12);
+  assert.equal(boostedHours, 24);
 
-  // What ONE ad hands out, in dollars, against what one ad earns us at the
-  // pessimistic $0.008. With the taper it stays within ~4x of that at any
-  // size - a flat 20x would hand out $0.10+ an ad at 2,000 parcels.
-  const perAdUsd = (parcels: number) =>
-    parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * BOOST_SECONDS_PER_AD * (boostMultiplierFor(parcels) - 1);
-  for (const n of [50, 200, 400, 1_000, 3_000]) {
-    assert.ok(perAdUsd(n) <= 0.035, `an ad at ${n} parcels hands out $${perAdUsd(n).toFixed(4)}`);
-  }
+  // At the $1-a-day point one ad hands out about what it earns us; the
+  // taper test above covers everything bigger. Cash-out stays OFF (see the
+  // guard): at the pessimistic ad price this does not pay for itself.
   assert.ok(MAX_BOOST_ADS_PER_DAY >= 10, 'a full day of boost must cost a real number of ads');
 });
 

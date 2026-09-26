@@ -154,10 +154,12 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
        (SELECT MAX(ends_at) FROM boosts WHERE user_id = $1 AND source = 'PRIZE' AND ends_at > NOW()) AS prize_ends_at,
        COALESCE((SELECT GREATEST(EXTRACT(EPOCH FROM (MAX(ends_at) - NOW())), 0)
                    FROM boosts WHERE user_id = $1 AND source = 'PRIZE' AND ends_at > NOW()), 0)::double precision AS prize_remaining_s,
-       (SELECT MAX(multiplier) FROM boosts WHERE user_id = $1 AND source = 'PRIZE'
+       -- ::float8 because the column is NUMERIC (migration 031), which the
+       -- driver would otherwise hand back as a string.
+       (SELECT MAX(multiplier)::float8 FROM boosts WHERE user_id = $1 AND source = 'PRIZE'
            AND starts_at <= NOW() AND ends_at > NOW()) AS prize_multiplier,
-       COALESCE((SELECT SUM(multiplier - 1) FROM boosts WHERE user_id = $1
-           AND starts_at <= NOW() AND ends_at > NOW()), 0)::int AS active_extra,
+       COALESCE((SELECT SUM(multiplier - 1)::float8 FROM boosts WHERE user_id = $1
+           AND starts_at <= NOW() AND ends_at > NOW()), 0)::float8 AS active_extra,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'BOOST'
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS boost_ads,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'WALK_POINTS'

@@ -44,8 +44,8 @@ $RULES = @{
     ParcelPriceStep   = 0       # PARCEL_PRICE_STEP_WP - flat, product owner's call
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
     BoostSecondsPerAd = 1800    # BOOST_SECONDS_PER_AD      (30 min)
-    BoostBankSeconds  = 43200   # BOOST_MAX_BANKED_SECONDS  (12 h)
-    MaxBoostAdsPerDay = 24      # MAX_BOOST_ADS_PER_DAY
+    BoostBankSeconds  = 86400   # BOOST_MAX_BANKED_SECONDS  (24 h)
+    MaxBoostAdsPerDay = 48      # MAX_BOOST_ADS_PER_DAY
     # sustainablePace(60) x 60. NOT 60 x MAX_STEPS_PER_MINUTE: the pace
     # ceiling falls off with duration, so an hour is 200/min rather than the
     # 250/min a human can sprint for one minute.

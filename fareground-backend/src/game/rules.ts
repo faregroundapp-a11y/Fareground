@@ -92,8 +92,10 @@ export type AdRewardKind =
  * ---------------------------------------------------------------------------
  *  THE BOOST - TerraMine's shape, because testers compare us with it.
  * ---------------------------------------------------------------------------
- *  20x coins, 30 minutes per rewarded ad, banking up to 12 hours, and up to
- *  24 ads a day - twelve boosted hours. That is
+ *  20x coins, 30 minutes per rewarded ad, banking up to 24 hours, and up to
+ *  48 ads a day - boosted around the clock, exactly as TerraMine allows. The
+ *  product owner's target (2026-09-26): about 400 parcels fully boosted earns
+ *  $1 a day, and it does - 400 x 3.87 coins/month x 20 / 30 = ~1,030 coins. That is
  *  exactly TerraMine's boost (researched 2026-09-26), and it is what makes
  *  "400 parcels fully boosted is about $1 a day" true here as it is there.
  *
@@ -115,22 +117,24 @@ export const BOOST_MULTIPLIER = 20;
 export const BOOST_SECONDS_PER_AD = 30 * 60;
 
 /**
- * Twelve hours banked at most - the product owner's call (2026-09-26), longer
- * than TerraMine's 8 so a morning of ads carries a player through the day.
- * What a player can buy per day is still bounded by MAX_BOOST_ADS_PER_DAY.
+ * A whole day banked, so one sitting of ads can cover the day - "make it way
+ * easier" (2026-09-26). MAX_BOOST_ADS_PER_DAY is what bounds the cost.
  */
-export const BOOST_MAX_BANKED_SECONDS = 12 * 60 * 60;
+export const BOOST_MAX_BANKED_SECONDS = 24 * 60 * 60;
+
+/** 48 x 30 min = the whole day, which the 24-hour bank holds exactly. */
+export const MAX_BOOST_ADS_PER_DAY = 48;
 
 /**
- * 24 x 30 min = 12 hours a day - the product owner's call (2026-09-26), and
- * exactly what the 12-hour bank holds, so a day's ads fill it.
- */
-export const MAX_BOOST_ADS_PER_DAY = 24;
-
-/**
- * The taper: the multiplier a boost ad buys, by land held. Full 20x up to
- * 400 parcels (TerraMine's "$1 a day" point), then easing so that one ad's
- * cost to us stays near what the ad earns.
+ * The taper, as BRACKETS - like tax bands, not like steps. The first 400
+ * parcels are boosted 20x, parcels 401-700 at 15x, 701-1,000 at 10x, and
+ * every one after that at 5x.
+ *
+ * It used to be steps: the whole holding dropped to 15x at parcel 401, so
+ * buying the 401st parcel CUT a player's boosted income by a quarter - $0.54
+ * a day down to $0.41. Buying land must never lower what you earn. As
+ * brackets, every extra parcel adds at least 5x its rate, so income only ever
+ * rises, and the cost of one ad still levels off for very large holders.
  */
 export const BOOST_TIERS: readonly { upToParcels: number; multiplier: number }[] = [
   { upToParcels: 400, multiplier: 20 },
@@ -139,10 +143,25 @@ export const BOOST_TIERS: readonly { upToParcels: number; multiplier: number }[]
   { upToParcels: Number.POSITIVE_INFINITY, multiplier: 5 },
 ] as const;
 
-/** The multiplier a boost ad buys for a player holding `parcels`. */
+/**
+ * The multiplier a boost ad buys for a player holding `parcels`: the brackets
+ * above averaged over the whole holding. 20 for anyone up to 400 parcels.
+ *
+ * Rounded to 4 decimals because boosts.multiplier is NUMERIC(8,4); at that
+ * precision parcels x multiplier still rises with every parcel.
+ */
 export function boostMultiplierFor(parcels: number): number {
   const n = Math.max(0, Math.floor(parcels));
-  return (BOOST_TIERS.find((t) => n <= t.upToParcels) ?? BOOST_TIERS[BOOST_TIERS.length - 1]).multiplier;
+  if (n === 0) return BOOST_TIERS[0].multiplier;
+  let total = 0;
+  let from = 0;
+  for (const t of BOOST_TIERS) {
+    const inBand = Math.max(0, Math.min(n, t.upToParcels) - from);
+    total += inBand * t.multiplier;
+    if (n <= t.upToParcels) break;
+    from = t.upToParcels;
+  }
+  return Math.round((total / n) * 10_000) / 10_000;
 }
 
 /**

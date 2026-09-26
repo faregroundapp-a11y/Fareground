@@ -10,7 +10,7 @@ import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { haptics } from '@/native/haptics';
 import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
-import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR } from '@/game/minerals';
+import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, formatMultiplier } from '@/game/minerals';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -84,7 +84,7 @@ export default function LandScreen() {
               {boosted && boostEndsAt && (
                 <View style={styles.boostRow}>
                   <BoltIcon size={18} color="#FFFFFF" />
-                  <Text style={styles.boostText}>{boost?.multiplier}× boost · earning {rate * (boost?.multiplier ?? 1)}/month</Text>
+                  <Text style={styles.boostText}>{formatMultiplier(boost?.multiplier ?? 1)}× boost · earning {Math.round(rate * (boost?.multiplier ?? 1))}/month</Text>
                   <Countdown endsAt={boostEndsAt} onDone={refreshBalance} style={[styles.boostText, mono, { marginLeft: 'auto' }]} />
                 </View>
               )}

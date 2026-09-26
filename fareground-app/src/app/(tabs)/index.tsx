@@ -25,7 +25,7 @@ import { DEFAULT_PARCEL_PRICE, MAX_CLAIM_ACCURACY_M } from '@/config';
 import { useMapStyle } from '@/game/mapStyle';
 import { CLAIM_REACH_M, bearingBetween, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
 import { cellForLatLng, type Cell } from '@/game/grid';
-import { MINERALS, MINERAL_ORDER } from '@/game/minerals';
+import { MINERALS, MINERAL_ORDER, formatMultiplier } from '@/game/minerals';
 import { useAreaReporter } from '@/hooks/useAreaReporter';
 import { useGameCamera } from '@/hooks/useGameCamera';
 import { useLocation, type Fix } from '@/hooks/useLocation';
@@ -486,7 +486,7 @@ function GameView({ fix }: { fix: Fix }) {
             <BoltIcon size={18} color={boosted ? '#FFFFFF' : colors.boostHi} />
             {boosted && chipEndsAt ? (
               <>
-                <Text style={styles.boostX}>{multiplier}×</Text>
+                <Text style={styles.boostX}>{formatMultiplier(multiplier)}×</Text>
                 <Countdown endsAt={chipEndsAt} onDone={refreshBalance} style={[styles.boostTime, mono]} short />
               </>
             ) : (
@@ -598,7 +598,7 @@ function GameView({ fix }: { fix: Fix }) {
                   accessibilityRole="button"
                 >
                   <BoltIcon size={16} color="#FFFFFF" />
-                  <Text style={styles.awayBtnText}>Boost {balance.rewards.boost.multiplier}x</Text>
+                  <Text style={styles.awayBtnText}>Boost {formatMultiplier(balance.rewards.boost.multiplier)}x</Text>
                 </Pressable>
               ) : null}
               <Pressable onPress={dismissAway} hitSlop={10} accessibilityLabel="Dismiss" style={styles.awayClose}>
@@ -643,7 +643,7 @@ function GameView({ fix }: { fix: Fix }) {
               <View style={{ flex: 1 }} />
               {boosted && (
                 <View style={styles.xBadge}>
-                  <Text style={styles.xBadgeText}>{multiplier}×</Text>
+                  <Text style={styles.xBadgeText}>{formatMultiplier(multiplier)}×</Text>
                 </View>
               )}
               <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
