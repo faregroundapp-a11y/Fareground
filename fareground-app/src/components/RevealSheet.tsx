@@ -88,7 +88,9 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
             accessibilityRole="button"
           >
             <PlayAdIcon size={20} color={colors.boostDeep} />
-            <Text style={styles.bonusText}>{busy ? 'Loading ad…' : `Bonus: watch an ad for +${perAd} WP`}</Text>
+            <Text style={styles.bonusText}>
+              {busy ? 'Loading ad…' : `Bonus: watch an ad for +${perAd} WP  ·  ${bonusLeft} left today`}
+            </Text>
           </Pressable>
         )
       )}

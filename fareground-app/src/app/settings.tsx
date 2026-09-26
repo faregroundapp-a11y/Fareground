@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { PRIVACY_URL, SUPPORT_EMAIL } from '@/config';
 import { haptics } from '@/native/haptics';
 import { pushAvailable } from '@/native/push';
+import { getStreetNamesPref, setStreetNamesPref } from '@/game/mapStyle';
 import { useSession } from '@/state/session';
 import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
 
@@ -24,11 +25,36 @@ import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
 export default function Settings() {
   const { token, user, signOut } = useSession();
   const [pushOn, setPushOn] = useState(true);
+  /**
+   * Street names on the map. Stored on the phone, not the server: it is a
+   * display preference, it should apply instantly, and it has no business
+   * making a network call.
+   */
+  const [streetNames, setStreetNames] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [summary, setSummary] = useState<DeleteSummary | null>(null);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Load the saved preference once.
+  useEffect(() => {
+    let cancelled = false;
+    void getStreetNamesPref().then((v) => {
+      if (!cancelled) setStreetNames(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleStreetNames = useCallback((on: boolean) => {
+    // Optimistic: the switch moves now and the write follows. A preference
+    // that waits on AsyncStorage before moving feels broken.
+    setStreetNames(on);
+    haptics.tap();
+    void setStreetNamesPref(on);
+  }, []);
 
   const togglePush = useCallback(
     async (next: boolean) => {
@@ -102,6 +128,23 @@ export default function Settings() {
           {!pushAvailable() ? (
             <Text style={styles.note}>Update the app to turn notifications on.</Text>
           ) : null}
+        </View>
+
+        {/* --- the map ------------------------------------------------- */}
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={type.label}>Street names</Text>
+              <Text style={styles.sub}>
+                Show road names on the map. Town and city labels stay either way.
+              </Text>
+            </View>
+            <Switch
+              value={streetNames}
+              onValueChange={toggleStreetNames}
+              trackColor={{ true: colors.accent }}
+            />
+          </View>
         </View>
 
         {/* --- the legally required links ------------------------------- */}

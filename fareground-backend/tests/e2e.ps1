@@ -41,7 +41,7 @@ $RULES = @{
     ParcelBasePrice   = 50      # PARCEL_BASE_PRICE_WP
     AdWalkPoints      = 5       # AD_WALK_POINTS
     MaxWpAdsPerDay    = 20      # MAX_WP_ADS_PER_DAY
-    ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - rising again since 2026-09-26
+    ParcelPriceStep   = 0       # PARCEL_PRICE_STEP_WP - flat, product owner's call
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
     BoostSecondsPerAd = 1800    # BOOST_SECONDS_PER_AD      (30 min)
     BoostBankSeconds  = 43200   # BOOST_MAX_BANKED_SECONDS  (12 h)
@@ -1036,9 +1036,22 @@ $dg = Invoke-Api POST '/rewards/complete' @{ nonce = $dt.body.nonce } -Token $p.
 Check 'an ad doubles the box reward' ($dg.body.granted -eq $true -and $dg.body.amount -eq $open.body.rewardWp) "got $($dg.body | ConvertTo-Json -Compress)"
 Check 'and the Walk Points arrive' ((Invoke-Api GET '/user/balance' -Token $p.token).body.walkPoints -eq 2 * $open.body.rewardWp) 'wrong WP'
 # Second free box, then ads.
+#
+# THE SECOND BOX IS OPENED THROUGH THE API, not with a SQL shortcut. This test
+# used to mark it collected with an UPDATE, which meant `openBox` only ever ran
+# ONCE per player in the whole suite - and the second open of a day was broken
+# for months without a single failing check. `reward_claims_once_per_day`
+# covered every source, and TREASURE writes a null quest_key, so claim two of
+# any day collided on the unique index and the app showed "Internal server
+# error". A tester found it in a minute. Migration 026 scoped the index.
+#
+# The rule: if a player can do it twice, the test does it twice, through the
+# same door they use.
 $tr = (Invoke-Api GET "/treasure?lat=$($spot.lat)&lng=$($spot.lng)" -Token $p.token).body
 Check 'a second free box appears' (@($tr.boxes).Count -eq 1) "got $(@($tr.boxes).Count)"
-Sql "UPDATE treasure_boxes SET collected_at = NOW() WHERE user_id = '$uid' AND collected_at IS NULL;" | Out-Null
+$box2 = $tr.boxes[0]
+$open2 = Invoke-Api POST "/treasure/$($box2.id)/open" @{ lat = $box2.lat; lng = $box2.lng } -Token $p.token
+Check 'the SECOND box of the day opens too' ($open2.status -eq 200 -and $open2.body.rewardWp -ge 6) "got $($open2.status) $($open2.body.error)"
 $tr = (Invoke-Api GET "/treasure?lat=$($spot.lat)&lng=$($spot.lng)" -Token $p.token).body
 Check 'after two, the next box needs an ad' (@($tr.boxes).Count -eq 0 -and $tr.nextNeedsAd -eq $true) "got $(@($tr.boxes).Count) boxes"
 $t = Invoke-Api POST '/rewards/start' @{ kind = 'TREASURE' } -Token $p.token
@@ -1046,6 +1059,9 @@ $g = Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce; lat = $spot.l
 Check 'an ad spawns another box' ($g.body.granted -eq $true) "got $($g.body | ConvertTo-Json -Compress)"
 $tr = (Invoke-Api GET "/treasure?lat=$($spot.lat)&lng=$($spot.lng)" -Token $p.token).body
 Check 'and there it is' (@($tr.boxes).Count -eq 1 -and $tr.boxes[0].fromAd -eq $true) "got $($tr.boxes | ConvertTo-Json -Compress)"
+$box3 = $tr.boxes[0]
+$open3 = Invoke-Api POST "/treasure/$($box3.id)/open" @{ lat = $box3.lat; lng = $box3.lng } -Token $p.token
+Check 'the THIRD box of the day opens as well' ($open3.status -eq 200 -and $open3.body.rewardWp -ge 6) "got $($open3.status) $($open3.body.error)"
 
 Write-Host "`n=== 20. Rate limiting is wired up ===" -ForegroundColor Cyan
 $r = Invoke-Api GET '/user/balance' -Token $p.token
@@ -1332,6 +1348,36 @@ $junk = Invoke-Api POST '/user/push' @{ token = 'not-an-expo-token'; platform = 
 Check 'a token we cannot store reports ok:false' ($junk.body.ok -eq $false) "got $($junk.body.ok)"
 $stored = [int](Sql "SELECT COUNT(*) FROM push_tokens WHERE user_id = (SELECT id FROM users WHERE email = '$($pu.email)');")
 Check '...and exactly one token is stored, not two' ($stored -eq 1) "got $stored"
+
+Write-Host "`n=== 45. Ad kinds that were missing from the database enum ===" -ForegroundColor Cyan
+# PIT_STOP and PHOTO existed in the TypeScript AdRewardKind union and NOT in
+# the Postgres enum, so /rewards/start 500d for both. Nobody had ever been
+# able to set a profile picture, and nobody could pay an ad to skip the
+# doorbell cooldown. Reported by testers as "profile pictures aren't working".
+#
+# The old photo test passed for the WRONG REASON: it only checked that an
+# upload without an ad is refused, got its 400 for the missing nonce, and
+# never reached the enum. This walks the happy path.
+$pk = New-Player
+foreach ($kind in 'PHOTO', 'PIT_STOP', 'BOOST', 'WALK_POINTS', 'DOUBLE', 'INSTANT_COLLECT', 'SCOUT', 'COSMETIC', 'UPGRADE', 'EXTRA_CHECKIN', 'STREAK_SAVE', 'TREASURE') {
+    $r = Invoke-Api POST '/rewards/start' @{ kind = $kind } -Token $pk.token
+    # 4xx is fine (caps, preconditions). A 500 means the enum is missing it.
+    Check "$kind is a known ad kind" ($r.status -lt 500) "got $($r.status): $($r.body.error)"
+}
+
+# ...and a photo really uploads and is really served.
+$ph = New-Player
+$png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+$t = Invoke-Api POST '/rewards/start' @{ kind = 'PHOTO' } -Token $ph.token
+Check 'a PHOTO ad ticket is issued' ($t.status -eq 201) "got $($t.status): $($t.body.error)"
+Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce } -Token $ph.token | Out-Null
+$up = Invoke-Api POST '/profile/photo' @{ image = $png; adNonce = $t.body.nonce } -Token $ph.token
+Check 'the upload succeeds' ($up.status -eq 201) "got $($up.status): $($up.body.error)"
+Check '...and returns a photo path' ($up.body.photoUrl -match '^/photos/[0-9a-f]+\.(png|jpg)$') "got '$($up.body.photoUrl)'"
+$img = Invoke-Api GET $up.body.photoUrl -Token $ph.token
+Check '...that is actually served' ($img.status -eq 200) "got $($img.status)"
+$bal = (Invoke-Api GET '/user/balance' -Token $ph.token).body
+Check 'and the balance carries it, so it shows on the map' ($bal.photoUrl -eq $up.body.photoUrl) "got '$($bal.photoUrl)'"
 
 Write-Host "`n=== RESULTS ===" -ForegroundColor Cyan
 Write-Host "  Passed: $pass" -ForegroundColor Green

@@ -147,8 +147,11 @@ export default function RanksScreen() {
             </View>
             <PlayerPicture photoUrl={item.photoUrl} username={item.username} size={40} ring={item.rank <= 3 ? MEDAL[item.rank - 1] : undefined} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.username}{item.you ? '  (you)' : ''}
+              {/* No "(you)" suffix: the row already has its own highlight
+                  (styles.rowYou), so the brackets were saying twice what the
+                  colour says once - and testers read them as a glitch. */}
+              <Text style={[styles.name, item.you && styles.nameYou]} numberOfLines={1}>
+                {item.username}
               </Text>
               {!!item.title && <Text style={styles.rowTitle} numberOfLines={1}>{titleName(item.title)}</Text>}
             </View>
@@ -211,6 +214,7 @@ const styles = StyleSheet.create({
   rowYou: { borderColor: colors.accent, borderWidth: 1.5 },
   rank: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.sunk, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink2, includeFontPadding: false },
+  nameYou: { fontFamily: fonts.black },
   name: { fontFamily: fonts.heavy, fontSize: 15, color: colors.ink, includeFontPadding: false },
   rowTitle: { fontFamily: fonts.bold, fontSize: 11.5, color: colors.ink3, marginTop: 1, includeFontPadding: false },
   steps: { fontFamily: fonts.black, fontSize: 15, color: colors.ink, includeFontPadding: false },

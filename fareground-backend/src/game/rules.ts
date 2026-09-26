@@ -242,6 +242,13 @@ export const MAX_BOOST_ADS_PER_DAY = 12;
  * players pay us the most directly to open.
  */
 export const AD_WALK_POINTS = 5;
+
+/**
+ * TWENTY a day - the product owner's call (2026-09-26). It went 6 -> 20 ->
+ * 10 (testers called 20 "infinite") -> 20 again. What fixed the "infinite"
+ * feeling was the button showing how many are LEFT, not the number itself,
+ * and that stays.
+ */
 export const MAX_WP_ADS_PER_DAY = 20;
 
 /** How long a "start watching" ticket stays valid. An ad is ~30 s. */
