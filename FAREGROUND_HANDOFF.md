@@ -460,52 +460,80 @@ subscription would likely beat the ads themselves.
 
 ---
 
-## 26. Hosting on Render, and the economy rework (2026-09-26)
+## 26. Render hosting, the economy rework, and the reset fixes (2026-09-26)
 
-**§2's table is stale. `rules.ts` is the truth.** Current: 100 steps = 1 WP;
-parcel **50 WP + 1 per parcel owned** (1st 50, 10th 59, 100th 149); signup
-bonus 50 WP; boost **20x, 30 min per ad, 12 h bank** (12 ads/day = 6 h);
-**2,000,000 coins = $1**; ROCKY 1 / COAL 2 / AMETHYST 5 / SAPPHIRE 12 /
-RUBY 100 coins/hr; cash redemption OFF.
+Work from a CLOUD session (Claude Code on the web), on branch
+`claude/file-visibility-9ia9fr`, merged with the PC session's branch
+`pc-work`. **Read the plan before the history: it says what is in flight.**
 
-### Why the price rises again and the boost is short again
+### THE PLAN - in order, and what is done
 
-Testers worked the numbers out in Discord and were right. With the flat
-50 WP price (2026-09-24) plus two hours of 20x per ad, twelve ads bought 20x
-on EVERY parcel all day, and land grew in a straight line for ever. The
-economy report showed a regular walker's land paying ~10x what their ads
-earn - a loss on every engaged player the moment coins are cash.
+| # | Item | State |
+|---|---|---|
+| 1 | Second and later treasure boxes 500 (`reward_claims_once_per_day` covered TREASURE/PITSTOP) | **Done** - migration 026 (PC session), merged |
+| 2 | Profile photos + doorbell skips 500 (enum missing PIT_STOP/PHOTO) | **Done** - migration 025 (PC session), merged |
+| 3 | Daily resets follow each player's OWN local midnight: chest, quests, every daily ad cap. Server clock only - changing the phone's date must do nothing - and the time zone itself must not be switchable at will to reach "tomorrow" early | **Next** |
+| 4 | A collected quest still shows **Collect** (then errors) | To do |
+| 5 | Instant collect says "0 left today" when the real cause is owning no land | To do |
+| 6 | Economy rebuild (spec below) | To do, after 3-5 |
+| 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
-The fix touches only those two levers; coin value and mineral rates are
-untouched because they were never the problem. Modelled for a regular walker
-(8,000 steps + daily rewards): ~200 parcels after a year, ~370 after three;
-first $0.25 in ~2-4 months; ~$0.50-0.90/month to the player at a year with
-boost ads. Ad revenue covers the land 1.0-2.1x (3 ads/day) and 1.7-3.9x
-(12 ads/day). **If ad rates come in low, set PARCEL_PRICE_STEP_WP to 2**
-(~1.4x worst case, ~25% less land). Existing land and banked boosts are
-untouched.
+### Economy - what the product owner decided (supersedes everything above)
 
-**Later the same day the product owner set the boost to 30 min per ad with a
-12 h bank** (it was briefly 20 min / 4 h). 12 ads now buy 6 h a day (5.75x
-day-average instead of 4.17x); the bank holds two days so hours can be saved.
-That is ~40% more boosted land for a heavy ad-watcher: margins drop to about
-0.8-1.5x (3 ads) and 1.2-2.3x (12 ads). PARCEL_PRICE_STEP_WP = 2 brings them
-back to ~1.1-2.1x and 1.7-3.2x.
+Researched against Atlas Earth and TerraMine (TerraMine copies Atlas's
+rates exactly; both only let players cash out from $5):
 
-### Hosting (testers no longer need the PC)
+* **1,000 coins = $1.** Balances read in the thousands, never the millions.
+* **Rates per parcel, per MONTH** (TerraMine-level; ruby stays the jackpot):
+  Rocky 3, Coal 4, Amethyst 5, Sapphire 8, Ruby 25 (odds 60/25/10/4/1).
+  Average $0.0039/month against TerraMine's $0.0035.
+* **Parcels FLAT at 50 WP, for ever.** "I don't want prices to increase."
+* **Boost 20x, 30 min per ad, 8 h bank, up to 48 ads a day** (stay boosted
+  all day, as TerraMine allows). 400 parcels fully boosted is ~$1/day - the
+  TerraMine figure testers quoted.
+* **Bonus-WP ads: 20 a day** (was cut to 10 by the PC session; the owner
+  wants 20). The button keeps showing how many are left.
+* **Safety valves (how TerraMine survives the same maths):** boost tapers
+  above 400 parcels (15x to 700, 10x to 1,000, then 5x); coins can be traded
+  back into Walk Points (~10 coins = 1 WP, so a parcel is ~$0.50); cash-out
+  minimum $5; optionally lower rates outside US/UK/CA/AU as Atlas does.
+* **Existing balances are converted, never lost:** 2,000 old coins = 1 new.
+* Honest cost: at 200+ parcels a fully boosted player is paid about what
+  their ads earn (0.4-1.2x at 400). It works only with the valves, and cash
+  redemption stays OFF until real ad rates are known.
 
-- `render.yaml` at the repo root: Render Blueprint, web service + Postgres,
-  migrations on every start. Live at `https://fareground-api.onrender.com`.
-  Free plan: sleeps after 15 min idle, database deleted after 30 days.
-- `TRUST_PROXY=1` there. Without it every player behind Render's proxy shared
-  ONE rate-limit bucket (20 sign-ins per 15 min for everyone).
-- `AD_REWARD_VERIFICATION=client` on purpose: test ad units never send the
-  SSV callback, so `ssv` would make every rewarded ad pay nothing.
-- EAS profile `tester` points at Render. Build:
-  `npx eas-cli@latest build --profile tester --platform android`, run INSIDE
-  `fareground-app`. Share the `.apk` download link, NOT the expo.dev build
-  page (private to the account - testers see "Account not found").
-- The Expo project is still named **walkscape** under **zpolos-team**.
+### Style rules for this work
+
+Match what is there: comments explain WHY in full sentences; money is
+integer coins and micro-coins, never floats; every number lives in
+`rules.ts`; Nunito via `fontFamily: fonts.*` (never `fontWeight`); colours
+and spacing from `src/theme.ts`; lint + typecheck + unit tests before any
+push.
+
+### Done in this session (history)
+
+* **Render hosting.** `render.yaml` at the repo root (web + Postgres,
+  migrations on every start), live at `https://fareground-api.onrender.com`.
+  `TRUST_PROXY=1`, or every player behind Render's proxy shares ONE
+  rate-limit bucket (20 sign-ins per 15 min for everyone).
+  `AD_REWARD_VERIFICATION=client` because test ad units never send SSV.
+  Free plan: sleeps after 15 min idle; the free database is deleted after
+  30 days - upgrade before real testers depend on it.
+* **The EAS `tester` profile points at Render.** The PC session had pointed
+  it back at a quick tunnel during the merge; reverted. The tunnel/serve
+  scripts stay for local development only.
+* Build it INSIDE `fareground-app`:
+  `npx eas-cli@latest build --profile tester --platform android`. Share the
+  `.apk` download link, NOT the expo.dev build page (private to the account -
+  testers saw "Account not found"). The Expo project is **walkscape** under
+  **ninefold** (renamed from zpolos-team).
+* **Economy, as it stands in `rules.ts` until item 6:** parcel 50 WP + 1 per
+  parcel owned (a rising price the owner has since rejected), boost 20x
+  30 min/ad 12 h bank, 2,000,000 coins = $1, ROCKY 1 / COAL 2 / AMETHYST 5 /
+  SAPPHIRE 12 / RUBY 100 coins per HOUR. It replaced the flat price + 2 h/ad
+  boost that paid a regular walker ~10x what their ads earned.
+* Website (`fareground-site/index.html`) figures were corrected to the
+  current rates; they change again with item 6.
 
 ---
 
