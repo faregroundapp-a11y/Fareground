@@ -1,16 +1,18 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { AvatarChoice, Profile } from '@/api/types';
+import { DraggableSheet } from '@/components/DraggableSheet';
+import { GearIcon } from '@/components/icons';
 import { InviteCard } from '@/components/InviteCard';
 import { ProfileView } from '@/components/ProfileView';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { haptics } from '@/native/haptics';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
-import { colors, fonts, space, type } from '@/theme';
+import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
 
 /** Your own profile: level, stats, badges, jersey colour - and sign out. */
 export default function ProfileScreen() {
@@ -19,6 +21,10 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  // The two sheets opened from the top-right buttons.
+  const [sheet, setSheet] = useState<'invite' | 'friends' | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -62,25 +68,69 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.body}
         refreshControl={<RefreshControl refreshing={loading && !!profile} onRefresh={load} tintColor={colors.accent} />}
       >
-        <ScreenHeader title="Your profile" />
+        <ScreenHeader
+          title="Your profile"
+          right={
+            <Pressable
+              style={({ pressed }) => [styles.gear, pressed && { opacity: 0.6 }]}
+              onPress={() => { haptics.tap(); router.push('/settings'); }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Settings, privacy and account"
+            >
+              <GearIcon size={24} color={colors.ink} />
+            </Pressable>
+          }
+        />
+        {/* Invites and friends live up here with Settings, rather than at the
+            bottom under the badges where nobody scrolled to them. */}
+        <View style={styles.sideButtons}>
+          <Pressable
+            style={({ pressed }) => [styles.pill, pressed && { opacity: 0.7 }]}
+            onPress={() => { haptics.tap(); setSheet('invite'); }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pillText}>🎁  Invite</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.pill, pressed && { opacity: 0.7 }]}
+            onPress={() => { haptics.tap(); setSheet('friends'); }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pillText}>👥  Friends</Text>
+          </Pressable>
+        </View>
         {error && <Text style={styles.error}>{error}</Text>}
         {profile ? (
-          <>
-            <ProfileView profile={profile} onEdit={save} onReload={load} />
-            <InviteCard />
-          </>
+          <ProfileView profile={profile} onEdit={save} onReload={load} />
         ) : (
           <View style={styles.loading}><ActivityIndicator color={colors.accent} /></View>
         )}
-        <Pressable
-          style={styles.settings}
-          onPress={() => router.push('/settings')}
-          hitSlop={8}
-          accessibilityRole="button"
-        >
-          <Text style={styles.settingsText}>Settings, privacy and account</Text>
-        </Pressable>
       </ScrollView>
+
+      <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={closeSheet} statusBarTranslucent>
+        <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Close" />
+        <DraggableSheet
+          onClose={closeSheet}
+          style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}
+          gripStyle={styles.grip}
+        >
+          {sheet === 'invite' && (
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <InviteCard />
+            </ScrollView>
+          )}
+          {sheet === 'friends' && (
+            <View style={styles.soon}>
+              <Text style={styles.soonEmoji}>🤫</Text>
+              <Text style={type.title}>Coming soon</Text>
+              <Text style={[type.caption, { textAlign: 'center' }]}>
+                Friends are on the way. Keep it quiet for now.
+              </Text>
+            </View>
+          )}
+        </DraggableSheet>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -90,6 +140,27 @@ const styles = StyleSheet.create({
   body: { padding: space.xl, paddingBottom: space.xxl, gap: space.md },
   loading: { paddingVertical: 60, alignItems: 'center' },
   error: { ...type.body, color: colors.danger },
-  settings: { alignItems: 'center', minHeight: 48, justifyContent: 'center', marginTop: space.sm },
-  settingsText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink2 },
+  gear: {
+    width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+    marginRight: -8,
+  },
+  // Right-aligned under the gear, one above the other.
+  sideButtons: { alignSelf: 'flex-end', alignItems: 'flex-end', gap: space.sm, marginTop: -space.sm },
+  pill: {
+    minHeight: 40, paddingHorizontal: space.lg, borderRadius: radius.pill, justifyContent: 'center',
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line,
+  },
+  pillText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
+  scrim: { flex: 1, backgroundColor: 'rgba(8,14,11,0.55)' },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: space.xl,
+    paddingTop: space.md,
+    maxHeight: '85%',
+  },
+  grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong, marginBottom: space.lg },
+  soon: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },
+  soonEmoji: { fontSize: 56 },
 });

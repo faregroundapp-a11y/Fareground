@@ -118,6 +118,16 @@ export function PointerIcon({ size = 22, rotation = 0, color = '#FFD37A' }: { si
   );
 }
 
+/** A cog, for Settings. Same 1.8 px rounded stroke as the tab icons. */
+export function GearIcon({ size = 24, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M10.3 3.2h3.4l.5 2.3 1.6.9 2.2-.8 1.7 2.9-1.7 1.6v1.8l1.7 1.6-1.7 2.9-2.2-.8-1.6.9-.5 2.3h-3.4l-.5-2.3-1.6-.9-2.2.8-1.7-2.9 1.7-1.6v-1.8L4.3 8.5 6 5.6l2.2.8 1.6-.9z" />
+      <Circle cx="12" cy="12" r="2.8" />
+    </Svg>
+  );
+}
+
 /* ---------- tab bar ---------- */
 
 export function MapTabIcon({ size = 24, color = '#000' }: IconProps) {
