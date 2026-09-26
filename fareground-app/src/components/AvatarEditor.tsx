@@ -54,6 +54,9 @@ export function AvatarEditor({
   const { watch, busy } = useRewardedAd(onUnlocked);
   const [note, setNote] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  // The picture just chosen, shown straight from the phone while it uploads
+  // and the profile reloads - testers found the wait for the round trip slow.
+  const [preview, setPreview] = useState<string | null>(null);
 
   /**
    * Change the profile picture. One rewarded ad per change.
@@ -80,6 +83,7 @@ export function AvatarEditor({
     }
 
     setPhotoBusy(true);
+    setPreview(`data:image/jpeg;base64,${picked.base64}`);
     try {
       await api.setPhoto(token, picked.base64, ad.nonce);
       haptics.success();
@@ -87,6 +91,7 @@ export function AvatarEditor({
       onUnlocked();
     } catch (e) {
       haptics.warn();
+      setPreview(null); // it did not save: show what the server really has
       setNote(e instanceof ApiError ? e.message : 'That picture could not be saved.');
     } finally {
       setPhotoBusy(false);
@@ -99,6 +104,7 @@ export function AvatarEditor({
     setPhotoBusy(true);
     try {
       await api.clearPhoto(token);
+      setPreview(null);
       setNote('Back to your initial.');
       onUnlocked();
     } catch (e) {
@@ -139,7 +145,7 @@ export function AvatarEditor({
 
         {/* The picture, which is a different thing from the character. */}
         <View style={styles.photoRow}>
-          <PlayerPicture photoUrl={profile.photoUrl} username={profile.username} size={56} />
+          <PlayerPicture photoUrl={preview ?? profile.photoUrl} username={profile.username} size={56} />
           <View style={{ flex: 1, gap: space.sm }}>
             <Button
               variant={profile.photoUrl ? 'secondary' : 'boost'}

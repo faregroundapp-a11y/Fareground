@@ -92,8 +92,8 @@ export type AdRewardKind =
  * ---------------------------------------------------------------------------
  *  THE BOOST - TerraMine's shape, because testers compare us with it.
  * ---------------------------------------------------------------------------
- *  20x coins, 30 minutes per rewarded ad, banking up to 12 hours, and enough
- *  ads a day to stay boosted around the clock if a player wants to. That is
+ *  20x coins, 30 minutes per rewarded ad, banking up to 12 hours, and up to
+ *  24 ads a day - twelve boosted hours. That is
  *  exactly TerraMine's boost (researched 2026-09-26), and it is what makes
  *  "400 parcels fully boosted is about $1 a day" true here as it is there.
  *
@@ -121,8 +121,11 @@ export const BOOST_SECONDS_PER_AD = 30 * 60;
  */
 export const BOOST_MAX_BANKED_SECONDS = 12 * 60 * 60;
 
-/** 48 x 30 min = a whole day, for a player who really wants it. */
-export const MAX_BOOST_ADS_PER_DAY = 48;
+/**
+ * 24 x 30 min = 12 hours a day - the product owner's call (2026-09-26), and
+ * exactly what the 12-hour bank holds, so a day's ads fill it.
+ */
+export const MAX_BOOST_ADS_PER_DAY = 24;
 
 /**
  * The taper: the multiplier a boost ad buys, by land held. Full 20x up to
@@ -159,12 +162,11 @@ export function boostMultiplierFor(parcels: number): number {
 export const AD_WALK_POINTS = 5;
 
 /**
- * TWENTY a day - the product owner's call (2026-09-26). It went 6 -> 20 ->
- * 10 (testers called 20 "infinite") -> 20 again. What fixed the "infinite"
- * feeling was the button showing how many are LEFT, not the number itself,
- * and that stays.
+ * TEN a day at 5 WP - 50 WP, one parcel - the product owner's call
+ * (2026-09-26). It has been 6, 20, 10, 20 and is 10 again; the button shows
+ * how many are LEFT, which is what fixed the "infinite" feeling.
  */
-export const MAX_WP_ADS_PER_DAY = 20;
+export const MAX_WP_ADS_PER_DAY = 10;
 
 /** How long a "start watching" ticket stays valid. An ad is ~30 s. */
 export const AD_TICKET_TTL_SECONDS = 10 * 60;

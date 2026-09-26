@@ -11,6 +11,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { BoltIcon, CoinIcon, PinIcon, PlayAdIcon, StepsIcon } from './icons';
+import { DraggableSheet } from './DraggableSheet';
 
 /**
  * "Free rewards": every rewarded ad offer in one place.
@@ -75,8 +76,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
-        <View style={styles.grip} />
+      <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Free rewards</Text>
           <Text style={[type.body, { marginTop: 2, marginBottom: space.lg }]}>Watch a short ad, take your pick.</Text>
@@ -196,7 +196,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
             <Text style={styles.note}>Ads arrive with the next app update - install the new build to use these.</Text>
           )}
         </ScrollView>
-      </View>
+      </DraggableSheet>
     </Modal>
   );
 }

@@ -12,6 +12,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { GemIcon, PlayAdIcon } from './icons';
+import { DraggableSheet } from './DraggableSheet';
 
 /**
  * "Ring the doorbell?" - a pit stop, reached by tapping someone's land.
@@ -144,8 +145,7 @@ export function DoorbellSheet({
   return (
     <Modal visible={parcelId !== null} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom, maxHeight: height * 0.85 }]}>
-        <View style={styles.grip} />
+      <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom, maxHeight: height * 0.85 }]} gripStyle={styles.grip}>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -250,7 +250,7 @@ export function DoorbellSheet({
             {status ? `${status.today} ${status.today === 1 ? 'door' : 'doors'} today` : ' '}
           </Text>
         )}
-      </View>
+      </DraggableSheet>
     </Modal>
   );
 }

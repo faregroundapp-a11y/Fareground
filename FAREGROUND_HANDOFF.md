@@ -485,6 +485,7 @@ Work from a CLOUD session (Claude Code on the web), on branch
 | 6d | Steps with the app never opened | **Done (needs the new build)** - researched Adventure Sync / WeWard / Sweatcoin: they read the health store on a background schedule. `native/backgroundSteps.ts` runs the same `runStepSync` every ~30 min via expo-background-task; Health Connect asks for background reading too |
 | 6e | Map buttons: two-way street sign hides ALL map text (every symbol layer with a text-field), community button is 🤗, treasure finder flies to the nearest box and back then shows a pointer + metres (press again to hide) | **Done (JS)** |
 | 6f | Boost bank 12 h (30 min per ad) | **Done** |
+| 6g | Sheets could not be dragged down; ads: 10 bonus-WP a day at 5 WP, 24 boost ads (12 h of 30 min); a closing ad's tap could land on a sheet's "Double it"; area names said "Greater London"; profile picture felt slow | **Done** - `DraggableSheet` on Daily/Boost/Community/Doorbell; one ad at a time app-wide plus a 1.2 s pause after each (`useRewardedAd`); `placeNameFor` leads with a landmark or street; the chosen picture shows instantly while it uploads |
 | 6c | Leaderboard board = where the PHONE is (reverse-geocoded, refreshed every 3 km / 6 h), not where land is. The week pays on the board you are on at the end, so a Sunday trip switches boards - owner to decide whether to lock it | Open question |
 | 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
@@ -511,11 +512,11 @@ rates exactly; both only let players cash out from $5):
   Rocky 3, Coal 4, Amethyst 5, Sapphire 8, Ruby 25 (odds 60/25/10/4/1).
   Average $0.0039/month against TerraMine's $0.0035.
 * **Parcels FLAT at 50 WP, for ever.** "I don't want prices to increase."
-* **Boost 20x, 30 min per ad, 12 h bank, up to 48 ads a day** (stay boosted
+* **Boost 20x, 30 min per ad, 12 h bank, up to 24 ads a day** (stay boosted
   all day, as TerraMine allows). 400 parcels fully boosted is ~$1/day - the
   TerraMine figure testers quoted.
-* **Bonus-WP ads: 20 a day** (was cut to 10 by the PC session; the owner
-  wants 20). The button keeps showing how many are left.
+* **Bonus-WP ads: 10 a day at 5 WP** (owner, 2026-09-26). The button shows
+  how many are left.
 * **Safety valves (how TerraMine survives the same maths):** boost tapers
   above 400 parcels (15x to 700, 10x to 1,000, then 5x); coins can be traded
   back into Walk Points (~10 coins = 1 WP, so a parcel is ~$0.50); cash-out

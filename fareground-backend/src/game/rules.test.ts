@@ -110,8 +110,8 @@ test('the boost is 20x, 30 minutes an ad, 12 hours banked', () => {
   assert.equal(BOOST_MULTIPLIER, 20);
   assert.equal(BOOST_SECONDS_PER_AD, 1_800, 'thirty minutes an ad');
   assert.equal(BOOST_MAX_BANKED_SECONDS, 43_200, 'twelve hours banked');
-  // Enough ads to stay boosted all day, for a player who wants to.
-  assert.ok(MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD >= 86_400, 'a whole day must be reachable');
+  // A day's ads fill the 12-hour bank exactly.
+  assert.equal(MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD, BOOST_MAX_BANKED_SECONDS);
   // Bank must hold at least one ad, or an ad could buy nothing.
   assert.ok(BOOST_MAX_BANKED_SECONDS >= BOOST_SECONDS_PER_AD);
 });
@@ -658,8 +658,8 @@ test('EVERY way to earn together still funds itself', () => {
     DAILY_QUESTS.reduce((sum, q) => sum + q.rewardWp, 0) * 2 +
     (CHECKIN_WP + CHECKIN_NEW_PLACE_BONUS_WP) * 2 +
     AD_WALK_POINTS * MAX_WP_ADS_PER_DAY;
-  // Moves with the bonus-WP ad cap: 6/day -> 20 -> 10 -> 20 again.
-  assert.ok(perDay >= 250 && perDay <= 300, `a maxed-out day is ${perDay} WP`);
+  // Moves with the bonus-WP ad cap: 6/day -> 20 -> 10 -> 20 -> 10.
+  assert.ok(perDay >= 200 && perDay <= 250, `a maxed-out day is ${perDay} WP`);
 
   const costAt = (years: number) => parcelsAfter(365 * years, perDay) * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
 
@@ -770,9 +770,9 @@ test('even a casual player gets there eventually', () => {
 });
 
 test('a day of ads is worth staying boosted for, and every ad still earns its keep', () => {
-  // A full day of boost ads reaches a whole day at 20x for an ordinary player.
+  // A full day of boost ads buys twelve hours at 20x for an ordinary player.
   const boostedHours = Math.min((MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD) / 3600, 24);
-  assert.equal(boostedHours, 24);
+  assert.equal(boostedHours, 12);
 
   // What ONE ad hands out, in dollars, against what one ad earns us at the
   // pessimistic $0.008. With the taper it stays within ~4x of that at any

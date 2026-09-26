@@ -2,6 +2,7 @@ import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptics } from '@/native/haptics';
 import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
+import { DraggableSheet } from './DraggableSheet';
 
 /**
  * Community: where the players are.
@@ -68,8 +69,7 @@ export function CommunitySheet({ visible, onClose }: { visible: boolean; onClose
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
-        <View style={styles.grip} />
+      <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
 
         <Text style={type.title}>Community</Text>
         <Text style={[type.caption, { marginTop: 4, marginBottom: space.lg }]}>
@@ -111,7 +111,7 @@ export function CommunitySheet({ visible, onClose }: { visible: boolean; onClose
         <Text style={styles.foot}>
           More opens up as there are more walkers. Nothing here shares your location.
         </Text>
-      </View>
+      </DraggableSheet>
     </Modal>
   );
 }

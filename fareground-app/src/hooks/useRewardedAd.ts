@@ -20,6 +20,21 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   3. Ask the server whether it paid. In production the grant comes from
  *      Google's callback and can take a moment, so this polls briefly.
  */
+/**
+ * ONE AD AT A TIME, ACROSS THE WHOLE APP - and a moment's pause after each.
+ *
+ * Every sheet has its own copy of this hook, so a per-hook `busy` flag let
+ * two sheets start ads at once. Worse: when an ad closes, the tap that closed
+ * it can land on whatever button is now under the finger - and a sheet that
+ * just re-rendered can have slid its big "Double it" button right there.
+ * Testers saw exactly that: a bonus-WP ad, then the chest doubled "by
+ * itself". So: a lock shared by every caller, and no new ad for a second
+ * after the last one closed.
+ */
+let adInFlight = false;
+let lastAdEndedAt = 0;
+const AFTER_AD_PAUSE_MS = 1_200;
+
 export function useRewardedAd(onGranted?: () => void) {
   const { token } = useSession();
   const [busy, setBusy] = useState<AdRewardKind | null>(null);
@@ -31,7 +46,10 @@ export function useRewardedAd(onGranted?: () => void) {
       /** Where the player is - a treasure box needs somewhere to appear. */
       at?: { lat: number; lng: number } | null,
     ): Promise<RewardResult> => {
-      if (!token || busy) return { ok: false, message: 'Please wait a moment.' };
+      if (!token || busy || adInFlight || Date.now() - lastAdEndedAt < AFTER_AD_PAUSE_MS) {
+        return { ok: false, message: 'Please wait a moment.' };
+      }
+      adInFlight = true;
       setBusy(kind);
       haptics.press();
       try {
@@ -60,6 +78,8 @@ export function useRewardedAd(onGranted?: () => void) {
         haptics.warn();
         return { ok: false, message: e instanceof ApiError ? e.message : 'Something went wrong. Please try again.' };
       } finally {
+        adInFlight = false;
+        lastAdEndedAt = Date.now();
         setBusy(null);
       }
     },

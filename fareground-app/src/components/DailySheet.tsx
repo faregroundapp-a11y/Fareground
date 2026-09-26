@@ -12,6 +12,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { AreasCard } from './AreasCard';
 import { Button } from './Button';
 import { BoltIcon, CheckIcon, ChestIcon, PlayAdIcon } from './icons';
+import { DraggableSheet } from './DraggableSheet';
 
 /**
  * "Today": the daily chest (a 7-day streak) and daily quests. Every reward
@@ -92,8 +93,7 @@ export function DailySheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
-        <View style={styles.grip} />
+      <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Today</Text>
           <Text style={[type.body, { marginTop: 2, marginBottom: space.lg }]}>Open your chest, finish quests, walk.</Text>
@@ -233,7 +233,7 @@ export function DailySheet({
           {note && <Text style={[styles.note, { color: note.good ? colors.goodInk : colors.danger }]}>{note.text}</Text>}
           {!daily && <Text style={styles.note}>Loading…</Text>}
         </ScrollView>
-      </View>
+      </DraggableSheet>
     </Modal>
   );
 }

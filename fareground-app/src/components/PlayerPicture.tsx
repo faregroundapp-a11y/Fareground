@@ -79,7 +79,7 @@ export function PlayerPicture({
       {showPhoto ? (
         <Image
           // Paths come back server-relative so the same row works on any host.
-          source={{ uri: photoUrl.startsWith('http') ? photoUrl : `${API_URL}${photoUrl}` }}
+          source={{ uri: /^(https?:|data:)/.test(photoUrl) ? photoUrl : `${API_URL}${photoUrl}` }}
           style={{ width: size, height: size }}
           resizeMode="cover"
           // A photo that 404s (moderated away, or the server moved) must fall

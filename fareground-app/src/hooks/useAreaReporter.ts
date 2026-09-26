@@ -9,15 +9,32 @@ const MOVE_M = 3_000;
 /** ...or after this long, whichever comes first. */
 const EVERY_MS = 6 * 60 * 60 * 1000;
 
-/** A short, human name for where you are: "Camden", "Hyde Park"... */
+/**
+ * A short, human name for a spot, as specific as the geocoder allows:
+ * "Victoria Park, Hackney", "Oxford Street, Soho", then "Camden, London".
+ *
+ * It used to lead with the district, which in a big city is a borough -
+ * testers were sent to "Greater London". A landmark or a street is something
+ * you can actually walk to, so those come first, with the neighbourhood after
+ * it for context.
+ */
 export async function placeNameFor(lat: number, lng: number): Promise<string | undefined> {
   try {
     const [a] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
     if (!a) return undefined;
-    const local = a.district ?? a.subregion ?? a.name ?? undefined;
-    const town = a.city ?? undefined;
-    if (local && town && local !== town) return `${local}, ${town}`;
-    return town ?? local;
+    const clean = (v: string | null | undefined) => (v && v.trim() ? v.trim() : undefined);
+    const street = clean(a.street);
+    const name = clean(a.name);
+    // `name` is often just the house number or the street again; only a real
+    // name (a park, a station, a building) counts as a landmark.
+    const landmark =
+      name && name !== street && name !== clean(a.streetNumber) && !/^\d/.test(name) && !name.includes(street ?? '\u0000')
+        ? name
+        : undefined;
+    const area = clean(a.district) ?? clean(a.city) ?? clean(a.subregion);
+    const spot = landmark ?? street;
+    if (spot && area && spot !== area) return `${spot}, ${area}`;
+    return spot ?? area ?? clean(a.region);
   } catch {
     return undefined;
   }
