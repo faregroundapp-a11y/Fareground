@@ -43,8 +43,9 @@ $RULES = @{
     MaxWpAdsPerDay    = 20      # MAX_WP_ADS_PER_DAY
     ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - rising again since 2026-09-26
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
-    BoostSecondsPerAd = 1200    # BOOST_SECONDS_PER_AD      (20 min)
-    BoostBankSeconds  = 14400   # BOOST_MAX_BANKED_SECONDS  (4 h)
+    BoostSecondsPerAd = 1800    # BOOST_SECONDS_PER_AD      (30 min)
+    BoostBankSeconds  = 43200   # BOOST_MAX_BANKED_SECONDS  (12 h)
+    MaxBoostAdsPerDay = 12      # MAX_BOOST_ADS_PER_DAY
     # sustainablePace(60) x 60. NOT 60 x MAX_STEPS_PER_MINUTE: the pace
     # ceiling falls off with duration, so an hour is 200/min rather than the
     # 250/min a human can sprint for one minute.
@@ -552,25 +553,21 @@ Invoke-Api POST '/rewards/complete' @{ nonce = $t2.body.nonce } -Token $p.token 
 $b = (Invoke-Api GET '/user/balance' -Token $p.token).body
 $twoAds = 2 * $RULES.BoostSecondsPerAd
 Check "boosts stack end to end (~$($twoAds / 60) min banked)" ([Math]::Abs($b.rewards.boost.remainingSeconds - $twoAds) -lt 15) "got $($b.rewards.boost.remainingSeconds)"
-# Watch however many more it takes to FILL the bank, whatever size it is -
-# two ads have already been watched above.
-$toFill = [Math]::Ceiling($RULES.BoostBankSeconds / $RULES.BoostSecondsPerAd) - 2
+# Watch the rest of today's ads - two were watched above. The bank holds TWO
+# days of ads, so one day's cap is what stops this, not the bank.
+$toFill = [Math]::Min($RULES.MaxBoostAdsPerDay, [Math]::Ceiling($RULES.BoostBankSeconds / $RULES.BoostSecondsPerAd)) - 2
 for ($i = 0; $i -lt $toFill; $i++) {
     $tk = Invoke-Api POST '/rewards/start' @{ kind = 'BOOST' } -Token $p.token
     Invoke-Api POST '/rewards/complete' @{ nonce = $tk.body.nonce } -Token $p.token | Out-Null
 }
 $b = (Invoke-Api GET '/user/balance' -Token $p.token).body
-$bank = $RULES.BoostBankSeconds
-Check "the bank tops out at $($bank / 3600) hours" ($b.rewards.boost.remainingSeconds -le $bank -and $b.rewards.boost.remainingSeconds -gt $bank - 100) "got $($b.rewards.boost.remainingSeconds)"
-# One more, with the bank already full.
-#
-# TWO different rules can refuse it and at the current setting they coincide:
-# MAX_BOOST_ADS_PER_DAY is chosen so that a day's ads fill the bank EXACTLY
-# (12 x 15 min = 3 h), so the daily cap (429) and the full bank (409) bite on
-# the very same ad. Which one answers first is an implementation detail;
-# that the ad is refused is the actual contract, so assert that.
+$bank = [Math]::Min($RULES.BoostBankSeconds, $RULES.MaxBoostAdsPerDay * $RULES.BoostSecondsPerAd)
+Check "a day of ads banks $($bank / 3600) hours" ($b.rewards.boost.remainingSeconds -le $bank -and $b.rewards.boost.remainingSeconds -gt $bank - 100) "got $($b.rewards.boost.remainingSeconds)"
+# One more, past today's cap. TWO rules can refuse a boost ad - the daily cap
+# (429) and a full bank (409) - and which one bites first depends on the
+# bank size. That the ad is refused is the actual contract, so assert that.
 $full = Invoke-Api POST '/rewards/start' @{ kind = 'BOOST' } -Token $p.token
-Check 'a full bank refuses another boost ad' ($full.status -eq 409 -or $full.status -eq 429) "got $($full.status)"
+Check 'a thirteenth boost ad is refused' ($full.status -eq 409 -or $full.status -eq 429) "got $($full.status)"
 $overlaps = [int](Sql "SELECT COUNT(*) FROM boosts a JOIN boosts b ON a.user_id = b.user_id AND a.id < b.id AND a.starts_at < b.ends_at AND b.starts_at < a.ends_at WHERE a.user_id = (SELECT id FROM users WHERE email = '$($p.email)');")
 Check 'no two boost windows overlap' ($overlaps -eq 0) "got $overlaps"
 

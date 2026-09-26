@@ -464,7 +464,7 @@ subscription would likely beat the ads themselves.
 
 **§2's table is stale. `rules.ts` is the truth.** Current: 100 steps = 1 WP;
 parcel **50 WP + 1 per parcel owned** (1st 50, 10th 59, 100th 149); signup
-bonus 50 WP; boost **20x, 20 min per ad, 4 h bank** (12 ads fill it);
+bonus 50 WP; boost **20x, 30 min per ad, 12 h bank** (12 ads/day = 6 h);
 **2,000,000 coins = $1**; ROCKY 1 / COAL 2 / AMETHYST 5 / SAPPHIRE 12 /
 RUBY 100 coins/hr; cash redemption OFF.
 
@@ -484,6 +484,13 @@ boost ads. Ad revenue covers the land 1.0-2.1x (3 ads/day) and 1.7-3.9x
 (12 ads/day). **If ad rates come in low, set PARCEL_PRICE_STEP_WP to 2**
 (~1.4x worst case, ~25% less land). Existing land and banked boosts are
 untouched.
+
+**Later the same day the product owner set the boost to 30 min per ad with a
+12 h bank** (it was briefly 20 min / 4 h). 12 ads now buy 6 h a day (5.75x
+day-average instead of 4.17x); the bank holds two days so hours can be saved.
+That is ~40% more boosted land for a heavy ad-watcher: margins drop to about
+0.8-1.5x (3 ads) and 1.2-2.3x (12 ads). PARCEL_PRICE_STEP_WP = 2 brings them
+back to ~1.1-2.1x and 1.7-3.2x.
 
 ### Hosting (testers no longer need the PC)
 

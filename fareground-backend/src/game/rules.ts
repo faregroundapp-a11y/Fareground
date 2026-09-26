@@ -155,8 +155,7 @@ export type AdRewardKind =
  * short bursts. A burst is something a player plans a walk around; a flat 2x
  * is wallpaper.
  *
- * Now 20x, in TWENTY-MINUTE pieces, banking to 4 hours - twelve ads fill it
- * exactly. (It was two-hour pieces and a 24-hour bank for two days; the
+ * Now 20x, in THIRTY-MINUTE pieces, banking to 12 hours - two days of ads. (It was two-hour pieces and a 24-hour bank for two days; the
  * paragraphs below still describe that setting and why it was cut.)
  *
  * SECONDS PER AD IS THE LEVER, NOT THE BANK - and that lever has now been
@@ -182,11 +181,16 @@ export type AdRewardKind =
 export const BOOST_MULTIPLIER = 20;
 
 /**
- * TWENTY MINUTES PER AD, so a day's twelve ads fill the 4-hour bank exactly:
- * four hours at 20x, a day-average of 4.17x. Cut from two hours on
- * 2026-09-26 together with the rising price - see PARCEL_BASE_PRICE_WP. It
- * keeps the 20x burst players plan a walk around, and ends the "20x all day"
- * that made every parcel owned cost more than the ads paying for it.
+ * THIRTY MINUTES PER AD - TerraMine's piece size. A day's twelve ads buy six
+ * hours at 20x, a day-average of 5.75x. Cut from two hours on 2026-09-26
+ * together with the rising price - see PARCEL_BASE_PRICE_WP - first to 20
+ * minutes, then set to 30 by the product owner the same day. It keeps the
+ * 20x burst players plan a walk around, and ends the "20x all day" that made
+ * every parcel owned cost more than the ads paying for it.
+ *
+ * 30 rather than 20 costs about 40% more boosted land for a player watching
+ * all twelve ads. If ad revenue comes in low, PARCEL_PRICE_STEP_WP = 2 is the
+ * lever that pays for it (see the handoff, section 25).
  *
  * WHAT FOLLOWS IS THE HISTORY OF THE TWO-HOUR SETTING, kept for its reasoning.
  * TWO HOURS PER AD made a day's twelve ads fill a 24-hour bank exactly.
@@ -213,13 +217,14 @@ export const BOOST_MULTIPLIER = 20;
  * minutes an ad (3.38x over a day) is the setting it came from and the one
  * the solvency model was built on.
  */
-export const BOOST_SECONDS_PER_AD = 20 * 60;
+export const BOOST_SECONDS_PER_AD = 30 * 60;
 
 /**
- * Four hours: exactly what a day's twelve ads buy, so the last ad of the day
- * is never wasted and hours can still be saved for a long walk.
+ * Twelve hours: two days' worth of ads (12 x 30 min = 6 h a day). Hours can be
+ * saved up for a long walk, but what a player can EARN per day is still
+ * bounded by MAX_BOOST_ADS_PER_DAY, not by this.
  */
-export const BOOST_MAX_BANKED_SECONDS = 4 * 60 * 60;
+export const BOOST_MAX_BANKED_SECONDS = 12 * 60 * 60;
 export const MAX_BOOST_ADS_PER_DAY = 12;
 
 /**

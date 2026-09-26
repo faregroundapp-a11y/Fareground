@@ -111,8 +111,8 @@ test('each parcel costs a little more than the last', () => {
 
 test('the boost is a big multiplier in short bursts, and the bank caps it', () => {
   assert.equal(BOOST_MULTIPLIER, 20);
-  assert.equal(BOOST_SECONDS_PER_AD, 1_200, 'twenty minutes an ad');
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 14_400, 'the bank holds four hours');
+  assert.equal(BOOST_SECONDS_PER_AD, 1_800, 'thirty minutes an ad');
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 43_200, 'the bank holds twelve hours');
 
   // Shaped after TerraMine, whose boost reaches 20x in 30-minute pieces up to
   // 8 hours. A big burst is something a player plans a walk around; a small
@@ -131,10 +131,9 @@ test('the boost is a big multiplier in short bursts, and the bank caps it', () =
     'the bank must hold at least one day of ads, or the last ads of the day buy nothing',
   );
 
-  // Twelve ads now fill the bank EXACTLY, so a full day of ads buys a full
-  // day of boost. That is the product decision; the cost of it is gated on
-  // redemption, not on this number - see the guard below.
-  assert.equal(boughtPerDay, BOOST_MAX_BANKED_SECONDS, "a day's ads should fill the bank exactly");
+  // The bank holds TWO days of ads, so hours can be saved for a long walk.
+  // It must never hold so little that a day's ads are wasted (checked above).
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 2 * boughtPerDay, "the bank should hold two days' ads");
 
   const hours = boughtPerDay / 3600;
   const dayAverage = (hours * BOOST_MULTIPLIER + (24 - hours)) / 24;
@@ -151,8 +150,8 @@ test('the boost is a big multiplier in short bursts, and the bank caps it', () =
   const lightHours = Math.min((lightAds * BOOST_SECONDS_PER_AD) / 3600, BOOST_MAX_BANKED_SECONDS / 3600);
   const lightMultiplier = (lightHours * BOOST_MULTIPLIER + (24 - lightHours)) / 24;
   // At two hours an ad this was 5.75x - far beyond what a three-ad player is
-  // worth in revenue. Twenty minutes brings it back under 2x.
-  assert.ok(lightMultiplier <= 2, `three ads a day buys ${lightMultiplier.toFixed(2)}x`);
+  // worth in revenue. Thirty minutes brings it to about 2.2x.
+  assert.ok(lightMultiplier <= 2.5, `three ads a day buys ${lightMultiplier.toFixed(2)}x`);
 });
 
 test('income is exact in micro-coins, and nothing is lost to rounding', () => {
