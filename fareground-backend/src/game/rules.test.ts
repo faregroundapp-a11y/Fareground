@@ -727,9 +727,10 @@ test('EVERY way to earn together still funds itself', () => {
     DAILY_QUESTS.reduce((sum, q) => sum + q.rewardWp, 0) * 2 +
     (CHECKIN_WP + CHECKIN_NEW_PLACE_BONUS_WP) * 2 +
     AD_WALK_POINTS * MAX_WP_ADS_PER_DAY;
-  // Widened when bonus-WP ads went 6/day -> 20/day: that faucet alone adds
-  // 70 WP, and it is the one players pay for most directly.
-  assert.ok(perDay >= 250 && perDay <= 300, `a maxed-out day is ${perDay} WP`);
+  // Moved twice with the bonus-WP ad cap: 6/day -> 20/day -> 10/day. The
+  // 20 was walked back after testers described the ads as "infinite" - the
+  // cap held every time, but twenty identical taps reads as a slot machine.
+  assert.ok(perDay >= 200 && perDay <= 250, `a maxed-out day is ${perDay} WP`);
 
   const averageCoinsPerHour = RARITY_TABLE.reduce(
     (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,

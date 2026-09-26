@@ -14,6 +14,7 @@
  */
 import { randomInt } from 'node:crypto';
 import { query, withTransaction } from '../db/pool';
+import { cellCenter, cellForLatLng, cellRadius } from '../game/grid';
 import {
   TREASURE_COLLECT_DISTANCE_M,
   TREASURE_FREE_PER_DAY,
@@ -67,6 +68,60 @@ function somewhereNear(lat: number, lng: number): { lat: number; lng: number } {
   return { lat: lat + dLat, lng: lng + dLng };
 }
 
+/**
+ * ---------------------------------------------------------------------------
+ *  WHERE A BOX IS ALLOWED TO APPEAR
+ * ---------------------------------------------------------------------------
+ *  `somewhereNear` picks a random bearing, so a box lands wherever the maths
+ *  sends it: the middle of a lake, a motorway, a locked industrial estate,
+ *  the seventh floor of a block of flats. Testers reported exactly that.
+ *
+ *  THERE IS NO MAP DATA SERVER-SIDE, so we cannot ask "is this a footpath".
+ *  What we have is better than a guess: PLACES SOMEBODY HAS ALREADY STOOD.
+ *  Every parcel was claimed by a person physically within 40 m of it, with a
+ *  GPS fix good to 25 m. That is a verified human-reachable point, which a
+ *  random bearing never is.
+ *
+ *  So: land the box near a nearby parcel when one exists, and fall back to a
+ *  random bearing only where nobody has ever been - which is also where the
+ *  player is most likely to be somewhere open anyway.
+ *
+ *  It is a heuristic, not a guarantee: the first person in a new area still
+ *  gets random placement, and a parcel claimed from a car park edge can still
+ *  put a box in the hedge. It removes the middle-of-the-reservoir cases,
+ *  which is what was actually being reported.
+ */
+async function walkableSpot(lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+  const centre = cellForLatLng(lat, lng);
+  // A cell is ~9 m, so this covers the whole spawn band generously. The
+  // distance filter below is what enforces it.
+  const span = cellRadius(lat, TREASURE_MAX_DISTANCE_M) + 2;
+
+  const near = await query<{ cell_x: number; cell_y: number }>(
+    `SELECT cell_x, cell_y FROM parcels
+      WHERE cell_x BETWEEN $1 AND $2 AND cell_y BETWEEN $3 AND $4
+      ORDER BY random() LIMIT 40`,
+    [centre.cellX - span, centre.cellX + span, centre.cellY - span, centre.cellY + span],
+  );
+
+  const candidates = near.rows
+    .map((r) => cellCenter(r.cell_x, r.cell_y))
+    .map((c) => ({ ...c, d: metresBetween(lat, lng, c.lat, c.lng) }))
+    .filter((c) => c.d >= TREASURE_MIN_DISTANCE_M && c.d <= TREASURE_MAX_DISTANCE_M);
+
+  if (candidates.length === 0) return somewhereNear(lat, lng);
+
+  // Nudge a few metres off the plot itself, so the box is beside the land
+  // rather than sitting on it. Well inside the 30 m collect radius.
+  const pick = candidates[randomInt(0, candidates.length - 1)];
+  const bearing = (randomInt(0, 3600) / 3600) * 2 * Math.PI;
+  const off = 6 + randomInt(0, 8);
+  return {
+    lat: pick.lat + (off * Math.cos(bearing)) / 111_320,
+    lng: pick.lng + (off * Math.sin(bearing)) / (111_320 * Math.cos((pick.lat * Math.PI) / 180) || 1),
+  };
+}
+
 const rewardWp = () => TREASURE_MIN_WP + randomInt(0, TREASURE_MAX_WP - TREASURE_MIN_WP + 1);
 
 type Counts = { live: number; used_today: number; ad_boxes: number; today: string };
@@ -102,7 +157,7 @@ export async function treasureStatus(
   let c = await counts(userId);
 
   if (at && c.live === 0 && c.used_today < allowance(c)) {
-    const where = somewhereNear(at.lat, at.lng);
+    const where = await walkableSpot(at.lat, at.lng);
     await query(
       `INSERT INTO treasure_boxes (user_id, lat, lng, reward_wp, from_ad, local_day, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6::date, NOW() + ($7 || ' minutes')::interval)`,
@@ -210,7 +265,7 @@ export async function spawnAdBox(
   // Without a position the ad still counts (see `counts.ad_boxes`), and the
   // box appears the next time the map asks.
   if (!at) return 1;
-  const where = somewhereNear(at.lat, at.lng);
+  const where = await walkableSpot(at.lat, at.lng);
   await client.query(
     `INSERT INTO treasure_boxes (user_id, lat, lng, reward_wp, from_ad, local_day, expires_at)
      SELECT $1, $2, $3, $4, TRUE, (NOW() AT TIME ZONE time_zone)::date, NOW() + ($5 || ' minutes')::interval

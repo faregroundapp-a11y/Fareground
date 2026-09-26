@@ -218,7 +218,23 @@ export const MAX_BOOST_ADS_PER_DAY = 12;
  * players pay us the most directly to open.
  */
 export const AD_WALK_POINTS = 5;
-export const MAX_WP_ADS_PER_DAY = 20;
+
+/**
+ * TEN a day. It was 6, then 20, and 20 was too many.
+ *
+ * The 6 -> 20 jump was a deliberate "more ads for Walk Points" change, and
+ * testers immediately described the result as the ads being "infinite". They
+ * were not - the cap held at 20 every time - but twenty identical taps in a
+ * row reads as a slot machine rather than a bonus, and a button that never
+ * changes state feels endless whatever the number behind it is.
+ *
+ * So: ten, and the button now SHOWS how many are left, which is the half of
+ * the problem that was never about the number.
+ *
+ * At 5 WP each that is 50 WP a day - one whole parcel at the flat price -
+ * which is a real bonus without being the main way anyone gets land.
+ */
+export const MAX_WP_ADS_PER_DAY = 10;
 
 /** How long a "start watching" ticket stays valid. An ad is ~30 s. */
 export const AD_TICKET_TTL_SECONDS = 10 * 60;

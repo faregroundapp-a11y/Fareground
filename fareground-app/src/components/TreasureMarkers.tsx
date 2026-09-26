@@ -1,5 +1,5 @@
 import { Marker } from '@maplibre/maplibre-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import type { TreasureBox } from '@/api/types';
 import { colors, fonts } from '@/theme';
@@ -27,11 +27,19 @@ export function TreasureMarkers({
   boxes,
   distances,
   withinM,
+  onPressBox,
 }: {
   boxes: TreasureBox[];
   /** Metres from the player to each box, by id. */
   distances: Record<string, number>;
   withinM: number;
+  /**
+   * Tapping a box. It was decoration before: the ONLY way to open one was a
+   * button that appeared at the bottom of the screen once you were already
+   * in range, so the thing on the map that looked like a button was not one.
+   * Testers tapped the chest and nothing happened.
+   */
+  onPressBox?: (box: TreasureBox, metresAway: number | undefined) => void;
 }) {
   return (
     <>
@@ -40,14 +48,24 @@ export function TreasureMarkers({
         const near = away !== undefined && away <= withinM;
         return (
           <Marker key={box.id} id={`box-${box.id}`} lngLat={[box.lng, box.lat]} anchor="bottom">
-            <View style={styles.wrap}>
+            <Pressable
+              onPress={() => onPressBox?.(box, away)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={
+                near
+                  ? `Treasure box, open it for ${box.rewardWp} Walk Points`
+                  : `Treasure box, ${away !== undefined ? Math.round(away) + ' metres away' : 'nearby'}`
+              }
+              style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.8 }]}
+            >
               <ChestPin size={near ? 50 : 42} />
               <View style={[styles.tag, near && styles.tagNear]}>
                 <Text style={styles.tagText}>
                   {near ? 'Open it!' : away !== undefined ? `${Math.round(away)} m` : `+${box.rewardWp} WP`}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           </Marker>
         );
       })}

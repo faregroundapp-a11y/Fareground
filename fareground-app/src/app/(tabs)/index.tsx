@@ -1,7 +1,7 @@
 import { Camera, Map, type MapRef } from '@maplibre/maplibre-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/api/client';
 import type { ClaimSummary, NearbyParcel, Parcel, TreasureBox } from '@/api/types';
@@ -21,7 +21,8 @@ import { TreasureMarkers } from '@/components/TreasureMarkers';
 import { RevealSheet } from '@/components/RevealSheet';
 import { Runner } from '@/components/Runner';
 import { WorldLayers } from '@/components/WorldLayers';
-import { DEFAULT_PARCEL_PRICE, MAP_STYLE_URL, MAX_CLAIM_ACCURACY_M } from '@/config';
+import { DEFAULT_PARCEL_PRICE, MAX_CLAIM_ACCURACY_M } from '@/config';
+import { useMapStyle } from '@/game/mapStyle';
 import { CLAIM_REACH_M, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
 import { cellForLatLng, type Cell } from '@/game/grid';
 import { MINERALS, MINERAL_ORDER } from '@/game/minerals';
@@ -88,6 +89,7 @@ export default function MapScreen() {
 
 function GameView({ fix }: { fix: Fix }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { token, user } = useSession();
   const { balance, boostEndsAt, prizeEndsAt, refresh: refreshBalance, awayCoins, dismissAway } = useGameBalance();
   const { daily, refresh: refreshDaily } = useGameDaily();
@@ -96,6 +98,8 @@ function GameView({ fix }: { fix: Fix }) {
 
   const centre = useMemo<[number, number]>(() => [fix.lng, fix.lat], [fix.lng, fix.lat]);
   const mapRef = useRef<MapRef>(null);
+  // Street names on or off, following the setting. See game/mapStyle.ts.
+  const mapStyle = useMapStyle();
   const settled = useSettledPosition(fix.lat, fix.lng);
   const { treasure, open: openBox, refresh: refreshTreasure } = useTreasure(settled.lat, settled.lng);
   const { watch, busy: adBusy } = useRewardedAd(() => {
@@ -244,6 +248,12 @@ function GameView({ fix }: { fix: Fix }) {
 
   // The player's square only changes when you cross into a new one - so the
   // grid (up to 74 lines) is rebuilt a few times a minute, not every fix.
+  // NARROW PHONES GET SMALLER CHIPS, not squashed ones. Measured: the full
+  // -size HUD needs about 390pt of chrome, so anything under ~400 has to
+  // shed something rather than compress. 400 is the line because a 390pt
+  // iPhone and a 360pt Android are both below it and a 412pt Pixel is not.
+  const compactHud = width < 400;
+
   const { cellX, cellY } = cellForLatLng(fix.lat, fix.lng);
   const playerCell = useMemo<Cell>(() => ({ cellX, cellY }), [cellX, cellY]);
 
@@ -353,7 +363,7 @@ function GameView({ fix }: { fix: Fix }) {
       <Map
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        mapStyle={MAP_STYLE_URL}
+        mapStyle={mapStyle}
         // All gestures are ours (see useGameCamera) - the map just draws.
         dragPan={false}
         touchZoom={false}
@@ -376,7 +386,23 @@ function GameView({ fix }: { fix: Fix }) {
           hideCell={hideCell}
           reachM={reach}
         />
-        <TreasureMarkers boxes={boxes} distances={boxDistances} withinM={withinM} />
+        <TreasureMarkers
+            boxes={boxes}
+            distances={boxDistances}
+            withinM={withinM}
+            onPressBox={(box, away) => {
+              if (reachableBox?.id === box.id) {
+                void grabBox();
+              } else {
+                haptics.tap();
+                showToast(
+                  away === undefined
+                    ? `Treasure box · +${box.rewardWp} WP. Walk to it to open it.`
+                    : `${Math.round(away)} m away · +${box.rewardWp} WP. Get within ${withinM} m to open it.`,
+                );
+              }
+            }}
+          />
         {fx && <ClaimFx spec={fx} />}
         <PlayerMarker fix={fix} bearing={bearing} celebrating={celebrating} avatar={balance?.avatar} />
       </Map>
@@ -397,30 +423,24 @@ function GameView({ fix }: { fix: Fix }) {
             accessibilityLabel="Your profile"
             hitSlop={6}
           >
-            <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={42} />
+            <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={compactHud ? 36 : 42} />
             {!!balance?.unseenBadges && (
               <View style={styles.avatarDot}>
                 <Text style={styles.badgeText}>{balance.unseenBadges}</Text>
               </View>
             )}
           </Pressable>
-          <View style={styles.pill}>
-            <CoinIcon size={22} />
-            <CountUp value={balance?.coins ?? 0} style={[styles.pillValue, mono]} short />
+          <View style={[styles.pill, compactHud && styles.pillTight]}>
+            <CoinIcon size={compactHud ? 18 : 22} />
+            <CountUp value={balance?.coins ?? 0} style={[styles.pillValue, compactHud && styles.pillValueSm, mono]} short />
           </View>
-          <View style={styles.pill}>
-            <StepsIcon size={20} />
-            <CountUp value={wp} style={[styles.pillValue, mono]} short />
-            <Text style={styles.pillUnit}>WP</Text>
+          <View style={[styles.pill, compactHud && styles.pillTight]}>
+            <StepsIcon size={compactHud ? 17 : 20} />
+            <CountUp value={wp} style={[styles.pillValue, compactHud && styles.pillValueSm, mono]} short />
+            {/* The unit label is the first thing to go: the icon already
+                says what it is, and it buys ~18pt on a narrow phone. */}
+            {!compactHud && <Text style={styles.pillUnit}>WP</Text>}
           </View>
-          <Pressable
-            onPress={() => { haptics.tap(); setCommunity(true); }}
-            style={styles.communityBtn}
-            accessibilityLabel="Community"
-            hitSlop={6}
-          >
-            <Text style={styles.communityGlyph}>◎</Text>
-          </Pressable>
         </View>
         <View style={styles.hudRight}>
           <Pressable
@@ -433,7 +453,7 @@ function GameView({ fix }: { fix: Fix }) {
             {boosted && chipEndsAt ? (
               <>
                 <Text style={styles.boostX}>{multiplier}×</Text>
-                <Countdown endsAt={chipEndsAt} onDone={refreshBalance} style={[styles.boostTime, mono]} />
+                <Countdown endsAt={chipEndsAt} onDone={refreshBalance} style={[styles.boostTime, mono]} short />
               </>
             ) : (
               <Text style={styles.boostLabel}>Boost</Text>
@@ -451,6 +471,14 @@ function GameView({ fix }: { fix: Fix }) {
                 <Text style={styles.badgeText}>{daily.claimable}</Text>
               </View>
             )}
+          </Pressable>
+          <Pressable
+            onPress={() => { haptics.tap(); setCommunity(true); }}
+            style={styles.communityBtn}
+            accessibilityLabel="Community"
+            hitSlop={6}
+          >
+            <Text style={styles.communityGlyph}>◎</Text>
           </Pressable>
           <Pressable onPress={() => { haptics.tap(); faceNorth(); }} style={styles.compass} accessibilityLabel="Face north" hitSlop={6}>
             <CompassIcon size={28} rotation={-bearing} />
@@ -610,6 +638,9 @@ const styles = StyleSheet.create({
     flexShrink: 1, minWidth: 0,
   },
   pillValue: { color: colors.glassInk, fontSize: 16, fontFamily: fonts.heavy, includeFontPadding: false },
+  // The compact set, for phones under 400pt. Same shapes, less of them.
+  pillTight: { height: 36, paddingLeft: 7, paddingRight: 10, gap: 5 },
+  pillValueSm: { fontSize: 14 },
   pillUnit: { color: colors.glassInk2, fontSize: 11, fontFamily: fonts.bold, marginLeft: -3, includeFontPadding: false },
   hudRight: { alignItems: 'flex-end', gap: space.sm, flexShrink: 0 },
   boostChip: {

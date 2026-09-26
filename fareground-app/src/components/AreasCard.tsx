@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { ApiError, api } from '@/api/client';
 import type { AreasStatus, ClaimSummary } from '@/api/types';
 import { placeNameFor } from '@/hooks/useAreaReporter';
@@ -39,11 +39,38 @@ export function AreasCard({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
   const [claimed, setClaimed] = useState<ClaimSummary | null>(null);
+  /**
+   * What the target is CALLED. "437 m away" is a number; "Victoria Park" is
+   * somewhere you can picture, and picturing it is what gets somebody out of
+   * the door. Resolved on the phone, so the server never needs a position
+   * precise enough to reverse-geocode.
+   */
+  const [targetName, setTargetName] = useState<string | null>(null);
+  const t = status?.target ?? null;
+  /** The target we last looked a name up for, so we do it once per target. */
+  const lastNamed = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!token || !position) return;
     try {
-      setStatus(await api.areas(token, position.lat, position.lng));
+      const next = await api.areas(token, position.lat, position.lng);
+      setStatus(next);
+
+      // NAME THE PLACE. "437 m away" is a number; "Victoria Park" is
+      // somewhere you can picture, and picturing it is what gets somebody
+      // out of the door. Resolved here rather than in an effect - the React
+      // Compiler forbids setState in one, and this is where the answer
+      // actually arrives anyway.
+      const t = next.target;
+      if (!t) {
+        setTargetName(null);
+      } else if (t.key !== lastNamed.current) {
+        lastNamed.current = t.key;
+        setTargetName(null);
+        const name = await placeNameFor(t.lat, t.lng);
+        // Only apply it if the target has not moved on in the meantime.
+        if (lastNamed.current === t.key) setTargetName(name ?? null);
+      }
     } catch {
       // Keep the last good state rather than blanking a card mid-walk.
     }
@@ -122,6 +149,27 @@ export function AreasCard({
     }, [refresh]),
   );
 
+  /**
+   * Hand the target to whatever maps app the phone prefers.
+   *
+   * `geo:` with a `q` is the Android intent every maps app registers, so this
+   * respects whatever the player actually uses rather than forcing Google
+   * Maps. iOS has no geo: handler, hence the Apple Maps URL there.
+   */
+  const openInMaps = useCallback(() => {
+    if (!t) return;
+    haptics.tap();
+    const label = encodeURIComponent(targetName ?? "Today's area");
+    const url =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?ll=${t.lat},${t.lng}&q=${label}`
+        : `geo:${t.lat},${t.lng}?q=${t.lat},${t.lng}(${label})`;
+    Linking.openURL(url).catch(() => {
+      // No maps app, or the intent was refused. A web fallback always works.
+      void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${t.lat},${t.lng}`);
+    });
+  }, [t, targetName]);
+
   if (!position) {
     return (
       <View style={{ gap: space.sm }}>
@@ -130,8 +178,6 @@ export function AreasCard({
       </View>
     );
   }
-
-  const t = status?.target ?? null;
 
   return (
     <View style={{ gap: space.sm }}>
@@ -142,13 +188,13 @@ export function AreasCard({
         <View style={[styles.target, t.here && styles.targetHere]}>
           <PinIcon size={22} color={t.here ? colors.accent : colors.ink2} />
           <View style={{ flex: 1 }}>
-            <Text style={type.label}>
-              {t.here ? "You're here" : t.visited ? 'Somewhere you know' : 'Somewhere new'}
+            <Text style={type.label} numberOfLines={1}>
+              {targetName ?? (t.here ? "You're here" : t.visited ? 'Somewhere you know' : 'Somewhere new')}
             </Text>
             <Text style={styles.sub}>
               {t.here
-                ? `Check in to collect · this area is ~${t.areaSizeM} m across`
-                : `${t.distanceM} m away — walk into it to check in`}
+                ? `You're here · check in to collect`
+                : `${t.distanceM} m away${t.visited ? '' : ' · somewhere new'}`}
             </Text>
           </View>
           <View style={styles.pay}>
@@ -165,6 +211,18 @@ export function AreasCard({
       )}
 
       {/* --- the one thing to do next -------------------------------- */}
+      {/* SOMEWHERE TO GO, not just a distance. Tapping this hands the spot
+          to whatever maps app the player actually uses, so "437 m away"
+          becomes a route they can follow. */}
+      {t && !t.here && (
+        <Button
+          variant="secondary"
+          label={targetName ? `Show ${targetName} on the map` : 'Show me where'}
+          icon={<PinIcon size={18} color={colors.accent} />}
+          onPress={openInMaps}
+        />
+      )}
+
       {claimed ? (
         <View style={{ gap: space.sm }}>
           <View style={styles.got}>

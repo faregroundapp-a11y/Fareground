@@ -460,6 +460,118 @@ subscription would likely beat the ads themselves.
 
 ---
 
+## 25. The tester round (2026-09-25 / 26)
+
+The game went out to real people for the first time. This section is what
+that changed, what it broke, and what was still open when it was written.
+
+### How testers are served, and why it keeps falling over
+
+The backend runs on the product owner's PC. Testers reach it through a
+**cloudflared quick tunnel**, and the app has the tunnel URL baked in at
+build time.
+
+Three things follow from that, and all three bit during the round:
+
+* **A quick tunnel's hostname is random and it drops without warning.** The
+  first one died a few hours in and took every tester offline. A new tunnel
+  means a new URL, which means a 15-minute rebuild.
+* **The backend itself went down twice**, unsupervised, mid-round.
+* localtunnel was tried for its FIXED subdomain, which would have removed the
+  rebuild problem entirely. Its public service returned 503 for every
+  request. Not worth a second attempt.
+
+`fareground-backend/scripts/tunnel.ps1` now supervises the tunnel, restarts
+it, and writes the live URL to `tunnel-url.txt`. **THE REAL FIX IS A HOST.**
+GBP 10-20 a month removes all of this and is required for Play anyway.
+
+### What the testers found
+
+Ranked by how badly it mattered:
+
+1. **NOBODY COULD SET A PROFILE PICTURE, EVER.** `PIT_STOP` and `PHOTO` were
+   in the TypeScript `AdRewardKind` union and **not in the Postgres enum**,
+   so `/rewards/start` returned 500 for both. Uploading a photo needs an ad
+   ticket, so the whole feature was dead on arrival - as was paying an ad to
+   skip the doorbell cooldown. Migration **025** fixes it with the enum-swap
+   pattern.
+
+   **WHY THE TESTS MISSED IT, which is the more useful lesson:** the photo
+   test only asserted that an upload WITHOUT an ad is refused. It passed -
+   collecting a 400 for the missing nonce and never reaching the enum. A test
+   that only walks the unhappy path proves nothing about the happy one.
+   Section 45 of the e2e suite now walks it and checks all twelve ad kinds.
+
+2. **The throttle only covered three of eight faucets.** An account the
+   anti-spoofing had throttled still farmed the daily chest, quests,
+   treasure, the ad-streak chest, referrals and bonus-WP ads at full rate.
+   It looked like it worked because the three paths that were tested were the
+   three that were wired. There is now ONE chokepoint - `throttledAmount` in
+   `integrity.service.ts` - and every new faucet must go through it.
+
+3. **A player who travelled was stranded.** Today's area was rolled near
+   wherever they were and never moved, so opening the app in another city
+   left the target hundreds of km away, every check-in refused, and the only
+   escape a rewarded ad. Compounded by **yesterday's unclaimed target
+   blocking today's free roll** - travel on Monday and the account could
+   never check in again without paying. Migration **024** adds
+   `abandoned_at`; a target that is stale or more than 5 km away is now
+   re-rolled free.
+
+4. **"The ads are infinite."** They were not - the cap held at 20 every time.
+   But twenty identical taps reads as a slot machine, and a button that never
+   changes state feels endless whatever the number behind it. The 6 -> 20
+   change was made in this same round at the product owner's request and was
+   walked back to **10**, with the remaining count now ON the button. Half of
+   that complaint was never about the number.
+
+5. **The HUD did not fit on ANY phone.** Measured: it needed 438pt of chrome
+   on a 430pt phone's 406 usable. Before, it ran off the edge; after a
+   `flexShrink` "fix" it squashed instead. Both wrong. The community button
+   moved to the right-hand stack, the boost clock lost its seconds
+   (`23:59:04` -> `23h59`), and there is a real compact variant under 400pt.
+
+6. Smaller: treasure boxes spawned at a **random bearing** and landed in
+   lakes and motorways (now placed beside an existing parcel - land somebody
+   demonstrably walked to); boxes were **not tappable** at all; `(you)` after
+   your own name on the leaderboard read as a glitch; cell references were
+   showing on the Land list and the reveal sheet.
+
+### Still open at the end of the round
+
+* **Second and subsequent treasure boxes fail to open** with a 500.
+* **Daily resets do not follow the player's timezone properly** - chests,
+  coins and quests. Fixing it must NOT let somebody harvest a day's rewards
+  by winding their phone clock forward.
+* A quest that has already been collected still shows a **Collect** button,
+  which then errors.
+* Instant collect says **"Back tomorrow - 0 left today"** when the real
+  reason is that the player owns no land. Wrong message, wrong cause.
+* The backend needs the same supervision the tunnel now has.
+
+### Things worth not re-learning
+
+* **`$pid` and `$home` are reserved in PowerShell.** Both silently broke test
+  scripts and produced fake "bugs" that cost real time.
+* **The e2e suite measures its own history.** It shared one fixture device id
+  across runs, accumulated 54 "owners" of `pixel-xyz`, and started flagging
+  its own honest-walker fixture on the device-sharing check. Fixtures now get
+  a per-run id.
+* **A flag that fires on every request is not a signal.** `UNATTESTED` was
+  set on 100% of syncs while attestation is stubbed, which made
+  `integrity_flags <> 0` meaningless and turned a partial index into a full
+  one. It is deliberately not set until attestation is real; there is a test
+  pinning its weight at zero.
+* **EAS: the org was renamed `zpolos-team` -> `ninefold`** and `app.json`
+  still carried the old `owner`, which fails the build with a project-owner
+  mismatch. The projectId is unchanged.
+* **The builder is Node 22 / npm 10; the dev machine is Node 24 / npm 11**,
+  and they resolve peers differently. `npm ci --include=dev` passes locally
+  while the build fails. Reproduce with
+  `npx --yes npm@10.9.4 ci --include=dev` - one minute against fourteen.
+
+---
+
 ## 24. Doorbells, areas, step integrity, AdMob wiring (2026-09-24)
 
 ### Pit stops became DOORBELLS, and moved onto the map

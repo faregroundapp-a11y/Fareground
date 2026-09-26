@@ -34,7 +34,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://because-plugin-graduate-dancing.trycloudflare.com"
       }
     }
   }

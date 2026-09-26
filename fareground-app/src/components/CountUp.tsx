@@ -17,7 +17,11 @@ import { Text, type TextStyle, type StyleProp } from 'react-native';
 function compact(n: number): string {
   const abs = Math.abs(n);
   if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1)}M`;
-  if (abs >= 100_000) return `${Math.round(n / 1_000)}k`;
+  // 10k, not 100k. At the higher threshold the WIDEST possible output was
+  // "99,999" - six characters, wider than "1.2M" - so the worst case was in
+  // the middle of the range rather than at the top of it, which is exactly
+  // where nobody looks for it.
+  if (abs >= 10_000) return `${Math.round(n / 1_000)}k`;
   return n.toLocaleString();
 }
 
