@@ -486,6 +486,7 @@ Work from a CLOUD session (Claude Code on the web), on branch
 | 6e | Map buttons: two-way street sign hides ALL map text (every symbol layer with a text-field), community button is 🤗, treasure finder flies to the nearest box and back then shows a pointer + metres (press again to hide) | **Done (JS)** |
 | 6f | Boost bank 12 h (30 min per ad) | **Done** |
 | 6g | Sheets could not be dragged down; ads: 10 bonus-WP a day at 5 WP, 24 boost ads (12 h of 30 min); a closing ad's tap could land on a sheet's "Double it"; area names said "Greater London"; profile picture felt slow | **Done** - `DraggableSheet` on Daily/Boost/Community/Doorbell; one ad at a time app-wide plus a 1.2 s pause after each (`useRewardedAd`); `placeNameFor` leads with a landmark or street; the chosen picture shows instantly while it uploads |
+| 6h | Testers saw 0 coins after the conversion | **Done** - migration 030 re-pays each account's land history at the new monthly rates (boosts included, store spending subtracted) and tops up anyone below it; never lowers a balance; moves the income clock to NOW so nothing pays twice |
 | 6c | Leaderboard board = where the PHONE is (reverse-geocoded, refreshed every 3 km / 6 h), not where land is. The week pays on the board you are on at the end, so a Sunday trip switches boards - owner to decide whether to lock it | Open question |
 | 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
