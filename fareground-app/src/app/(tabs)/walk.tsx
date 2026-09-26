@@ -12,6 +12,7 @@ import { BoltIcon, ChestIcon, FlagIcon, PulseIcon, StepsIcon } from '@/component
 import { Runner } from '@/components/Runner';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { useGame, useGameDaily } from '@/state/game';
+import { openHealthConnect } from '@/native/healthSteps';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
 
@@ -49,6 +50,12 @@ export default function WalkScreen() {
   const toNextParcel = Math.max(0, price - wp);
   const result = sync.lastResult;
   const wpProgress = result ? 1 - result.stepsUntilNextWalkPoint / (result.stepsPerWalkPoint || stepsPerWp) : 0;
+  // Steps, not whole Walk Points, so the number goes DOWN with every step
+  // walked. Counting in whole WP made it sit still for 100 steps at a time
+  // and then jump - which, with the old rising price jumping UP after every
+  // claim, testers read as "it increases instead of decreasing".
+  const stepsToNext =
+    toNextParcel === 0 ? 0 : (toNextParcel - 1) * stepsPerWp + (result?.stepsUntilNextWalkPoint ?? stepsPerWp);
   const bonusLeft = balance?.rewards.walkPoints.adsLeftToday ?? 0;
 
   return (
@@ -63,7 +70,7 @@ export default function WalkScreen() {
           </View>
           <View style={styles.headerRight}>
             <Pressable
-              onPress={sync.syncNow}
+              onPress={sync.syncByHand}
               style={({ pressed }) => [styles.syncChip, pressed && { opacity: 0.6 }]}
               accessibilityLabel="Sync steps now"
               hitSlop={8}
@@ -122,6 +129,48 @@ export default function WalkScreen() {
           </View>
         )}
 
+        {/* Android: connected, but nothing is WRITING steps into Health
+            Connect - the usual reason steps "only count with the app open". */}
+        {Platform.OS === 'android' && sync.health === 'ready' && sync.sources?.weekSteps === 0 && (
+          <View style={[styles.card, styles.healthCard]}>
+            <View style={styles.row}>
+              <View style={[styles.well, { backgroundColor: colors.accentSoft }]}>
+                <PulseIcon size={24} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={type.headline}>No app is sending steps yet</Text>
+                <Text style={[type.caption, { marginTop: 2 }]}>
+                  Health Connect is on, but nothing has written steps to it this week, so steps only count while
+                  Fareground is open. Samsung phones: open Samsung Health, then Settings, then Health Connect, and allow
+                  Steps. Other phones: turn on step counting in Google Fit or your phone&apos;s health app.
+                </Text>
+              </View>
+            </View>
+            <Button label="Open Health Connect" onPress={openHealthConnect} variant="primary" />
+          </View>
+        )}
+
+        {/* Where steps come from, and a button that syncs right now. */}
+        <View style={[styles.card, styles.row]}>
+          <View style={{ flex: 1 }}>
+            <Text style={type.label}>
+              {Platform.OS === 'ios'
+                ? "Steps from your iPhone's motion history"
+                : sync.sources?.names.length
+                  ? `Steps from ${sync.sources.names.join(' + ')} ✓`
+                  : sync.health === 'ready'
+                    ? 'Steps from Health Connect'
+                    : 'Steps counted while the app is open'}
+            </Text>
+            <Text style={[type.caption, { marginTop: 2 }]}>
+              {sync.lastSyncedAt
+                ? `Last synced ${sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : 'Not synced yet'}
+            </Text>
+          </View>
+          <Button label="Sync steps" onPress={sync.syncByHand} variant="secondary" busy={sync.syncing} />
+        </View>
+
         {sync.available === false && (
           <Note tone="warn">{"Step counting isn't available, or motion access is off. Walk Points need it."}</Note>
         )}
@@ -147,7 +196,7 @@ export default function WalkScreen() {
           <View style={[styles.card, styles.half]}>
             <FlagIcon size={24} color={colors.claimDeep} />
             <Text style={[styles.cardValue, mono]}>
-              {toNextParcel === 0 ? 'Ready!' : (toNextParcel * stepsPerWp).toLocaleString()}
+              {toNextParcel === 0 ? 'Ready!' : stepsToNext.toLocaleString()}
             </Text>
             <Text style={type.caption}>{toNextParcel === 0 ? 'claim on the map' : 'steps to next parcel'}</Text>
           </View>
@@ -162,7 +211,7 @@ export default function WalkScreen() {
             <View style={[styles.fill, { width: `${Math.min(100, (wp / price) * 100)}%` }]} />
           </View>
           <Text style={[type.caption, { marginTop: space.sm }]}>
-            Each parcel costs a little more than the last - your first ones come fast.
+            Every parcel costs the same: {(price * stepsPerWp).toLocaleString()} steps.
           </Text>
         </View>
 

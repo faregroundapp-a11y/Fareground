@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { optional } from './optional';
 
 /**
@@ -56,13 +56,24 @@ export async function requestHealthPermission(): Promise<boolean> {
   }
 }
 
-/** Open Health Connect itself - to install it, or to connect a step source. */
+/** Open Health Connect itself - to connect a step source. */
 export function openHealthConnect(): void {
   try {
     hc?.openHealthConnectSettings();
   } catch {
     /* nothing to open */
   }
+}
+
+/**
+ * Before Android 14 Health Connect is a separate app, and its settings
+ * screen cannot open until it is installed - so send the player straight to
+ * its Play Store page instead of a button that silently does nothing.
+ */
+export function installHealthConnect(): void {
+  Linking.openURL('market://details?id=com.google.android.apps.healthdata').catch(() => {
+    void Linking.openURL('https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata');
+  });
 }
 
 /**
@@ -89,4 +100,55 @@ export function readStepsToday(): Promise<number | null> {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   return readStepsBetween(start, new Date());
+}
+
+/** Friendly names for the apps that commonly write steps into Health Connect. */
+const SOURCE_NAMES: Record<string, string> = {
+  'com.sec.android.app.shealth': 'Samsung Health',
+  'com.google.android.apps.fitness': 'Google Fit',
+  'com.google.android.apps.healthdata': 'your phone',
+  'android': 'your phone',
+  'com.fitbit.FitbitMobile': 'Fitbit',
+  'com.huawei.health': 'Huawei Health',
+  'com.xiaomi.wearable': 'Mi Fitness',
+  'com.mi.health': 'Mi Fitness',
+  'com.garmin.android.apps.connectmobile': 'Garmin Connect',
+  'com.oneplus.health': 'OHealth',
+  'com.heytap.health': 'HeyTap Health',
+};
+
+export interface StepSources {
+  /** Friendly names of the apps that wrote steps in the last week. */
+  names: string[];
+  /** Steps Health Connect holds for the last week, across all of them. */
+  weekSteps: number;
+}
+
+/**
+ * WHO IS FEEDING HEALTH CONNECT? The question behind "my steps only count
+ * when the app is open".
+ *
+ * Fareground can only read steps that some app WROTE into Health Connect -
+ * Samsung Health, Google Fit, the phone's own counter. Permission alone is not
+ * enough: a phone where nothing writes steps reads zero, the app quietly falls
+ * back to counting only while it is open, and the player never learns why.
+ * Health Connect's aggregate names every app that contributed, so we can say
+ * "Steps from Samsung Health" - or plainly that nothing is sending any.
+ *
+ * Null when it cannot be read (no permission, no module).
+ */
+export async function stepSources(): Promise<StepSources | null> {
+  if (!hc || !(await init())) return null;
+  try {
+    const end = new Date();
+    const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const result = await hc.aggregateRecord({
+      recordType: 'Steps',
+      timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: end.toISOString() },
+    });
+    const names = [...new Set((result.dataOrigins ?? []).map((pkg) => SOURCE_NAMES[pkg] ?? pkg))];
+    return { names, weekSteps: Math.max(0, Math.floor(result.COUNT_TOTAL ?? 0)) };
+  } catch {
+    return null;
+  }
 }

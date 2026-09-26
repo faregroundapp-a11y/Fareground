@@ -9,11 +9,13 @@ import type { StepSyncResult } from '@/api/types';
 import { haptics } from '@/native/haptics';
 import {
   healthStatus,
-  openHealthConnect,
+  installHealthConnect,
   readStepsBetween,
   readStepsToday,
   requestHealthPermission,
+  stepSources,
   type HealthStatus,
+  type StepSources,
 } from '@/native/healthSteps';
 import { useSession } from '@/state/session';
 import { startWalkTrace, takeTraceQuality, takeWalkDistance } from '@/native/walkTrace';
@@ -202,6 +204,10 @@ export interface StepSyncState {
   lastResult: StepSyncResult | null;
   lastSyncedAt: Date | null;
   error: string | null;
+  /** Android: which apps are feeding Health Connect steps. null = unknown. */
+  sources: StepSources | null;
+  /** True while a sync the player asked for is running. */
+  syncing: boolean;
 }
 
 export function useStepSync(onSynced?: () => void) {
@@ -213,6 +219,8 @@ export function useStepSync(onSynced?: () => void) {
     lastResult: null,
     lastSyncedAt: null,
     error: null,
+    sources: null,
+    syncing: false,
   });
   const busy = useRef(false);
   const onSyncedRef = useRef(onSynced);
@@ -309,17 +317,40 @@ export function useStepSync(onSynced?: () => void) {
   }, [token]);
 
   /** Android: ask for Health Connect access (or open it to install/connect). */
+  /** Re-read who is feeding Health Connect. Cheap; one aggregate query. */
+  const refreshSources = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    const sources = await stepSources();
+    setState((s) => ({ ...s, sources }));
+  }, []);
+
+  /**
+   * The "Sync steps" button: the same sync the timer runs, plus a fresh look
+   * at the step sources, with a busy state so a tap visibly does something.
+   */
+  const syncByHand = useCallback(async () => {
+    setState((s) => ({ ...s, syncing: true }));
+    try {
+      await Promise.all([syncNow(), refreshSources()]);
+    } finally {
+      setState((s) => ({ ...s, syncing: false }));
+    }
+  }, [syncNow, refreshSources]);
+
   const connectHealth = useCallback(async () => {
     const status = await healthStatus();
     if (status === 'not-installed') {
-      openHealthConnect();
+      installHealthConnect();
       return;
     }
     if (status === 'needs-permission') await requestHealthPermission();
     const next = await healthStatus();
     setState((s) => ({ ...s, health: next }));
-    if (next === 'ready') syncNow();
-  }, [syncNow]);
+    if (next === 'ready') {
+      syncNow();
+      refreshSources();
+    }
+  }, [syncNow, refreshSources]);
 
   // Availability, Health Connect, and the Android live counter.
   useEffect(() => {
@@ -337,7 +368,10 @@ export function useStepSync(onSynced?: () => void) {
       const ok = (available && permission.granted) || health === 'ready';
       if (cancelled) return;
       setState((s) => ({ ...s, available: ok, health }));
-      if (health === 'ready') syncNow();
+      if (health === 'ready') {
+        syncNow();
+        refreshSources();
+      }
       if (Platform.OS === 'ios' || !available || !permission.granted) return;
 
       // Android live sensor: steps since the watch STARTED, turned into
@@ -360,7 +394,7 @@ export function useStepSync(onSynced?: () => void) {
       cancelled = true;
       sub?.remove();
     };
-  }, [syncNow]);
+  }, [syncNow, refreshSources]);
 
   // Follow the phone's position so there is a distance to send alongside
   // the steps. Cheap: balanced accuracy, one fix every ten seconds.
@@ -373,13 +407,16 @@ export function useStepSync(onSynced?: () => void) {
     syncNow();
     const id = setInterval(syncNow, SYNC_EVERY_MS);
     const appState = AppState.addEventListener('change', (s) => {
-      if (s === 'active') syncNow();
+      if (s !== 'active') return;
+      syncNow();
+      // They may have just linked Samsung Health in another app.
+      refreshSources();
     });
     return () => {
       clearInterval(id);
       appState.remove();
     };
-  }, [syncNow]);
+  }, [syncNow, refreshSources]);
 
-  return { ...state, syncNow, connectHealth };
+  return { ...state, syncNow, syncByHand, connectHealth };
 }

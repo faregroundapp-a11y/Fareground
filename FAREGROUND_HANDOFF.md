@@ -480,6 +480,9 @@ Work from a CLOUD session (Claude Code on the web), on branch
 | 5c | Treasure boxes indoors (placed beside parcels, which are mostly homes) | **Done** - placed ON footpaths/park paths/quiet streets from OpenStreetMap (Overpass), falling back to the old heuristics |
 | 5d | Street-name toggle, today's area name + maps button + claim-inside-then-2x, tappable boxes, no "(you)" brackets | **Verified present** (PC session's work, merged) |
 | 6 | Economy rebuild (spec below) - **option A**: TerraMine-level rates, cash-out OFF | **Done** - migration 029, `store.service.ts`, app screens say coins/month |
+| 6a | "Steps only count with the app open" | **Done (app)** - Health Connect permission alone is not enough: something must WRITE steps into it. The Walk tab now names the source ("Steps from Samsung Health") or says plainly that nothing is sending steps, with Samsung instructions and an Open Health Connect button; a **Sync steps** button; Health Connect missing opens its Play Store page. Closed-app steps are read from Health Connect on the next open - no background task |
+| 6b | "Steps to next parcel" went UP | **Done** - counts in steps, not whole WP, and the price is flat |
+| 6c | Leaderboard board = where the PHONE is (reverse-geocoded, refreshed every 3 km / 6 h), not where land is. The week pays on the board you are on at the end, so a Sunday trip switches boards - owner to decide whether to lock it | Open question |
 | 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
 ### Economy - what the product owner decided (supersedes everything above)
