@@ -508,7 +508,7 @@ rates exactly; both only let players cash out from $5):
   Rocky 3, Coal 4, Amethyst 5, Sapphire 8, Ruby 25 (odds 60/25/10/4/1).
   Average $0.0039/month against TerraMine's $0.0035.
 * **Parcels FLAT at 50 WP, for ever.** "I don't want prices to increase."
-* **Boost 20x, 30 min per ad, 8 h bank, up to 48 ads a day** (stay boosted
+* **Boost 20x, 30 min per ad, 12 h bank, up to 48 ads a day** (stay boosted
   all day, as TerraMine allows). 400 parcels fully boosted is ~$1/day - the
   TerraMine figure testers quoted.
 * **Bonus-WP ads: 20 a day** (was cut to 10 by the PC session; the owner

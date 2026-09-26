@@ -106,10 +106,10 @@ test('every parcel costs the same - flat, for ever', () => {
   assert.equal(parcelsAfter(200, 100) - parcelsAfter(100, 100), parcelsAfter(100, 100) - parcelsAfter(0, 100));
 });
 
-test("the boost is TerraMine's: 20x, 30 minutes an ad, 8 hours banked", () => {
+test('the boost is 20x, 30 minutes an ad, 12 hours banked', () => {
   assert.equal(BOOST_MULTIPLIER, 20);
   assert.equal(BOOST_SECONDS_PER_AD, 1_800, 'thirty minutes an ad');
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 28_800, 'eight hours banked');
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 43_200, 'twelve hours banked');
   // Enough ads to stay boosted all day, for a player who wants to.
   assert.ok(MAX_BOOST_ADS_PER_DAY * BOOST_SECONDS_PER_AD >= 86_400, 'a whole day must be reachable');
   // Bank must hold at least one ad, or an ad could buy nothing.

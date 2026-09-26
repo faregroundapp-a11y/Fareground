@@ -92,7 +92,7 @@ export type AdRewardKind =
  * ---------------------------------------------------------------------------
  *  THE BOOST - TerraMine's shape, because testers compare us with it.
  * ---------------------------------------------------------------------------
- *  20x coins, 30 minutes per rewarded ad, banking up to 8 hours, and enough
+ *  20x coins, 30 minutes per rewarded ad, banking up to 12 hours, and enough
  *  ads a day to stay boosted around the clock if a player wants to. That is
  *  exactly TerraMine's boost (researched 2026-09-26), and it is what makes
  *  "400 parcels fully boosted is about $1 a day" true here as it is there.
@@ -114,8 +114,12 @@ export const BOOST_MULTIPLIER = 20;
 /** Thirty minutes per ad - TerraMine's piece size. */
 export const BOOST_SECONDS_PER_AD = 30 * 60;
 
-/** Eight hours banked at most - TerraMine's cap. Top it up through the day. */
-export const BOOST_MAX_BANKED_SECONDS = 8 * 60 * 60;
+/**
+ * Twelve hours banked at most - the product owner's call (2026-09-26), longer
+ * than TerraMine's 8 so a morning of ads carries a player through the day.
+ * What a player can buy per day is still bounded by MAX_BOOST_ADS_PER_DAY.
+ */
+export const BOOST_MAX_BANKED_SECONDS = 12 * 60 * 60;
 
 /** 48 x 30 min = a whole day, for a player who really wants it. */
 export const MAX_BOOST_ADS_PER_DAY = 48;
