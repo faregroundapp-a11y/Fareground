@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, ApiError } from '@/api/client';
 import { formatMultiplier } from '@/game/minerals';
@@ -12,7 +12,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { BoltIcon, CoinIcon, PinIcon, PlayAdIcon, StepsIcon } from './icons';
-import { DraggableSheet } from './DraggableSheet';
+import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
 /**
  * "Free rewards": every rewarded ad offer in one place.
@@ -78,7 +78,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
+        <SheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Free rewards</Text>
           <Text style={[type.body, { marginTop: 2, marginBottom: space.lg }]}>Watch a short ad, take your pick.</Text>
 
@@ -196,7 +196,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
           {!adsAvailable() && (
             <Text style={styles.note}>Ads arrive with the next app update - install the new build to use these.</Text>
           )}
-        </ScrollView>
+        </SheetScrollView>
       </DraggableSheet>
     </Modal>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { ClaimSummary, Quest } from '@/api/types';
@@ -12,7 +12,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { AreasCard } from './AreasCard';
 import { Button } from './Button';
 import { BoltIcon, CheckIcon, ChestIcon, PlayAdIcon } from './icons';
-import { DraggableSheet } from './DraggableSheet';
+import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
 /**
  * "Today": the daily chest (a 7-day streak) and daily quests. Every reward
@@ -94,7 +94,7 @@ export function DailySheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
+        <SheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Today</Text>
           <Text style={[type.body, { marginTop: 2, marginBottom: space.lg }]}>Open your chest, finish quests, walk.</Text>
 
@@ -232,7 +232,7 @@ export function DailySheet({
 
           {note && <Text style={[styles.note, { color: note.good ? colors.goodInk : colors.danger }]}>{note.text}</Text>}
           {!daily && <Text style={styles.note}>Loading…</Text>}
-        </ScrollView>
+        </SheetScrollView>
       </DraggableSheet>
     </Modal>
   );

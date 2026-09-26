@@ -1,8 +1,8 @@
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Linking, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptics } from '@/native/haptics';
 import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
-import { DraggableSheet } from './DraggableSheet';
+import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
 /**
  * Community: where the players are.
@@ -78,7 +78,7 @@ export function CommunitySheet({ visible, onClose }: { visible: boolean; onClose
 
         {/* Was a flat 380px, which on a small phone was taller than the
             space left under the header and safe area. */}
-        <ScrollView style={{ maxHeight: height * 0.45 }} contentContainerStyle={{ gap: space.sm }}>
+        <SheetScrollView style={{ maxHeight: height * 0.45 }} contentContainerStyle={{ gap: space.sm }}>
           {COMMUNITIES.map((c) => {
             const live = !!c.url;
             return (
@@ -106,7 +106,7 @@ export function CommunitySheet({ visible, onClose }: { visible: boolean; onClose
               </Pressable>
             );
           })}
-        </ScrollView>
+        </SheetScrollView>
 
         <Text style={styles.foot}>
           More opens up as there are more walkers. Nothing here shares your location.

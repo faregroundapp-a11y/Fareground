@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AvatarChoice, AvatarItemState, AvatarSlot, Profile } from '@/api/types';
 import { SLOT_ORDER } from '@/game/avatar';
@@ -14,6 +14,7 @@ import { AvatarPortrait } from './AvatarPortrait';
 import { Runner } from './Runner';
 
 import { Button } from './Button';
+import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 import { PlayerPicture } from './PlayerPicture';
 import { PlayAdIcon } from './icons';
 
@@ -58,40 +59,57 @@ export function AvatarEditor({
   // and the profile reloads - testers found the wait for the round trip slow.
   const [preview, setPreview] = useState<string | null>(null);
 
+  // An ad already watched for a picture that was never chosen (the library
+  // was cancelled). Kept, so the next try does not cost a second ad; the
+  // server spends the ticket only when a picture is actually stored.
+  const [paidNonce, setPaidNonce] = useState<string | null>(null);
+
   /**
-   * Change the profile picture. One rewarded ad per change.
+   * Change the profile picture. One rewarded ad per change, AD FIRST.
    *
-   * The ORDER matters: pick and prepare the image first, and only ask for the
-   * ad once there is something to upload. Watching an ad and then hitting the
-   * photo library - or worse, cancelling out of it - would waste the ad.
+   * It used to pick the image and then play the ad. On Android the ad was
+   * requested while the photo library was still closing, and testers reported
+   * changing their picture "with no ad" - the swap looked free. Now the ad
+   * plays first, plainly, and the library opens after it. Cancelling the
+   * library does not waste the ad: its ticket is kept for the next try.
    */
   async function changePhoto() {
     if (!token) return;
     setNote(null);
+    let nonce = paidNonce;
+    if (!nonce) {
+      const ad = await watch('PHOTO');
+      if (!ad.ok) {
+        setNote(ad.message);
+        return;
+      }
+      nonce = ad.nonce;
+      setPaidNonce(nonce);
+    }
+
     const picked = await pickProfilePhoto();
     if (!picked.ok) {
       if (picked.reason === 'denied') setNote('Fareground needs permission to open your photos.');
       else if (picked.reason === 'unavailable') setNote('Update the app to change your picture.');
       else if (picked.reason === 'failed') setNote('That image could not be used. Try another.');
-      return; // 'cancelled' is not an error worth a message
-    }
-
-    const ad = await watch('PHOTO');
-    if (!ad.ok) {
-      setNote(ad.message);
+      else setNote('Ad saved - pick a picture whenever you like.');
       return;
     }
 
     setPhotoBusy(true);
     setPreview(`data:image/jpeg;base64,${picked.base64}`);
     try {
-      await api.setPhoto(token, picked.base64, ad.nonce);
+      await api.setPhoto(token, picked.base64, nonce);
+      setPaidNonce(null);
       haptics.success();
       setNote('Picture updated.');
       onUnlocked();
     } catch (e) {
       haptics.warn();
       setPreview(null); // it did not save: show what the server really has
+      // A ticket the server says is used up is no good for a retry; after a
+      // bad image or a dropped connection it still is.
+      if (e instanceof ApiError && e.status === 409) setPaidNonce(null);
       setNote(e instanceof ApiError ? e.message : 'That picture could not be saved.');
     } finally {
       setPhotoBusy(false);
@@ -130,8 +148,7 @@ export function AvatarEditor({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
-        <View style={styles.grip} />
+      <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
 
         <View style={styles.head}>
           <AvatarPortrait avatar={profile.avatar} size={84} />
@@ -149,7 +166,7 @@ export function AvatarEditor({
           <View style={{ flex: 1, gap: space.sm }}>
             <Button
               variant={profile.photoUrl ? 'secondary' : 'boost'}
-              label={profile.photoUrl ? 'Change picture' : 'Add a picture'}
+              label={paidNonce ? 'Pick your picture' : profile.photoUrl ? 'Change picture' : 'Add a picture'}
               icon={<PlayAdIcon size={18} color={profile.photoUrl ? colors.accent : undefined} />}
               onPress={changePhoto}
               busy={photoBusy || busy === 'PHOTO'}
@@ -181,7 +198,7 @@ export function AvatarEditor({
           ))}
         </View>
 
-        <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        <SheetScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
           {items.map((item) => {
             const worn = profile.avatar[slot] === item.key;
             return (
@@ -240,11 +257,11 @@ export function AvatarEditor({
               </Pressable>
             );
           })}
-        </ScrollView>
+        </SheetScrollView>
 
         {note && <Text style={styles.note}>{note}</Text>}
         <Button label="Done" onPress={onClose} variant="primary" />
-      </View>
+      </DraggableSheet>
     </Modal>
   );
 }

@@ -131,7 +131,29 @@ const SOURCE_NAMES: Record<string, string> = {
   'com.garmin.android.apps.connectmobile': 'Garmin Connect',
   'com.oneplus.health': 'OHealth',
   'com.heytap.health': 'HeyTap Health',
+  'com.strava': 'Strava',
+  'com.withings.wiscale2': 'Withings',
+  'com.ouraring.oura': 'Oura',
+  'com.nianticlabs.pokemongo': 'Pokémon GO',
 };
+
+/**
+ * A name a player can read for the app behind a package id.
+ *
+ * Android 14+ records the phone's OWN step counter under a generated id such
+ * as `com.android.healthconnect.phone.j336b2d0c...`, and testers saw that
+ * whole string printed on the Walk tab. Anything from Health Connect itself or
+ * the system is "your phone"; an app we do not know gets a tidy guess from its
+ * id (`com.example.stepcounter` -> "Stepcounter") rather than the raw id.
+ */
+export function sourceName(pkg: string): string {
+  if (SOURCE_NAMES[pkg]) return SOURCE_NAMES[pkg];
+  if (pkg.startsWith('com.android.healthconnect') || pkg.startsWith('com.google.android.healthconnect')) return 'your phone';
+  if (pkg.startsWith('com.samsung.') || pkg.startsWith('com.sec.')) return 'Samsung Health';
+  const parts = pkg.split('.').filter((p) => p && !/^(com|org|net|io|app|android|apps|mobile|phone)$/i.test(p));
+  const word = parts.find((p) => /^[a-z]{3,}$/i.test(p));
+  return word ? word[0].toUpperCase() + word.slice(1) : 'another app';
+}
 
 export interface StepSources {
   /** Friendly names of the apps that wrote steps in the last week. */
@@ -162,7 +184,7 @@ export async function stepSources(): Promise<StepSources | null> {
       recordType: 'Steps',
       timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: end.toISOString() },
     });
-    const names = [...new Set((result.dataOrigins ?? []).map((pkg) => SOURCE_NAMES[pkg] ?? pkg))];
+    const names = [...new Set((result.dataOrigins ?? []).map(sourceName))];
     return { names, weekSteps: Math.max(0, Math.floor(result.COUNT_TOTAL ?? 0)) };
   } catch {
     return null;

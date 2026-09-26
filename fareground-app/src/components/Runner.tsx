@@ -360,7 +360,7 @@ export function Runner({
                   strokeWidth={1.4}
                   strokeLinejoin="round"
                 />
-                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor') && (
+                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor' || hatKey === 'hat_flatcap') && (
                   <Path
                     d={`M${head.x + HEAD_R - 3} ${head.y - 2.5}h5.5`}
                     stroke={CONTOUR}
@@ -368,7 +368,7 @@ export function Runner({
                     strokeLinecap="round"
                   />
                 )}
-                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor') && (
+                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor' || hatKey === 'hat_flatcap') && (
                   <Path
                     d={`M${head.x + HEAD_R - 3} ${head.y - 2.5}h5.2`}
                     stroke={hatColor}
@@ -376,7 +376,7 @@ export function Runner({
                     strokeLinecap="round"
                   />
                 )}
-                {hatKey === 'hat_bucket' && (
+                {(hatKey === 'hat_bucket' || hatKey === 'hat_explorer') && (
                   <>
                     <Path d={`M${head.x - HEAD_R - 3} ${head.y - 1}h${HEAD_R * 2 + 6}`} stroke={CONTOUR} strokeWidth={5} strokeLinecap="round" />
                     <Path d={`M${head.x - HEAD_R - 3} ${head.y - 1}h${HEAD_R * 2 + 6}`} stroke={hatColor} strokeWidth={3} strokeLinecap="round" />
@@ -399,7 +399,10 @@ export function Runner({
                     strokeLinejoin="round"
                   />
                 )}
-                {hatKey === 'hat_beanie' && (
+                {hatKey === 'hat_winter' && (
+                  <Circle cx={head.x} cy={head.y - HEAD_R - 1.5} r={2.6} fill="#FFFFFF" stroke={CONTOUR} strokeWidth={1} />
+                )}
+                {(hatKey === 'hat_beanie' || hatKey === 'hat_winter') && (
                   <Path
                     d={`M${head.x - HEAD_R - 0.5} ${head.y - 3}h${HEAD_R * 2 + 1}`}
                     stroke={hatColor}
@@ -450,6 +453,9 @@ export function Runner({
               <>
                 <Circle cx={head.x + 0.8} cy={head.y + 2.6} r={1.7} fill="#1B2330" />
                 <Circle cx={head.x + 5.9} cy={head.y + 2.6} r={1.7} fill="#1B2330" />
+                {faceKey === 'face_monocle' && (
+                  <Circle cx={head.x + 5.9} cy={head.y + 2.6} r={2.8} stroke={faceColor} strokeWidth={1.2} fill="none" />
+                )}
               </>
             )}
             {gait === 'cheer' ? (

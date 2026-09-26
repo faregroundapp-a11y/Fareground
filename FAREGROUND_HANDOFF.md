@@ -460,6 +460,38 @@ subscription would likely beat the ads themselves.
 
 ---
 
+## 27. Tester polish round (2026-09-26, later)
+
+Done, app only (needs a new build):
+
+- **Sheets drag from anywhere, faster.** `DraggableSheet` takes a clearly
+  downward drag from any point on the sheet (capture phase), unless its list
+  is scrolled down - `SheetScrollView` reports the scroll position so a pull
+  scrolls the list first. Closes on a 70px pull or a light flick. The avatar
+  editor now uses it too.
+- **"Steps from com.android.healthconnect.phone.j336..."** - Android 14+'s
+  own counter has a generated package id. `sourceName()` in healthSteps.ts
+  maps any Health Connect / system origin to "your phone" and guesses a tidy
+  name for unknown apps instead of printing the raw id.
+- **Profile header**: Invite and Friends side by side under the title
+  (stacked on the right they left half the screen empty). Gear stays top
+  right.
+- **Map labels removed from Settings** - the street-sign button on the map is
+  the only switch.
+- **Picture change: ad FIRST, then the library.** Testers changed their
+  picture and saw no ad. A watched-but-unused ad is kept (`paidNonce`) if the
+  library is cancelled; dropped only when the server says it is used (409).
+- **Avatar portraits re-cut**: hair ends in a fringe above the eyes, visor and
+  headband on the forehead clipped to the head, brims face the viewer, ears,
+  bigger shoulders. Six parts were never drawn (explorer hat, flat cap,
+  winter hat, monocle, snow and amethyst hair) - all drawn now, in the runner
+  too.
+
+Time to 400 parcels (flat 50 WP, 100 steps = 1 WP, chest + quests):
+casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
+boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
+is 100 WP = 2 parcels.
+
 ## 26. Render hosting, the economy rework, and the reset fixes (2026-09-26)
 
 Work from a CLOUD session (Claude Code on the web), on branch

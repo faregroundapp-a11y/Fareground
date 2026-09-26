@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleS
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { AvatarChoice, Profile } from '@/api/types';
-import { DraggableSheet } from '@/components/DraggableSheet';
+import { DraggableSheet, SheetScrollView } from '@/components/DraggableSheet';
 import { GearIcon } from '@/components/icons';
 import { InviteCard } from '@/components/InviteCard';
 import { ProfileView } from '@/components/ProfileView';
@@ -83,7 +83,8 @@ export default function ProfileScreen() {
           }
         />
         {/* Invites and friends live up here with Settings, rather than at the
-            bottom under the badges where nobody scrolled to them. */}
+            bottom under the badges where nobody scrolled to them. One row of
+            two: stacked on the right they left half the screen empty. */}
         <View style={styles.sideButtons}>
           <Pressable
             style={({ pressed }) => [styles.pill, pressed && { opacity: 0.7 }]}
@@ -116,9 +117,9 @@ export default function ProfileScreen() {
           gripStyle={styles.grip}
         >
           {sheet === 'invite' && (
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <SheetScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <InviteCard />
-            </ScrollView>
+            </SheetScrollView>
           )}
           {sheet === 'friends' && (
             <View style={styles.soon}>
@@ -144,13 +145,14 @@ const styles = StyleSheet.create({
     width: TOUCH, height: TOUCH, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
     marginRight: -8,
   },
-  // Right-aligned under the gear, one above the other.
-  sideButtons: { alignSelf: 'flex-end', alignItems: 'flex-end', gap: space.sm, marginTop: -space.sm },
+  // Side by side under the header, sharing the width equally.
+  sideButtons: { flexDirection: 'row', gap: space.sm, marginTop: -space.xs },
   pill: {
-    minHeight: 40, paddingHorizontal: space.lg, borderRadius: radius.pill, justifyContent: 'center',
+    flex: 1, minHeight: TOUCH, paddingHorizontal: space.md, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line,
   },
-  pillText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
+  pillText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, includeFontPadding: false },
   scrim: { flex: 1, backgroundColor: 'rgba(8,14,11,0.55)' },
   sheet: {
     backgroundColor: colors.bg,

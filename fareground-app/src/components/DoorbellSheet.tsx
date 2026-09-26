@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { ClaimSummary, PitStopStatus, PitStopTarget } from '@/api/types';
@@ -12,7 +12,7 @@ import { colors, fonts, mono, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { GemIcon, PlayAdIcon } from './icons';
-import { DraggableSheet } from './DraggableSheet';
+import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
 /**
  * "Ring the doorbell?" - a pit stop, reached by tapping someone's land.
@@ -147,7 +147,7 @@ export function DoorbellSheet({
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom, maxHeight: height * 0.85 }]} gripStyle={styles.grip}>
 
-        <ScrollView
+        <SheetScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ gap: space.md }}
           bounces={false}
@@ -241,7 +241,7 @@ export function DoorbellSheet({
           )
         ) : null}
 
-        </ScrollView>
+        </SheetScrollView>
 
         {note ? (
           <Text style={[styles.note, !note.good && { color: colors.danger }]}>{note.text}</Text>

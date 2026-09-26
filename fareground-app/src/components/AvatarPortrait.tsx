@@ -1,4 +1,4 @@
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import type { AvatarSlot } from '@/api/types';
 import { avatarOf, partColor } from '@/game/avatar';
 import { colors } from '@/theme';
@@ -34,6 +34,27 @@ import { colors } from '@/theme';
  *  Every avatar part the editor offers is still drawn - the shapes were
  *  re-cut for the bigger head rather than scaled, because a scaled 14px cap
  *  brim became a beak (the same mistake the runner made first time).
+ *
+ * ---------------------------------------------------------------------------
+ *  RE-CUT 2026-09-26: "those avatar things look so weird"
+ * ---------------------------------------------------------------------------
+ *  Seen side by side in the editor's grid, four things were wrong:
+ *
+ *    * THE HAIR CAME DOWN TO THE EYES. It filled the whole top half of the
+ *      head, so every face wore a helmet. Hair now ends in a fringe well above
+ *      the eyes, with short sideburns.
+ *    * THE VISOR AND HEADBAND CROSSED THE EYES, for the same reason: they sat
+ *      at the head's middle. Both are on the forehead now, clipped to the head
+ *      so a band never pokes out past it.
+ *    * THE CAP BRIM STUCK OUT SIDEWAYS - a side-view brim from the runner on a
+ *      face that looks straight at you. Brims now face the viewer.
+ *    * SIX PARTS WERE NEVER DRAWN: the explorer hat, flat cap, winter hat,
+ *      monocle and the snow-white and amethyst hair. Their tiles showed a bare
+ *      head, so the grid looked like a bug. Every key the server offers now
+ *      has a shape.
+ *
+ *  The head is a little smaller (R 17) with room for proper shoulders, so the
+ *  character sits in the circle instead of being jammed into it.
  */
 
 /** Same dark edge the Runner uses. Keep them identical. */
@@ -41,8 +62,19 @@ const CONTOUR = '#14201A';
 
 /** Head geometry, in the 64x64 viewBox. */
 const CX = 32;
-const CY = 30;
-const R = 19;
+const CY = 31;
+const R = 17;
+/** Where the eyes sit - every face part lines up on this. */
+const EYE_Y = 33;
+
+/** Hair that covers the top of the head and stops in a fringe above the eyes. */
+const HAIR_CAP =
+  'M13.6 32A18.4 18.4 0 0 1 50.4 32C50.2 27 47.6 23.2 41.5 23.6Q32 25.8 22.5 23.6C16.4 23.2 13.8 27 13.6 32Z';
+
+/** Styles drawn as the plain cap of hair, in their own colour. */
+const PLAIN_HAIR = new Set(['hair_short', 'hair_ginger', 'hair_silver', 'hair_snow', 'hair_amethyst']);
+/** Hats that cover the crown, so a bun or a mohawk would poke through them. */
+const CROWN_HATS = new Set(['hat_cap', 'hat_miner', 'hat_beanie', 'hat_winter', 'hat_bucket', 'hat_explorer', 'hat_flatcap']);
 
 export function AvatarPortrait({
   avatar,
@@ -61,7 +93,9 @@ export function AvatarPortrait({
   const shirt = partColor(a.shirt, colors.accent);
   const extra = partColor(a.face, 'transparent');
   const hasHat = a.hat !== 'hat_none';
+  const tallHairHidden = hasHat && CROWN_HATS.has(a.hat);
   const gid = `portraitFace${size}`;
+  const clipId = `portraitHead${size}`;
 
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
@@ -72,139 +106,199 @@ export function AvatarPortrait({
           <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.22} />
           <Stop offset="0.6" stopColor="#FFFFFF" stopOpacity={0} />
         </LinearGradient>
+        {/* Bands (headband, visor) are clipped to the head so they wrap it. */}
+        <ClipPath id={clipId}>
+          <Circle cx={CX} cy={CY} r={R} />
+        </ClipPath>
       </Defs>
 
       {/* background + ring */}
       <Circle cx="32" cy="32" r="32" fill={shirt} opacity={0.18} />
-      <Circle cx="32" cy="32" r="30.5" fill="none" stroke={ring ?? shirt} strokeWidth={3} />
 
       <G>
-        {/* Shoulders: a suggestion at the bottom, mostly behind the head. */}
-        <Path d="M13 64c2.2-9 9-14 19-14s16.8 5 19 14z" fill={CONTOUR} />
-        <Path d="M15 64c2-7.6 8-12 17-12s15 4.4 17 12z" fill={shirt} />
-        {a.face === 'face_medal' && <Circle cx="32" cy="58" r="3.6" fill={extra} stroke="#B98A1C" strokeWidth={1} />}
-        {a.face === 'face_scarf' && <Path d="M21 52c3.4 3.2 17.6 3.2 22 0v5c-4 3.4-18 3.4-22 0z" fill={extra} />}
+        {/* Long hair falls BEHIND the shoulders and head. */}
+        {a.hair === 'hair_long' && (
+          <Path
+            d="M13.2 30C12 40 12.4 48 14 55h8c-2.4-7-3-15-2-24zM50.8 30c1.2 10 .8 18-.8 25h-8c2.4-7 3-15 2-24z"
+            fill={hair}
+            stroke={CONTOUR}
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+          />
+        )}
 
-        {/* Head. No neck: a chibi head sits straight on the shoulders. */}
+        {/* Shoulders, with the head resting on them. */}
+        <Path d="M9 66c2.4-10.4 10.4-17 23-17s20.6 6.6 23 17z" fill={CONTOUR} />
+        <Path d="M11.4 66c2.2-8.8 9.4-14.6 20.6-14.6S50.4 57.2 52.6 66z" fill={shirt} />
+        {a.face === 'face_scarf' && (
+          <Path
+            d="M19.5 48.5c4.4 3.6 20.6 3.6 25 0v5.4c-4.4 3.6-20.6 3.6-25 0z"
+            fill={extra}
+            stroke={CONTOUR}
+            strokeWidth={1}
+          />
+        )}
+        {a.face === 'face_medal' && (
+          <G>
+            <Path d="M29 51l3 5 3-5" stroke="#3E6FB0" strokeWidth={2} fill="none" />
+            <Circle cx="32" cy="58" r="3.6" fill={extra} stroke="#B98A1C" strokeWidth={1} />
+          </G>
+        )}
+
+        {/* Head. */}
         <Circle cx={CX} cy={CY} r={R + 1.4} fill={CONTOUR} />
         <Circle cx={CX} cy={CY} r={R} fill={skin} />
         <Circle cx={CX} cy={CY} r={R} fill={`url(#${gid})`} />
+        {/* Ears, just peeking, so the head reads as a head and not a ball. */}
+        <Circle cx={CX - R} cy={EYE_Y + 1} r={2.6} fill={skin} stroke={CONTOUR} strokeWidth={1.2} />
+        <Circle cx={CX + R} cy={EYE_Y + 1} r={2.6} fill={skin} stroke={CONTOUR} strokeWidth={1.2} />
 
         {/* ---- hair, under the hat ---- */}
-        {a.hair === 'hair_short' || a.hair === 'hair_ginger' || a.hair === 'hair_silver' ? (
-          <Path d={`M${CX - R} ${CY}a${R} ${R} 0 01${R * 2} 0q-8-6-19-6t-19 6z`} fill={hair} />
-        ) : null}
+        {(PLAIN_HAIR.has(a.hair) || a.hair === 'hair_long' || a.hair === 'hair_bun') && (
+          <Path d={HAIR_CAP} fill={hair} stroke={CONTOUR} strokeWidth={1.2} strokeLinejoin="round" />
+        )}
+        {a.hair === 'hair_bun' && !tallHairHidden && (
+          <Circle cx="32" cy="11" r="5.4" fill={hair} stroke={CONTOUR} strokeWidth={1.2} />
+        )}
         {a.hair === 'hair_curls' && (
-          <G fill={hair}>
-            <Circle cx="19" cy="20" r="7.5" />
-            <Circle cx="32" cy="14.5" r="8.5" />
-            <Circle cx="45" cy="20" r="7.5" />
+          <G fill={hair} stroke={CONTOUR} strokeWidth={1.2}>
+            <Circle cx="18" cy="24" r="5.6" />
+            <Circle cx="46" cy="24" r="5.6" />
+            <Circle cx="23.5" cy="17.5" r="6.2" />
+            <Circle cx="40.5" cy="17.5" r="6.2" />
+            <Circle cx="32" cy="15" r="6.6" />
           </G>
         )}
-        {a.hair === 'hair_long' && (
-          <G fill={hair}>
-            <Path d={`M${CX - R} ${CY}a${R} ${R} 0 01${R * 2} 0q-8-6-19-6t-19 6z`} />
-            <Path d="M12.4 28c-1.2 12 0 19 1.2 25h6.4c-2.6-8.6-2.6-17-1.2-25zM51.6 28c1.2 12 0 19-1.2 25h-6.4c2.6-8.6 2.6-17 1.2-25z" />
-          </G>
+        {a.hair === 'hair_punk' && !tallHairHidden && (
+          <Path
+            d="M27.4 19L29 9.5 32 4l3 5.5 1.6 9.5z"
+            fill={hair}
+            stroke={CONTOUR}
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+          />
         )}
-        {a.hair === 'hair_bun' && (
-          <G fill={hair}>
-            <Path d={`M${CX - R} ${CY}a${R} ${R} 0 01${R * 2} 0q-8-6-19-6t-19 6z`} />
-            {/* Pulled in from the frame edge: the taller head pushed the
-                bun to y=0.5, where the viewBox clipped a flat line off it. */}
-            <Circle cx="32" cy="9.5" r="6" />
-          </G>
-        )}
-        {/* Tapered, not a rectangle. A straight bar on a big round head
-            read as an antenna rather than hair. */}
-        {a.hair === 'hair_punk' && <Path d="M32 4l5 8v14h-10V12z" fill={hair} />}
 
-        {/* ---- face: the runner's eyes, at the runner's spacing ---- */}
+        {/* ---- face ---- */}
+        {a.face === 'face_beard' && (
+          <Path
+            d="M15.5 34c1.2 9.6 8 14.6 16.5 14.6S47.3 43.6 48.5 34c-4.2 5.2-10.2 6.4-16.5 6.4S19.7 39.2 15.5 34z"
+            fill={extra}
+          />
+        )}
         {a.face === 'face_shades' ? (
-          <Rect x="19" y="26" width="26" height="8.5" rx="3.8" fill={extra} />
-        ) : a.face === 'face_glasses' ? (
-          <G stroke={extra} strokeWidth={2} fill="none">
-            <Circle cx="25" cy="30" r="5.6" />
-            <Circle cx="39" cy="30" r="5.6" />
-            <Path d="M30.6 30h2.8" />
+          <G>
+            <Rect x="19.5" y={EYE_Y - 4} width="25" height="7.6" rx="3.6" fill={extra} />
+            <Rect x="22" y={EYE_Y - 2.6} width="5" height="1.6" rx="0.8" fill="#FFFFFF" opacity={0.35} />
           </G>
         ) : (
           <G fill="#1B2330">
-            <Circle cx="25.4" cy="30" r="2.6" />
-            <Circle cx="38.6" cy="30" r="2.6" />
+            <Circle cx="26" cy={EYE_Y} r="2.4" />
+            <Circle cx="38" cy={EYE_Y} r="2.4" />
           </G>
         )}
-        {a.face === 'face_beard' && (
-          <Path d="M15 33c1.4 10 8 15 17 15s15.6-5 17-15c-5 6-11 7.6-17 7.6S20 39 15 33z" fill={extra} />
+        {a.face === 'face_glasses' && (
+          <G stroke={extra} strokeWidth={1.8} fill="none">
+            <Circle cx="26" cy={EYE_Y} r="4.8" />
+            <Circle cx="38" cy={EYE_Y} r="4.8" />
+            <Path d={`M30.8 ${EYE_Y}h2.4`} />
+          </G>
         )}
-        <Path d="M27.6 38.4q4.4 4 8.8 0" stroke="#1B2330" strokeWidth={2} strokeLinecap="round" fill="none" />
+        {a.face === 'face_monocle' && (
+          <G>
+            <Circle cx="38" cy={EYE_Y} r="4.8" stroke={extra} strokeWidth={1.8} fill="#FFFFFF" fillOpacity={0.15} />
+            <Path d={`M42.4 ${EYE_Y + 2}q2 6-1 12`} stroke={extra} strokeWidth={1} fill="none" />
+          </G>
+        )}
+        <Path d="M28.5 40q3.5 3 7 0" stroke="#1B2330" strokeWidth={1.9} strokeLinecap="round" fill="none" />
 
-        {/* ---- hat, on top of everything ---- */}
+        {/* ---- hats, on top of everything. Brims face the viewer. ---- */}
         {hasHat && a.hat === 'hat_crown' && (
-          <Path
-            d="M13 17l6.5 5L27 11l5 7 5-7 7.5 11L51 17l2.5 10H10.5z"
-            fill={hat}
-            stroke={CONTOUR}
-            strokeWidth={1.6}
-            strokeLinejoin="round"
-          />
+          <G>
+            <Path
+              d="M17.5 21L19.5 9.5 25.5 15.5 32 6 38.5 15.5 44.5 9.5 46.5 21z"
+              fill={hat}
+              stroke={CONTOUR}
+              strokeWidth={1.4}
+              strokeLinejoin="round"
+            />
+            <Circle cx="32" cy="16" r="1.8" fill="#D8434F" />
+          </G>
         )}
         {hasHat && (a.hat === 'hat_cap' || a.hat === 'hat_miner') && (
           <G>
             <Path
-              d={`M${CX - R} ${CY - 2}a${R} ${R} 0 01${R * 2} 0z`}
+              d="M14.4 26A18 18 0 0 1 49.6 26Q32 22.6 14.4 26z"
               fill={hat}
               stroke={CONTOUR}
-              strokeWidth={1.6}
+              strokeWidth={1.4}
               strokeLinejoin="round"
             />
-            {/* Brim: SHORT. A scaled-up brim reads as a beak - the runner
-                made exactly this mistake before it was measured. */}
-            <Rect x={CX + R - 3} y={CY - 6} width="11" height="5" rx="2.5" fill={CONTOUR} />
-            <Rect x={CX + R - 3} y={CY - 5.4} width="10" height="3.6" rx="1.8" fill={hat} />
+            <Circle cx="32" cy="13.2" r="1.5" fill={CONTOUR} />
+            <Ellipse cx="32" cy="26" rx="15.5" ry="3.6" fill={hat} stroke={CONTOUR} strokeWidth={1.4} />
+            <Ellipse cx="32" cy="26.8" rx="12" ry="1.6" fill="#000000" opacity={0.15} />
             {a.hat === 'hat_miner' && (
               <G>
-                <Circle cx="32" cy="14" r="4" fill={CONTOUR} />
-                <Circle cx="32" cy="14" r="3" fill="#FFF3CC" />
+                <Circle cx="32" cy="18" r="3.8" fill={CONTOUR} />
+                <Circle cx="32" cy="18" r="2.8" fill="#FFF3CC" />
               </G>
             )}
           </G>
         )}
-        {hasHat && a.hat === 'hat_beanie' && (
+        {hasHat && a.hat === 'hat_flatcap' && (
           <G>
             <Path
-              d={`M${CX - R} ${CY - 1}a${R} ${R} 0 01${R * 2} 0z`}
+              d="M13.6 26.5C14 16 22 12 32.5 12.5 43 13 51 17 51 24.5c-6 2.4-30 3.4-37.4 2z"
               fill={hat}
               stroke={CONTOUR}
-              strokeWidth={1.6}
+              strokeWidth={1.4}
               strokeLinejoin="round"
             />
-            <Rect x={CX - R - 1} y={CY - 5} width={R * 2 + 2} height="6" rx="3" fill={hat} opacity={0.75} />
+            <Path d="M17 24.6c8 1.4 22 1 31-1.4" stroke="#000000" strokeWidth={1} opacity={0.25} fill="none" />
           </G>
         )}
-        {hasHat && a.hat === 'hat_band' && (
-          <Rect x={CX - R - 0.5} y={CY - 6} width={R * 2 + 1} height="5.5" rx="2.6" fill={hat} />
-        )}
-        {hasHat && a.hat === 'hat_bucket' && (
+        {hasHat && (a.hat === 'hat_beanie' || a.hat === 'hat_winter') && (
           <G>
             <Path
-              d={`M${CX - R + 3} ${CY - 2}a${R - 3} ${R - 3} 0 01${(R - 3) * 2} 0z`}
+              d="M14.4 26A18 18 0 0 1 49.6 26z"
               fill={hat}
               stroke={CONTOUR}
-              strokeWidth={1.6}
+              strokeWidth={1.4}
               strokeLinejoin="round"
             />
-            <Ellipse cx="32" cy={CY - 2} rx="24" ry="4.6" fill={CONTOUR} />
-            <Ellipse cx="32" cy={CY - 2.4} rx="23" ry="3.8" fill={hat} />
+            <Rect x="13.4" y="21.4" width="37.2" height="6.4" rx="3.2" fill={hat} stroke={CONTOUR} strokeWidth={1.4} />
+            <Rect x="14.6" y="22.6" width="34.8" height="4" rx="2" fill="#000000" opacity={0.12} />
+            {a.hat === 'hat_winter' && (
+              <G>
+                <Path d="M20 17h24" stroke="#FFFFFF" strokeWidth={2} strokeDasharray="2.4 2.4" opacity={0.85} />
+                <Circle cx="32" cy="9.8" r="4" fill="#FFFFFF" stroke={CONTOUR} strokeWidth={1.2} />
+              </G>
+            )}
           </G>
+        )}
+        {hasHat && (a.hat === 'hat_bucket' || a.hat === 'hat_explorer') && (
+          <G>
+            <Path
+              d={a.hat === 'hat_explorer' ? 'M17 24.5C17 13 23 9.5 32 9.5S47 13 47 24.5z' : 'M17.5 24.5A15 13 0 0 1 46.5 24.5z'}
+              fill={hat}
+              stroke={CONTOUR}
+              strokeWidth={1.4}
+              strokeLinejoin="round"
+            />
+            {a.hat === 'hat_explorer' && <Rect x="17.6" y="19.6" width="28.8" height="3.2" fill="#3B2F1C" />}
+            <Ellipse cx="32" cy="25.2" rx="21.5" ry="4.4" fill={hat} stroke={CONTOUR} strokeWidth={1.4} />
+          </G>
+        )}
+        {hasHat && (a.hat === 'hat_band' || a.hat === 'hat_visor') && (
+          <Rect x="12" y="19.2" width="40" height="4.6" fill={hat} clipPath={`url(#${clipId})`} />
         )}
         {hasHat && a.hat === 'hat_visor' && (
-          <G>
-            <Rect x={CX - R - 0.5} y={CY - 6.5} width={R * 2 + 1} height="4.4" rx="2.2" fill={hat} opacity={0.85} />
-            <Path d="M7 24c7.5-3.6 41.5-3.6 50 0-7.5 3.6-42.5 3.6-50 0z" fill={hat} />
-          </G>
+          <Ellipse cx="32" cy="24" rx="14.5" ry="3.2" fill={hat} stroke={CONTOUR} strokeWidth={1.3} />
         )}
       </G>
+
+      {/* The ring last, so shoulders never cover it. */}
+      <Circle cx="32" cy="32" r="30.5" fill="none" stroke={ring ?? shirt} strokeWidth={3} />
     </Svg>
   );
 }
