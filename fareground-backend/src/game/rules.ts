@@ -20,10 +20,23 @@ export const STEPS_PER_WALK_POINT = 100;
 
 /**
  * ---------------------------------------------------------------------------
- *  PARCEL PRICE - FLAT. Every parcel costs the same, forever.
+ *  PARCEL PRICE - 50 WP, plus 1 WP for every parcel you already own.
  * ---------------------------------------------------------------------------
- *  price = 50 WP, always. 5,000 steps buys one, whether it is your first or
- *  your five hundredth. The welcome bonus covers the first one.
+ *  1st 50 WP, 10th 59, 50th 99, 100th 149, 200th 249. The welcome bonus
+ *  covers the first one.
+ *
+ *  2026-09-26: the flat price below was made to rise again, gently. Testers
+ *  worked the numbers out and were right: with a flat price AND a boost that
+ *  covered the whole day, a regular walker's land paid out about ten times
+ *  what their ads earned us - a loss on every engaged player the moment coins
+ *  are worth cash. The step is +1, not the old +8: early land stays almost as
+ *  cheap as flat (the first 50 parcels average 75 WP), and only a player
+ *  holding hundreds feels it. Modelled for a regular walker (8,000 steps and
+ *  the daily rewards): ~200 parcels after a year, ~370 after three, first
+ *  $0.25 in about 2-3 months - and ad revenue covers the land at 1.0-2.1x
+ *  for a 3-ad player and 1.7-3.9x for a 12-ad one, from year one to three.
+ *
+ *  The history, kept because the trade is the same whoever tunes this next:
  *
  *  This replaced a RISING price (20 WP + 8 per parcel owned) on 2026-09-24,
  *  at the product owner's decision. It went flat at 20 WP first and was
@@ -64,16 +77,14 @@ export const STEPS_PER_WALK_POINT = 100;
 export const PARCEL_BASE_PRICE_WP = 50;
 
 /**
- * Kept at 0 rather than deleted, so the rising-price idea stays visible and
- * a future change is one number rather than an archaeology exercise. Set it
- * back to 8 to restore the old curve.
+ * The rise per parcel owned. 0 made the price flat (2026-09-24 to -26), 8 was
+ * the original steep curve. 1 is what keeps land growing more slowly than
+ * walking - which is the whole solvency argument - without making the tenth
+ * parcel feel expensive.
  */
-export const PARCEL_PRICE_STEP_WP = 0;
+export const PARCEL_PRICE_STEP_WP: number = 1;
 
-/**
- * What the NEXT parcel costs. Flat today, so `owned` is unused - the argument
- * stays because every caller passes it and the price may climb again.
- */
+/** What the NEXT parcel costs, given how many the player already owns. */
 export function parcelPriceWp(owned: number): number {
   return PARCEL_BASE_PRICE_WP + PARCEL_PRICE_STEP_WP * Math.max(0, Math.floor(owned));
 }
@@ -144,8 +155,9 @@ export type AdRewardKind =
  * short bursts. A burst is something a player plans a walk around; a flat 2x
  * is wallpaper.
  *
- * Now 20x, in TWO-HOUR pieces, banking to 24 hours - twelve ads fill it
- * exactly, so a full day of ads buys a full day of boost.
+ * Now 20x, in TWENTY-MINUTE pieces, banking to 4 hours - twelve ads fill it
+ * exactly. (It was two-hour pieces and a 24-hour bank for two days; the
+ * paragraphs below still describe that setting and why it was cut.)
  *
  * SECONDS PER AD IS THE LEVER, NOT THE BANK - and that lever has now been
  * pulled all the way. What a player earns per day is capped by
@@ -170,7 +182,14 @@ export type AdRewardKind =
 export const BOOST_MULTIPLIER = 20;
 
 /**
- * TWO HOURS PER AD, so a day's twelve ads fill the 24-hour bank exactly.
+ * TWENTY MINUTES PER AD, so a day's twelve ads fill the 4-hour bank exactly:
+ * four hours at 20x, a day-average of 4.17x. Cut from two hours on
+ * 2026-09-26 together with the rising price - see PARCEL_BASE_PRICE_WP. It
+ * keeps the 20x burst players plan a walk around, and ends the "20x all day"
+ * that made every parcel owned cost more than the ads paying for it.
+ *
+ * WHAT FOLLOWS IS THE HISTORY OF THE TWO-HOUR SETTING, kept for its reasoning.
+ * TWO HOURS PER AD made a day's twelve ads fill a 24-hour bank exactly.
  *
  * This is a deliberate, product-owner decision to make the boost feel worth
  * watching an ad for, and it is a BIG change: a player who watches all
@@ -194,13 +213,13 @@ export const BOOST_MULTIPLIER = 20;
  * minutes an ad (3.38x over a day) is the setting it came from and the one
  * the solvency model was built on.
  */
-export const BOOST_SECONDS_PER_AD = 2 * 60 * 60;
+export const BOOST_SECONDS_PER_AD = 20 * 60;
 
 /**
- * A full day of banked boost. See above: this is a convenience ceiling, not
- * a rate - MAX_BOOST_ADS_PER_DAY is what bounds the cost.
+ * Four hours: exactly what a day's twelve ads buy, so the last ad of the day
+ * is never wasted and hours can still be saved for a long walk.
  */
-export const BOOST_MAX_BANKED_SECONDS = 24 * 60 * 60;
+export const BOOST_MAX_BANKED_SECONDS = 4 * 60 * 60;
 export const MAX_BOOST_ADS_PER_DAY = 12;
 
 /**

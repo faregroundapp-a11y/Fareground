@@ -88,27 +88,31 @@ test('the headline economy numbers are what the design doc says', () => {
   assert.equal(SIGNUP_BONUS_WP, 50);
 });
 
-test('every parcel costs exactly the same', () => {
-  // FLAT, as of 2026-09-24. Your five hundredth parcel costs what your first
-  // one did: 50 WP, or 5,000 steps - half a normal day's walking.
-  assert.equal(parcelPriceWp(0), 50);
-  assert.equal(parcelPriceWp(1), 50);
-  assert.equal(parcelPriceWp(99), 50);
+test('each parcel costs a little more than the last', () => {
+  // 50 WP + 1 per parcel owned, since 2026-09-26 (flat for two days before).
+  assert.equal(parcelPriceWp(0), 50, 'the first parcel is exactly the welcome bonus');
+  assert.equal(parcelPriceWp(9), 59);
+  assert.equal(parcelPriceWp(99), 149);
   assert.equal(parcelPriceWp(-3), 50, 'never below the base price');
   for (let n = 0; n < 500; n++) {
-    assert.equal(parcelPriceWp(n + 1), parcelPriceWp(n), `the price moved at parcel ${n}`);
+    assert.equal(parcelPriceWp(n + 1) - parcelPriceWp(n), 1, `the step changed at parcel ${n}`);
   }
 
-  // The consequence, stated as a property rather than left implicit: land now
-  // grows LINEARLY with walking. It used to grow like a square root, and that
-  // difference is the whole solvency argument - see the redemption guard below.
-  assert.equal(parcelsAfter(200, 100) - parcelsAfter(100, 100), parcelsAfter(100, 100) - parcelsAfter(0, 100));
+  // Gentle on purpose: the tenth parcel must not feel like a wall.
+  assert.ok(parcelPriceWp(9) <= 60, `the tenth parcel costs ${parcelPriceWp(9)} WP`);
+
+  // The consequence, stated as a property: land grows SLOWER than walking.
+  // Each hundred days buys less than the hundred before, which is the whole
+  // solvency argument - a flat price made this an equality.
+  const first = parcelsAfter(100, 100) - parcelsAfter(0, 100);
+  const second = parcelsAfter(200, 100) - parcelsAfter(100, 100);
+  assert.ok(second < first, `days 100-200 bought ${second} parcels, days 0-100 bought ${first}`);
 });
 
 test('the boost is a big multiplier in short bursts, and the bank caps it', () => {
   assert.equal(BOOST_MULTIPLIER, 20);
-  assert.equal(BOOST_SECONDS_PER_AD, 7_200, 'two hours an ad');
-  assert.equal(BOOST_MAX_BANKED_SECONDS, 86_400, 'the bank holds a full day');
+  assert.equal(BOOST_SECONDS_PER_AD, 1_200, 'twenty minutes an ad');
+  assert.equal(BOOST_MAX_BANKED_SECONDS, 14_400, 'the bank holds four hours');
 
   // Shaped after TerraMine, whose boost reaches 20x in 30-minute pieces up to
   // 8 hours. A big burst is something a player plans a walk around; a small
@@ -146,14 +150,9 @@ test('the boost is a big multiplier in short bursts, and the bank caps it', () =
   const lightAds = 3;
   const lightHours = Math.min((lightAds * BOOST_SECONDS_PER_AD) / 3600, BOOST_MAX_BANKED_SECONDS / 3600);
   const lightMultiplier = (lightHours * BOOST_MULTIPLIER + (24 - lightHours)) / 24;
-  // WAS <= 2. At two hours an ad, three ads buy six boosted hours and 5.75x,
-  // which is far beyond what a three-ad-a-day player is worth in revenue.
-  // That is accepted ONLY because nothing pays out; the number is asserted
-  // so it stays visible rather than becoming a surprise.
-  assert.ok(
-    lightMultiplier > 5 && lightMultiplier < 6,
-    `three ads a day buys ${lightMultiplier.toFixed(2)}x - recheck the economy if this moved`,
-  );
+  // At two hours an ad this was 5.75x - far beyond what a three-ad player is
+  // worth in revenue. Twenty minutes brings it back under 2x.
+  assert.ok(lightMultiplier <= 2, `three ads a day buys ${lightMultiplier.toFixed(2)}x`);
 });
 
 test('income is exact in micro-coins, and nothing is lost to rounding', () => {
@@ -596,13 +595,11 @@ function parcelsAfter(days: number, wpPerDay: number): number {
   return owned;
 }
 
-test('a hard-walking player gains land without limit - and what that costs', () => {
+test('a hard-walking player gains land ever more slowly - and what that costs', () => {
   // 10,000 steps a day = 100 WP a day, every day, and nothing else.
   //
-  // THIS TEST USED TO ASSERT THE COST LEVELS OFF. It no longer does and
-  // cannot: with a flat price the land owed grows in a straight line forever.
-  // Rather than delete the check, it now PINS THE REAL SHAPE, so the number
-  // is in front of whoever reads this instead of being a surprise later.
+  // With the rising price the land owed grows more slowly every year. (Under
+  // the flat price of 2026-09-24 it grew in a straight line for ever.)
   const averageCoinsPerHour = RARITY_TABLE.reduce(
     (sum, e) => sum + (e.weightBasisPoints / 10_000) * e.coinsPerHour,
     0,
@@ -610,23 +607,19 @@ test('a hard-walking player gains land without limit - and what that costs', () 
   const costAt = (years: number) => parcelsAfter(365 * years, 100) * coinsPerHourToUsdPerYear(averageCoinsPerHour);
 
   const y1 = parcelsAfter(365, 100);
-  // Two parcels a day, every day. It was ~95 under the rising price, and
-  // ~1,826 during the few hours the flat price sat at 20 WP.
-  assert.ok(y1 >= 650 && y1 <= 800, `year one: ${y1} parcels`);
+  // ~225. It was ~730 under the flat 50 WP price and ~95 under the old +8 step.
+  assert.ok(y1 >= 180 && y1 <= 280, `year one: ${y1} parcels`);
 
-  // Each year adds the SAME as the last. That is the flat price, stated out
-  // loud - and it is the thing that makes cash redemption unaffordable.
+  // Each year adds LESS than the last - the property the flat price lost.
   const addedY2 = costAt(2) - costAt(1);
   const addedY3 = costAt(3) - costAt(2);
-  assert.ok(Math.abs(addedY3 - addedY2) < 0.05, 'a flat price must add the same liability every year');
+  assert.ok(addedY3 < addedY2, 'the land owed must grow more slowly each year');
 
-  // What it WOULD cost per year if coins were ever redeemable for cash.
-  // Recorded, not asserted safe, because it is not safe - it is simply free
-  // while CASH_REDEMPTION_ENABLED is false.
-  assert.ok(costAt(3) > 5, `year three is only $${costAt(3).toFixed(2)}/yr - has the price changed back?`);
+  // Unboosted land cost per year, pinned so a silent rate change shows up here.
+  assert.ok(costAt(3) > 4 && costAt(3) < 8, `year three costs $${costAt(3).toFixed(2)}/yr`);
 });
 
-test('CASH REDEMPTION CANNOT BE SWITCHED ON UNDER A FLAT PARCEL PRICE', () => {
+test('CASH REDEMPTION CANNOT BE SWITCHED ON WITHOUT A REVIEW', () => {
   // The guard that turns a slow disaster into a red build.
   //
   // A flat price plus real payouts loses money on every engaged player: the
@@ -660,8 +653,10 @@ test('CASH REDEMPTION CANNOT BE SWITCHED ON UNDER A FLAT PARCEL PRICE', () => {
     );
   }
 
-  // While it is off, the land costs nothing at all, and that is the only
-  // reason the flat price is affordable.
+  // The price rises again and the boost is back to short bursts, so both
+  // checks above pass - but the heaviest players are only just covered at the
+  // worst ad price (see 'a day of ads'), and payouts need KYC, fraud checks
+  // and legal advice first. Switching this on stays a deliberate decision.
   assert.equal(CASH_REDEMPTION_ENABLED, false, 'if this changed on purpose, read the test above');
 });
 
@@ -738,22 +733,16 @@ test('EVERY way to earn together still funds itself', () => {
   const costAt = (years: number) =>
     parcelsAfter(365 * years, perDay) * coinsPerHourToUsdPerYear(averageCoinsPerHour);
 
-  // WHAT THIS COSTS IS NOW GATED ON REDEMPTION, NOT ON THE RATES.
-  //
-  // Under the old rising price this asserted year one < $2.50 against ~$9 of
-  // ad revenue. With a flat price the same player costs roughly $50/yr, which
-  // no amount of advertising covers - so the honest assertion is not "it is
-  // affordable" but "it is free, because nothing pays out".
-  if (CASH_REDEMPTION_ENABLED) {
-    assert.ok(costAt(1) < 2.5, `year one costs $${costAt(1).toFixed(2)}/yr with redemption ON`);
-    assert.ok(costAt(3) < 4, `year three costs $${costAt(3).toFixed(2)}/yr with redemption ON`);
-  }
+  // Unboosted land for this player: ~$5.40/yr in year one, ~$9.75 by year
+  // three (it was ~$20 and rising in a straight line at the flat price). They
+  // watch 20 bonus-WP ads a day on top of any boost ads - $58-110/yr of
+  // revenue from those alone - so the land is covered many times over.
+  const wpAdRevenue = MAX_WP_ADS_PER_DAY * 365 * 0.008;
+  assert.ok(costAt(3) * 2 < wpAdRevenue, `year three costs $${costAt(3).toFixed(2)}/yr`);
 
-  // Pinned so the figure stays visible and a silent change to the rates shows
-  // up here rather than in a bank statement. It was ~$49.74 at a 20 WP flat
-  // price; 50 WP brings it to ~$19.90, which is the point of the change.
-  assert.ok(costAt(1) > 8, `year one is only $${costAt(1).toFixed(2)}/yr - did the price stop being flat?`);
-  assert.ok(costAt(1) < 30, `year one costs $${costAt(1).toFixed(2)}/yr - the price has fallen again`);
+  // Pinned so a silent change to the rates shows up here rather than in a
+  // bank statement.
+  assert.ok(costAt(1) > 3 && costAt(1) < 8, `year one costs $${costAt(1).toFixed(2)}/yr`);
 });
 
 test('an invite costs far less than a player is worth, and cannot be farmed', () => {

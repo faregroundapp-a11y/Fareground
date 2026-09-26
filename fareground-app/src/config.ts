@@ -26,8 +26,8 @@ export const MAX_CLAIM_ACCURACY_M = 25;
  * every balance and is always the authority - these exist so the sign-up
  * screen and the first frame have something to show.
  *
- * The price is FLAT now (every parcel 50 WP), so this fallback is correct
- * rather than just approximately right. It used to rise with land held.
+ * The price rises by 1 WP per parcel owned, so this is exact only for a new
+ * player's first parcel - which is the only moment the fallback shows.
  * Keep it in step with PARCEL_BASE_PRICE_WP in the backend's rules.ts;
  * nothing tests that they match.
  */

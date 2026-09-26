@@ -214,7 +214,7 @@ function assertCanEarn(status: RewardStatus, kind: AdRewardKind): void {
       throw new HttpError(429, 'You have used all of today\'s boosts. They come back over the next day.');
     }
     if (!status.boost.canAdd) {
-      throw new HttpError(409, 'Your boost is already full (4 hours). Top it up later.');
+      throw new HttpError(409, `Your boost is already full (${BOOST_MAX_BANKED_SECONDS / 3600} hours). Top it up later.`);
     }
   } else if (kind === 'WALK_POINTS' && status.walkPoints.adsLeftToday <= 0) {
     throw new HttpError(429, 'You have collected all of today\'s bonus Walk Points. Walking still counts!');
@@ -416,7 +416,7 @@ async function grant(
     );
     const win = w.rows[0];
     amount = Math.floor(win.seconds);
-    if (amount <= 0) throw new HttpError(409, 'Your boost is already full (4 hours). Top it up later.');
+    if (amount <= 0) throw new HttpError(409, `Your boost is already full (${BOOST_MAX_BANKED_SECONDS / 3600} hours). Top it up later.`);
     await client.query(
       `INSERT INTO boosts (user_id, starts_at, ends_at, multiplier, ad_reward_id)
        VALUES ($1, $2, $3, $4, $5)`,

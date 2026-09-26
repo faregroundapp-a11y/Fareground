@@ -460,6 +460,48 @@ subscription would likely beat the ads themselves.
 
 ---
 
+## 25. Hosting for testers, and the economy made to balance (2026-09-26)
+
+**§2's table is stale. `rules.ts` is the truth.** Current: 100 steps = 1 WP;
+parcel **50 WP + 1 per parcel owned** (1st 50, 10th 59, 100th 149); signup
+bonus 50 WP; boost **20x, 20 min per ad, 4 h bank** (12 ads fill it);
+**2,000,000 coins = $1**; ROCKY 1 / COAL 2 / AMETHYST 5 / SAPPHIRE 12 /
+RUBY 100 coins/hr; cash redemption OFF.
+
+### Why the price rises again and the boost is short again
+
+Testers worked the numbers out in Discord and were right. With the flat
+50 WP price (2026-09-24) plus two hours of 20x per ad, twelve ads bought 20x
+on EVERY parcel all day, and land grew in a straight line for ever. The
+economy report showed a regular walker's land paying ~10x what their ads
+earn - a loss on every engaged player the moment coins are cash.
+
+The fix touches only those two levers; coin value and mineral rates are
+untouched because they were never the problem. Modelled for a regular walker
+(8,000 steps + daily rewards): ~200 parcels after a year, ~370 after three;
+first $0.25 in ~2-4 months; ~$0.50-0.90/month to the player at a year with
+boost ads. Ad revenue covers the land 1.0-2.1x (3 ads/day) and 1.7-3.9x
+(12 ads/day). **If ad rates come in low, set PARCEL_PRICE_STEP_WP to 2**
+(~1.4x worst case, ~25% less land). Existing land and banked boosts are
+untouched.
+
+### Hosting (testers no longer need the PC)
+
+- `render.yaml` at the repo root: Render Blueprint, web service + Postgres,
+  migrations on every start. Live at `https://fareground-api.onrender.com`.
+  Free plan: sleeps after 15 min idle, database deleted after 30 days.
+- `TRUST_PROXY=1` there. Without it every player behind Render's proxy shared
+  ONE rate-limit bucket (20 sign-ins per 15 min for everyone).
+- `AD_REWARD_VERIFICATION=client` on purpose: test ad units never send the
+  SSV callback, so `ssv` would make every rewarded ad pay nothing.
+- EAS profile `tester` points at Render. Build:
+  `npx eas-cli@latest build --profile tester --platform android`, run INSIDE
+  `fareground-app`. Share the `.apk` download link, NOT the expo.dev build
+  page (private to the account - testers see "Account not found").
+- The Expo project is still named **walkscape** under **zpolos-team**.
+
+---
+
 ## 24. Doorbells, areas, step integrity, AdMob wiring (2026-09-24)
 
 ### Pit stops became DOORBELLS, and moved onto the map

@@ -41,10 +41,10 @@ $RULES = @{
     ParcelBasePrice   = 50      # PARCEL_BASE_PRICE_WP
     AdWalkPoints      = 5       # AD_WALK_POINTS
     MaxWpAdsPerDay    = 20      # MAX_WP_ADS_PER_DAY
-    ParcelPriceStep   = 0       # PARCEL_PRICE_STEP_WP - FLAT since 2026-09-24
+    ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - rising again since 2026-09-26
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
-    BoostSecondsPerAd = 7200    # BOOST_SECONDS_PER_AD      (2 h)
-    BoostBankSeconds  = 86400   # BOOST_MAX_BANKED_SECONDS  (24 h)
+    BoostSecondsPerAd = 1200    # BOOST_SECONDS_PER_AD      (20 min)
+    BoostBankSeconds  = 14400   # BOOST_MAX_BANKED_SECONDS  (4 h)
     # sustainablePace(60) x 60. NOT 60 x MAX_STEPS_PER_MINUTE: the pace
     # ceiling falls off with duration, so an hour is 200/min rather than the
     # 250/min a human can sprint for one minute.
@@ -58,8 +58,7 @@ $RULES = @{
 # derived, so it always buys exactly one parcel. Mirror that here.
 $BONUS = $RULES.ParcelBasePrice
 
-# What parcel number n costs. Flat today; the helper stays so restoring a
-# rising price is one number in the block above.
+# What parcel number n costs (1-based): base + step x parcels already owned.
 function Parcel-Price([int]$n) { $RULES.ParcelBasePrice + $RULES.ParcelPriceStep * ($n - 1) }
 
 # One HttpClient for the whole run, so the suite reuses a handful of sockets
