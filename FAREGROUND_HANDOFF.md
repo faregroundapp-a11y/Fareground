@@ -472,10 +472,14 @@ Work from a CLOUD session (Claude Code on the web), on branch
 |---|---|---|
 | 1 | Second and later treasure boxes 500 (`reward_claims_once_per_day` covered TREASURE/PITSTOP) | **Done** - migration 026 (PC session), merged |
 | 2 | Profile photos + doorbell skips 500 (enum missing PIT_STOP/PHOTO) | **Done** - migration 025 (PC session), merged |
-| 3 | Daily resets follow each player's OWN local midnight: chest, quests, every daily ad cap. Server clock only - changing the phone's date must do nothing - and the time zone itself must not be switchable at will to reach "tomorrow" early | **Next** |
-| 4 | A collected quest still shows **Collect** (then errors) | To do |
-| 5 | Instant collect says "0 left today" when the real cause is owning no land | To do |
-| 6 | Economy rebuild (spec below) | To do, after 3-5 |
+| 3 | Daily resets follow each player's OWN local midnight: chest, quests, every daily ad cap. Server clock only; the zone itself can move once a week (migration 027) | **Done** - `db/localTime.ts`; the 4-hour claim gaps are gone |
+| 4 | A collected quest still shows **Collect** (then errors) | **Done** - it was the 4-hour gap disagreeing with the status |
+| 5 | Instant collect says "0 left today" when the real cause is owning no land | **Done** - `needsLand` |
+| 5a | Bonus-WP ads "infinite": the cap was only checked when a ticket was ISSUED, so open tickets all paid | **Done** - re-checked at payout; 25 tickets now pay exactly 20 |
+| 5b | Profile pictures vanish: Render wipes its disk on every deploy | **Done** - pictures live in Postgres (migration 028); also fixed the old-picture cleanup, which never ran |
+| 5c | Treasure boxes indoors (placed beside parcels, which are mostly homes) | **Done** - placed ON footpaths/park paths/quiet streets from OpenStreetMap (Overpass), falling back to the old heuristics |
+| 5d | Street-name toggle, today's area name + maps button + claim-inside-then-2x, tappable boxes, no "(you)" brackets | **Verified present** (PC session's work, merged) |
+| 6 | Economy rebuild (spec below) | **Next** |
 | 7 | Tester APK rebuilt against Render, then shared by `.apk` link | After 6 |
 
 ### Economy - what the product owner decided (supersedes everything above)

@@ -18,11 +18,8 @@
  * confirmation wording says so.
  */
 import bcrypt from 'bcryptjs';
-import { unlink } from 'node:fs/promises';
-import path from 'node:path';
 import { pool } from '../db/pool';
 import { HttpError } from '../utils/httpError';
-import { UPLOAD_DIR } from './photo.service';
 
 export interface DeleteSummary {
   /** What is about to be destroyed, so the confirmation can be specific. */
@@ -71,12 +68,12 @@ export async function deletionSummary(userId: string): Promise<DeleteSummary> {
  * holding the unlocked phone already has.
  */
 export async function deleteAccount(userId: string, password?: string): Promise<void> {
-  const r = await pool.query<{ password_hash: string | null; photo_path: string | null }>(
-    'SELECT password_hash, photo_path FROM users WHERE id = $1',
+  const r = await pool.query<{ password_hash: string | null }>(
+    'SELECT password_hash FROM users WHERE id = $1',
     [userId],
   );
   if (r.rowCount === 0) throw new HttpError(401, 'User no longer exists.');
-  const { password_hash: hash, photo_path: photo } = r.rows[0];
+  const { password_hash: hash } = r.rows[0];
 
   if (hash) {
     if (!password) throw new HttpError(400, 'Enter your password to delete your account.');
@@ -84,9 +81,6 @@ export async function deleteAccount(userId: string, password?: string): Promise<
     if (!ok) throw new HttpError(401, 'That password is not right.');
   }
 
-  // The row goes first. If the file delete then fails we have an orphaned
-  // image rather than an account that half-exists.
+  // Pictures go with the row: photo_files cascades on the user (migration 028).
   await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-
-  if (photo) await unlink(path.join(UPLOAD_DIR, photo)).catch(() => {});
 }

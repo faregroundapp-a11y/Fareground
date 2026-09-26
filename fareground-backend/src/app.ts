@@ -18,7 +18,8 @@ import { profileRouter } from './routes/profile.routes';
 import { referralRouter } from './routes/referral.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { config } from './config/env';
-import { PHOTO_URL_PREFIX, UPLOAD_DIR } from './services/photo.service';
+import { PHOTO_URL_PREFIX, readPhotoFile } from './services/photo.service';
+import { asyncHandler } from './utils/asyncHandler';
 
 /**
  * Rate limits. These are per-IP and held in memory, which is fine for one
@@ -61,20 +62,26 @@ export function createApp() {
   });
 
   /**
-   * Profile pictures, served straight off disk.
+   * Profile pictures, served from the database (migration 028 - a host's
+   * disk does not survive a deploy).
    *
-   * `dotfiles: 'deny'` and express.static's own path handling keep this to
-   * the upload directory; names are random hex, so nothing here is guessable.
-   * Long cache lifetime is safe because a changed picture gets a NEW filename
-   * rather than overwriting the old one.
+   * Names are random hex, so nothing here is guessable, and the pattern below
+   * refuses anything else before the database is asked. Long cache lifetime
+   * is safe because a changed picture gets a NEW name rather than
+   * overwriting the old one.
    */
-  app.use(
-    PHOTO_URL_PREFIX,
-    express.static(UPLOAD_DIR, {
-      dotfiles: 'deny',
-      index: false,
-      maxAge: '30d',
-      fallthrough: false,
+  app.get(
+    `${PHOTO_URL_PREFIX}/:name`,
+    asyncHandler(async (req, res) => {
+      const name = String(req.params.name);
+      const file = /^[0-9a-f]{32}\.(jpg|png)$/.test(name) ? await readPhotoFile(name) : null;
+      if (!file) {
+        res.status(404).json({ error: 'No such picture.' });
+        return;
+      }
+      res.set('Content-Type', file.mime);
+      res.set('Cache-Control', 'public, max-age=2592000, immutable');
+      res.send(file.data);
     }),
   );
 

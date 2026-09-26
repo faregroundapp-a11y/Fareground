@@ -221,6 +221,9 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
   };
 }
 
+/** Kinds with a per-day cap, re-checked when a ticket is paid as well as issued. */
+const DAILY_CAPPED_KINDS: ReadonlySet<AdRewardKind> = new Set(['BOOST', 'WALK_POINTS', 'INSTANT_COLLECT', 'SCOUT']);
+
 function assertCanEarn(status: RewardStatus, kind: AdRewardKind): void {
   if (kind === 'BOOST') {
     if (status.boost.needsLand) {
@@ -477,6 +480,14 @@ export async function completeAdReward(
       return { granted: false, kind: ticket.kind, amount: null, replayed: false };
     }
     if (ticket.expired) throw new HttpError(410, 'That ad took too long. Please try again.');
+
+    // THE CAP IS CHECKED AGAIN HERE, not only when the ticket was handed out.
+    // Several tickets can be open at once - a sheet opened twice, an ad closed
+    // early and retried, the reveal sheet after every claim - and each one
+    // passed the cap when it was issued. Without this, all of them paid, and
+    // testers saw "infinite" bonus ads. Under the user lock, so two
+    // completions cannot both slip under the cap.
+    if (DAILY_CAPPED_KINDS.has(ticket.kind)) assertCanEarn(await rewardStatus(client, userId), ticket.kind);
 
     const amount = await grant(client, ticket, 'client', null, boxAt ?? null);
     return { granted: true, kind: ticket.kind, amount, replayed: false };

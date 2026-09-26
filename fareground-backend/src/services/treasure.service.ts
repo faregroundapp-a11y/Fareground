@@ -73,54 +73,105 @@ function somewhereNear(lat: number, lng: number): { lat: number; lng: number } {
  * ---------------------------------------------------------------------------
  *  WHERE A BOX IS ALLOWED TO APPEAR
  * ---------------------------------------------------------------------------
- *  `somewhereNear` picks a random bearing, so a box lands wherever the maths
- *  sends it: the middle of a lake, a motorway, a locked industrial estate,
- *  the seventh floor of a block of flats. Testers reported exactly that.
+ *  Outdoors, on ground a person can walk to - never in a lake, on a motorway,
+ *  in a back garden or on the seventh floor of a block of flats. Testers
+ *  reported all of those, in two rounds:
  *
- *  THERE IS NO MAP DATA SERVER-SIDE, so we cannot ask "is this a footpath".
- *  What we have is better than a guess: PLACES SOMEBODY HAS ALREADY STOOD.
- *  Every parcel was claimed by a person physically within 40 m of it, with a
- *  GPS fix good to 25 m. That is a verified human-reachable point, which a
- *  random bearing never is.
+ *   1. A random bearing put boxes wherever the maths sent them.
+ *   2. The fix for that - "beside a parcel somebody claimed" - moved them
+ *      indoors instead, because most parcels are claimed from people's homes.
  *
- *  So: land the box near a nearby parcel when one exists, and fall back to a
- *  random bearing only where nobody has ever been - which is also where the
- *  player is most likely to be somewhere open anyway.
+ *  So the first choice is now REAL MAP DATA: a point on a footpath, a park
+ *  path, a pedestrian street or a quiet residential street, from
+ *  OpenStreetMap via the public Overpass API. Those are outside by
+ *  definition. Busy roads (motorway to secondary) are deliberately not in the
+ *  list, and neither is anything tagged private.
  *
- *  It is a heuristic, not a guarantee: the first person in a new area still
- *  gets random placement, and a parcel claimed from a car park edge can still
- *  put a box in the hedge. It removes the middle-of-the-reservoir cases,
- *  which is what was actually being reported.
+ *  Overpass is a free public service, so it is treated as optional: a short
+ *  timeout, a small cache, and on any failure the old heuristics still run
+ *  (parcels, then a random bearing). A box always appears; it is just better
+ *  placed when the map answers.
  */
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_TIMEOUT_MS = 5_000;
+const WALKABLE_HIGHWAYS = 'footway|path|pedestrian|living_street|residential|cycleway|track|bridleway';
+
+/** Walkable points around a spot, cached ~100 m by ~100 m for six hours. */
+const outdoorCache = new Map<string, { at: number; points: { lat: number; lng: number }[] }>();
+const OUTDOOR_CACHE_MS = 6 * 60 * 60 * 1000;
+const OUTDOOR_CACHE_MAX = 500;
+
+async function outdoorPoints(lat: number, lng: number): Promise<{ lat: number; lng: number }[]> {
+  const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  const hit = outdoorCache.get(key);
+  if (hit && Date.now() - hit.at < OUTDOOR_CACHE_MS) return hit.points;
+
+  const q =
+    `[out:json][timeout:5];` +
+    `way(around:${TREASURE_MAX_DISTANCE_M + 50},${lat.toFixed(6)},${lng.toFixed(6)})` +
+    `[highway~"^(${WALKABLE_HIGHWAYS})$"][access!~"^(private|no)$"];` +
+    `out geom 120;`;
+  try {
+    const res = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      // Overpass asks every client to identify itself.
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Fareground/0.1 (treasure placement)' },
+      body: `data=${encodeURIComponent(q)}`,
+      signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { elements?: { geometry?: { lat: number; lon: number }[] }[] };
+    const points = (json.elements ?? []).flatMap((w) => (w.geometry ?? []).map((g) => ({ lat: g.lat, lng: g.lon })));
+    if (outdoorCache.size >= OUTDOOR_CACHE_MAX) outdoorCache.clear();
+    outdoorCache.set(key, { at: Date.now(), points });
+    return points;
+  } catch {
+    // Timed out, offline, or rate-limited: fall back, never fail the request.
+    return [];
+  }
+}
+
+/** A random candidate inside the spawn band, or null if none qualify. */
+function pickInBand(lat: number, lng: number, points: { lat: number; lng: number }[]): { lat: number; lng: number } | null {
+  const inBand = points.filter((p) => {
+    const d = metresBetween(lat, lng, p.lat, p.lng);
+    return d >= TREASURE_MIN_DISTANCE_M && d <= TREASURE_MAX_DISTANCE_M;
+  });
+  return inBand.length === 0 ? null : inBand[randomInt(0, inBand.length)];
+}
+
 async function walkableSpot(lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+  // 1. A point on a real path or quiet street. Placed ON the line, not
+  //    nudged off it: a nudge is how a box ends up in the hedge.
+  const onPath = pickInBand(lat, lng, await outdoorPoints(lat, lng));
+  if (onPath) return onPath;
+
+  // 2. No map answer: beside a parcel somebody has stood near, which at least
+  //    rules out lakes and motorways.
   const centre = cellForLatLng(lat, lng);
   // A cell is ~9 m, so this covers the whole spawn band generously. The
-  // distance filter below is what enforces it.
+  // distance filter is what enforces it.
   const span = cellRadius(lat, TREASURE_MAX_DISTANCE_M) + 2;
-
   const near = await query<{ cell_x: number; cell_y: number }>(
     `SELECT cell_x, cell_y FROM parcels
       WHERE cell_x BETWEEN $1 AND $2 AND cell_y BETWEEN $3 AND $4
       ORDER BY random() LIMIT 40`,
     [centre.cellX - span, centre.cellX + span, centre.cellY - span, centre.cellY + span],
   );
+  const pick = pickInBand(lat, lng, near.rows.map((r) => cellCenter(r.cell_x, r.cell_y)));
+  if (pick) {
+    // Nudge a few metres off the plot itself, so the box is beside the land
+    // rather than sitting on it. Well inside the 30 m collect radius.
+    const bearing = (randomInt(0, 3600) / 3600) * 2 * Math.PI;
+    const off = 6 + randomInt(0, 8);
+    return {
+      lat: pick.lat + (off * Math.cos(bearing)) / 111_320,
+      lng: pick.lng + (off * Math.sin(bearing)) / (111_320 * Math.cos((pick.lat * Math.PI) / 180) || 1),
+    };
+  }
 
-  const candidates = near.rows
-    .map((r) => cellCenter(r.cell_x, r.cell_y))
-    .map((c) => ({ ...c, d: metresBetween(lat, lng, c.lat, c.lng) }))
-    .filter((c) => c.d >= TREASURE_MIN_DISTANCE_M && c.d <= TREASURE_MAX_DISTANCE_M);
-
-  if (candidates.length === 0) return somewhereNear(lat, lng);
-
-  // Nudge a few metres off the plot itself, so the box is beside the land
-  // rather than sitting on it. Well inside the 30 m collect radius.
-  const pick = candidates[randomInt(0, candidates.length - 1)];
-  const bearing = (randomInt(0, 3600) / 3600) * 2 * Math.PI;
-  const off = 6 + randomInt(0, 8);
-  return {
-    lat: pick.lat + (off * Math.cos(bearing)) / 111_320,
-    lng: pick.lng + (off * Math.sin(bearing)) / (111_320 * Math.cos((pick.lat * Math.PI) / 180) || 1),
-  };
+  // 3. Nowhere known at all.
+  return somewhereNear(lat, lng);
 }
 
 const rewardWp = () => TREASURE_MIN_WP + randomInt(0, TREASURE_MAX_WP - TREASURE_MIN_WP + 1);

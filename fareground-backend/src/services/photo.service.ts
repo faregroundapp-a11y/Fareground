@@ -18,13 +18,8 @@
  *    a human. That is the honest limit of this implementation.
  */
 import { randomBytes } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { pool, query } from '../db/pool';
+import { pool, query, withTransaction } from '../db/pool';
 import { HttpError } from '../utils/httpError';
-
-/** Where uploads live. Relative to the backend's working directory. */
-export const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads', 'avatars');
 
 /** The phone sends ~256x256 JPEG; 512 KB is generous for that. */
 const MAX_BYTES = 512 * 1024;
@@ -85,27 +80,21 @@ export async function setPhoto(userId: string, base64: string): Promise<PhotoRes
 
   const name = `${randomBytes(16).toString('hex')}.${kind === 'jpeg' ? 'jpg' : 'png'}`;
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  await writeFile(path.join(UPLOAD_DIR, name), buf);
+  // Stored in the database, not on disk: a host's disk is wiped on every
+  // deploy (migration 028).
+  await query('INSERT INTO photo_files (name, user_id, mime, data) VALUES ($1, $2, $3, $4)', [
+    name,
+    userId,
+    kind === 'jpeg' ? 'image/jpeg' : 'image/png',
+    buf,
+  ]);
 
-  // A CTE reads the OLD path before the UPDATE overwrites it. Doing this as
-  // `RETURNING (SELECT ...)` happens to work through snapshot rules, but it
-  // reads as though it should return the new value - too subtle to leave in
-  // code that deletes files.
-  const previous = await pool.query<{ old_path: string | null }>(
-    `WITH prev AS (SELECT photo_path FROM users WHERE id = $1 FOR UPDATE)
-     UPDATE users SET photo_path = $2, photo_updated_at = NOW()
-      WHERE id = $1
-      RETURNING (SELECT photo_path FROM prev) AS old_path`,
-    [userId, name],
-  );
-  if (previous.rowCount === 0) throw new HttpError(401, 'User no longer exists.');
-
-  const old = previous.rows[0].old_path;
+  const old = await swapPhotoPath(userId, name, 'photo_updated_at = NOW()');
+  if (old === undefined) throw new HttpError(401, 'User no longer exists.');
   if (old && old !== name) {
     // Best effort. A file left behind costs a few kilobytes; a failed request
     // because cleanup threw would cost the player their upload.
-    await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
+    await deletePhotoFile(old);
   }
 
   return { photoPath: name, photoUrl: photoUrl(name)! };
@@ -113,15 +102,45 @@ export async function setPhoto(userId: string, base64: string): Promise<PhotoRes
 
 /** The player removing their own picture. Free - only changing it costs an ad. */
 export async function clearPhoto(userId: string): Promise<void> {
-  const r = await pool.query<{ old_path: string | null }>(
-    `WITH prev AS (SELECT photo_path FROM users WHERE id = $1 FOR UPDATE)
-     UPDATE users SET photo_path = NULL, photo_updated_at = NOW()
-      WHERE id = $1
-      RETURNING (SELECT photo_path FROM prev) AS old_path`,
-    [userId],
-  );
-  const old = r.rows[0]?.old_path;
-  if (old) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
+  const old = await swapPhotoPath(userId, null, 'photo_updated_at = NOW()');
+  if (old) await deletePhotoFile(old);
+}
+
+/**
+ * Point the account at a new picture (or none) and return the OLD name, or
+ * undefined if the user does not exist.
+ *
+ * Two statements under a row lock, deliberately. It used to be one
+ * `WITH prev AS (... FOR UPDATE) UPDATE ... RETURNING (SELECT FROM prev)`,
+ * which reads as though it returns the old value - and does not: the locked
+ * re-read sees the row the UPDATE just wrote, so it returned the NEW name,
+ * the old picture was never deleted, and every change leaked a file.
+ */
+async function swapPhotoPath(userId: string, next: string | null, alsoSet: string): Promise<string | null | undefined> {
+  return withTransaction(async (client) => {
+    const prev = await client.query<{ photo_path: string | null }>(
+      'SELECT photo_path FROM users WHERE id = $1 FOR UPDATE',
+      [userId],
+    );
+    if (prev.rowCount === 0) return undefined;
+    await client.query(`UPDATE users SET photo_path = $2, ${alsoSet} WHERE id = $1`, [userId, next]);
+    return prev.rows[0].photo_path;
+  });
+}
+
+/**
+ * Remove a stored picture. Best effort: a row left behind costs a few
+ * kilobytes, while a request failing over cleanup would cost the player
+ * their upload.
+ */
+async function deletePhotoFile(name: string): Promise<void> {
+  await query('DELETE FROM photo_files WHERE name = $1', [name]).catch(() => {});
+}
+
+/** A stored picture, for GET /photos/:name. Null if there is no such file. */
+export async function readPhotoFile(name: string): Promise<{ mime: string; data: Buffer } | null> {
+  const r = await query<{ mime: string; data: Buffer }>('SELECT mime, data FROM photo_files WHERE name = $1', [name]);
+  return r.rows[0] ?? null;
 }
 
 export type ReportReason = 'SEXUAL' | 'VIOLENT' | 'HATE' | 'IMPERSONATION' | 'OTHER';
@@ -164,19 +183,9 @@ export async function reportPhoto(
  * `npm run moderate` (scripts/moderate.ts) by whoever operates the game.
  */
 export async function removePhotoAsModerator(userId: string, note: string): Promise<boolean> {
-  const r = await pool.query<{ old_path: string | null }>(
-    `WITH prev AS (SELECT photo_path FROM users WHERE id = $1 FOR UPDATE)
-     UPDATE users
-        SET photo_path = NULL,
-            photo_removed_at = NOW(),
-            photo_strikes = photo_strikes + 1
-      WHERE id = $1
-      RETURNING (SELECT photo_path FROM prev) AS old_path`,
-    [userId],
-  );
-  if (r.rowCount === 0) return false;
-  const old = r.rows[0].old_path;
-  if (old) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
+  const old = await swapPhotoPath(userId, null, 'photo_removed_at = NOW(), photo_strikes = photo_strikes + 1');
+  if (old === undefined) return false;
+  if (old) await deletePhotoFile(old);
 
   await pool.query(
     `UPDATE photo_reports SET handled_at = NOW(), handled_note = $2
