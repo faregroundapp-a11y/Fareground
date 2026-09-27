@@ -492,9 +492,9 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
-## 31. The doorbell is a check-in (2026-09-27)
+## 31. The doorbell pays both players (2026-09-27)
 
-Tap someone else's plot -> "Check in here?" -> visitor +5 WP, owner +3 WP.
+Tap someone else's plot -> "Ring the doorbell?" -> visitor +5 WP, owner +3 WP (still called the doorbell, at the product owner's request).
 Your own land is not a check-in (filtered out of targets). First-visit bonus
 retired. Kept: one check-in per plot per visitor per day, the 5-minute wait,
 the ad that skips it, the ad that doubles the visitor's 5. Owner pay is its

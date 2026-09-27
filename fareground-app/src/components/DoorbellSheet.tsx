@@ -15,10 +15,10 @@ import { GemIcon, PlayAdIcon } from './icons';
 import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
 /**
- * "Check in here?" - reached by tapping someone else's land.
+ * "Ring the doorbell?" - reached by tapping someone else's land.
  *
- * A CHECK-IN since 2026-09-27 (it was "ring the doorbell"): you earn Walk
- * Points AND so does the plot's owner. Your own land is not a check-in.
+ * Since 2026-09-27 ringing works like a check-in: you earn Walk Points AND so
+ * does the plot's owner. Your own land has no doorbell to ring.
  *
  * Originally a pit stop, reached by tapping someone's land.
  *
@@ -102,8 +102,8 @@ export function DoorbellSheet({
         setCoolUntil(Date.now() + r.cooldownSeconds * 1000);
         setNote({
           text: r.ownerWp
-            ? `Checked in! The owner got +${r.ownerWp} WP too.`
-            : 'Checked in!',
+            ? `Ding dong! The owner got +${r.ownerWp} WP too.`
+            : 'Ding dong!',
           good: true,
         });
         await refresh();
@@ -164,10 +164,10 @@ export function DoorbellSheet({
             <View style={styles.bell} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={type.title}>Check in here?</Text>
+            <Text style={type.title}>Ring the doorbell?</Text>
             <Text style={[type.caption, { marginTop: 2 }]}>
               {target
-                ? "Someone else's plot. Check in and you both earn Walk Points."
+                ? "Someone else's plot. Ring the doorbell and you both earn Walk Points."
                 : 'Walk closer to this plot.'}
             </Text>
           </View>
@@ -188,13 +188,13 @@ export function DoorbellSheet({
         {/* --- the one thing that is blocking, and how to get past it ---- */}
         {!target ? (
           <Text style={styles.body}>
-            You need to be within {'≈'}40 m of a plot to check in. Keep walking.
+            You need to be within {'≈'}40 m of a plot to reach its door. Keep walking.
           </Text>
         ) : target.readyInSeconds > 0 ? (
           <Text style={styles.body}>
-            You already checked in here today. Try again in about{' '}
-            {Math.max(1, Math.ceil(target.readyInSeconds / 3600))} hours - each plot takes one
-            check-in a day.
+            You already rang here today. Try again in about{' '}
+            {Math.max(1, Math.ceil(target.readyInSeconds / 3600))} hours - the same door only
+            answers once a day.
           </Text>
         ) : null}
 
@@ -230,7 +230,7 @@ export function DoorbellSheet({
               {adsAvailable() ? (
                 <Button
                   variant="boost"
-                  label="Skip the wait and check in now"
+                  label="Skip the wait and ring now"
                   icon={<PlayAdIcon size={18} />}
                   onPress={() => void ringWithAd(target)}
                   busy={busy || adBusy === 'PIT_STOP'}
@@ -239,7 +239,7 @@ export function DoorbellSheet({
             </View>
           ) : (
             <Button
-              label={`Check in  ·  +${target.wp} WP`}
+              label={`Ring the doorbell  ·  +${target.wp} WP`}
               onPress={() => void ring(target)}
               busy={busy}
             />

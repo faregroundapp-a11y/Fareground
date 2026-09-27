@@ -355,7 +355,7 @@ function GameView({ fix }: { fix: Fix }) {
   } else if (selectedOwner?.mine) {
     claimState = { kind: 'blocked', reason: `This ${MINERALS[selectedOwner.rarity].label} parcel is yours` };
   } else if (selectedOwner) {
-    claimState = { kind: 'blocked', reason: 'Another explorer owns this parcel - tap it to check in' };
+    claimState = { kind: 'blocked', reason: 'Another explorer owns this parcel - tap it to ring the doorbell' };
   } else if (wp < price) {
     claimState = { kind: 'short', have: wp, need: price };
   }
