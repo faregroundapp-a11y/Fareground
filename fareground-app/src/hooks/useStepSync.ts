@@ -18,6 +18,8 @@ import {
   type StepSources,
 } from '@/native/healthSteps';
 import { registerBackgroundStepSync } from '@/native/backgroundSteps';
+import { appleStepsBetween } from '@/native/appleHealth';
+import { onStepSetupChanged } from '@/native/stepEvents';
 import { useSession } from '@/state/session';
 import { startWalkTrace, takeTraceQuality, takeWalkDistance } from '@/native/walkTrace';
 
@@ -154,7 +156,7 @@ async function phoneTotalForDay(day: string): Promise<number | null> {
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
   try {
-    if (Platform.OS === 'ios') return (await Pedometer.getStepCountAsync(start, end)).steps;
+    if (Platform.OS === 'ios') return await iosStepsBetween(start, end);
     return await readStepsBetween(start, end);
   } catch {
     return null;
@@ -172,6 +174,27 @@ async function phoneTotalForDay(day: string): Promise<number | null> {
  * Uses the last known fix only: waking the GPS every minute to answer a
  * question nobody is blocked on would cost real battery.
  */
+/**
+ * iPhone steps: the HIGHER of Apple Health and the phone's own motion history.
+ *
+ * Apple Health includes every watch and tracker the player owns, merged by
+ * Health itself - the way outside gadgets count on iOS (native/appleHealth.ts).
+ * The motion history is only what the phone felt, but it needs no Health
+ * permission, and iOS never says whether Health reading was allowed. Taking
+ * the higher of the two means connecting a watch can only ever add steps.
+ */
+async function iosStepsBetween(start: Date, end: Date): Promise<number | null> {
+  const [phone, health] = await Promise.all([
+    Pedometer.getStepCountAsync(start, end).then((r) => r.steps).catch(() => null),
+    appleStepsBetween(start, end),
+  ]);
+  if (phone === null && health === null) return null;
+  lastIosFromHealth = (health ?? 0) > (phone ?? 0);
+  return Math.max(phone ?? 0, health ?? 0);
+}
+/** Whether the last iPhone total came from Apple Health (a watch) rather than the phone. */
+let lastIosFromHealth = false;
+
 async function mockedLocation(): Promise<boolean | undefined> {
   try {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -186,10 +209,7 @@ async function mockedLocation(): Promise<boolean | undefined> {
 /** The phone's own count since midnight: iOS motion history or Health Connect. */
 async function phoneTotalToday(): Promise<number | null> {
   try {
-    if (Platform.OS === 'ios') {
-      const midnight = startOfDay(today());
-      return (await Pedometer.getStepCountAsync(midnight, new Date())).steps;
-    }
+    if (Platform.OS === 'ios') return await iosStepsBetween(startOfDay(today()), new Date());
     return await readStepsToday();
   } catch {
     return null;
@@ -244,9 +264,13 @@ export async function runStepSync(
     // into (including a fake-steps app), so a count sourced from it is
     // weaker evidence than the live sensor. `total` is the larger of the
     // two, so whichever one produced it is the one to name.
+    // On iPhone a total that came from Apple Health is a store count like
+    // Health Connect's: written by a watch, often late.
     const source =
       Platform.OS === 'ios'
-        ? 'MOTION_HISTORY'
+        ? lastIosFromHealth
+          ? 'HEALTH_STORE'
+          : 'MOTION_HISTORY'
         : phoneTotal !== null && phoneTotal >= total
           ? 'HEALTH_STORE'
           : 'DEVICE_SENSOR';
@@ -389,12 +413,10 @@ export function useStepSync(onSynced?: () => void) {
     (async () => {
       const available = await Pedometer.isAvailableAsync().catch(() => false);
       const permission = await Pedometer.requestPermissionsAsync().catch(() => ({ granted: false }));
-      let health: HealthStatus = Platform.OS === 'ios' ? 'ready' : await healthStatus();
-      // First run on Android: ask for Health Connect straight away, once.
-      if (health === 'needs-permission' && !(await AsyncStorage.getItem('fareground.askedHealth'))) {
-        await AsyncStorage.setItem('fareground.askedHealth', '1');
-        if (await requestHealthPermission()) health = 'ready';
-      }
+      // No cold permission prompt here any more: the step setup screen asks,
+      // with a sentence of why first (app/step-setup.tsx). Testers met a bare
+      // Health Connect dialog on first launch and many said no to it.
+      const health: HealthStatus = Platform.OS === 'ios' ? 'ready' : await healthStatus();
       const ok = (available && permission.granted) || health === 'ready';
       if (cancelled) return;
       setState((s) => ({ ...s, available: ok, health }));
@@ -433,6 +455,21 @@ export function useStepSync(onSynced?: () => void) {
   useEffect(() => {
     void startWalkTrace();
   }, []);
+
+  // The setup screen changed something: look again and sync now.
+  useEffect(
+    () =>
+      onStepSetupChanged(() => {
+        void (async () => {
+          const health: HealthStatus = Platform.OS === 'ios' ? 'ready' : await healthStatus();
+          setState((s) => ({ ...s, health, available: s.available || health === 'ready' }));
+          if (health === 'ready' || Platform.OS === 'ios') void registerBackgroundStepSync();
+          void syncNow();
+          void refreshSources();
+        })();
+      }),
+    [syncNow, refreshSources],
+  );
 
   // Sync on a timer, and whenever the app returns to the foreground.
   useEffect(() => {

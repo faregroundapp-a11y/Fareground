@@ -492,6 +492,45 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 30. The step rework: any phone, any watch (2026-09-27)
+
+Why: testers' step problems were almost all SET-UP problems they could not
+see (no app writing to Health Connect, phone out-ranking a Fitbit, a watch
+app that had not synced, a bare permission dialog they said no to).
+
+- **`app/step-setup.tsx`** - one checklist, each row "done / to fix / info"
+  with ONE button. Android: Health Connect present (too old <Android 9 /
+  install / update), read permission (falls back to "open Health Connect ->
+  App permissions" after two refusals), background read (explains phones
+  that cannot), something writing steps today ("Just my phone" -> Samsung
+  Health or Google Fit; "A watch" -> guide), a watch app gone quiet (>3h),
+  several writers (App priority), battery. iOS: Motion & Fitness, Apple
+  Health. Plus today's sources with step counts and "updated X ago", a Sync
+  button, and the watch guide. Re-checks on returning to the app.
+- **`hooks/useStepHealth.ts`** - the diagnosis both the Walk card and the
+  setup screen use; `issues` count drives "All set" vs "N things to fix".
+- **`game/gadgets.ts` + `components/WatchGuide.tsx`** - Fitbit/Pixel Watch,
+  Garmin, Galaxy Watch, Apple Watch, Wear OS, Xiaomi, Amazfit, Huawei,
+  Withings, Polar, Oura: where each app's Health Connect / Apple Health
+  switch is, an Open button (`market://launch?id=` opens the app or its store
+  page), and plain "cannot" + workaround where a brand does not share.
+- **Apple Health on iPhone** (`native/appleHealth.ts`,
+  @kingstinct/react-native-healthkit + react-native-nitro-modules, config
+  plugin in app.json). Steps = max(Apple Health, motion history). Never read
+  before asking (it crashes); asked only from a button. Needs a new iOS
+  build; the provisioning profile needs the HealthKit capability (EAS syncs
+  it). App Store listing should mention Apple Health.
+- **No cold prompt**: the first-run Health Connect dialog is gone; a player
+  whose steps are not set up is taken to the setup screen once
+  (`components/StepSetupPrompt.tsx`).
+- Walk tab: three health cards replaced by one step card (green or "N things
+  to fix" + Fix it).
+- `native/stepEvents.ts`: the setup screen tells useStepSync to re-check and
+  sync immediately.
+
+Unverified on devices: all of it. Typecheck, lint and iOS/Android prebuild
+pass.
+
 ## 29. Parcels earn less, cost more, and cost an ad (2026-09-27)
 
 Product owner's call after Zhev's spreadsheet (a parcel costs a day's walk and

@@ -116,6 +116,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#1F4A3F"
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Fareground reads your step count from Apple Health, so steps from your Apple Watch or other trackers earn Walk Points too.",
+          "NSHealthUpdateUsageDescription": "Fareground does not write anything to Apple Health.",
+          "background": false
+        }
       ]
     ],
     "extra": {

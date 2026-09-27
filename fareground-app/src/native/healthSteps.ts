@@ -135,6 +135,16 @@ const SOURCE_NAMES: Record<string, string> = {
   'com.withings.wiscale2': 'Withings',
   'com.ouraring.oura': 'Oura',
   'com.nianticlabs.pokemongo': 'Pokémon GO',
+  'com.samsung.android.wear.shealth': 'Galaxy Watch',
+  'com.google.android.apps.fitness.wearable': 'Pixel Watch',
+  'com.huami.watch.hmwatchmanager': 'Zepp (Amazfit)',
+  'com.huami.midong': 'Zepp Life (Mi Band)',
+  'fi.polar.polarflow': 'Polar Flow',
+  'com.coros.coach': 'COROS',
+  'com.suunto.movescount.android': 'Suunto',
+  'com.whoop.android': 'WHOOP',
+  'com.urbandroid.sleep': 'Sleep as Android',
+  'nl.appyhapps.healthsync': 'Health Sync',
 };
 
 /**
@@ -189,4 +199,144 @@ export async function stepSources(): Promise<StepSources | null> {
   } catch {
     return null;
   }
+}
+
+/* ------------------------------------------------------------------------- *
+ *  STEP SETUP - everything the setup screen needs to say what is wrong.
+ *
+ *  Added 2026-09-27 for the step rework. Testers could not see WHY steps only
+ *  counted with the app open: Health Connect missing or out of date, no app
+ *  writing steps into it, a watch app that had not synced for hours, or the
+ *  phone's own counter out-ranking a Fitbit. Each of those is now a question
+ *  this file can answer, so the screen can show the one thing to fix.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Can this phone use Health Connect at all?
+ *   too-old        below Android 9 - Health Connect does not run there
+ *   not-installed  Android 9-13 without the Health Connect app
+ *   needs-update   installed, but too old for this app
+ *   available      ready to ask for permission
+ *   unsupported    not Android, or this build has no Health Connect module
+ */
+export type HcAvailability = 'unsupported' | 'too-old' | 'not-installed' | 'needs-update' | 'available';
+
+/** Health Connect needs Android 9 (API 28) or newer. */
+const HC_MIN_API = 28;
+
+export async function hcAvailability(): Promise<HcAvailability> {
+  if (Platform.OS !== 'android') return 'unsupported';
+  if (typeof Platform.Version === 'number' && Platform.Version < HC_MIN_API) return 'too-old';
+  if (!hc) return 'unsupported';
+  try {
+    const status = await hc.getSdkStatus();
+    if (status === hc.SdkAvailabilityStatus.SDK_AVAILABLE) return 'available';
+    if (status === hc.SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return 'needs-update';
+    return 'not-installed';
+  } catch {
+    return 'not-installed';
+  }
+}
+
+/** Android's version number as people know it ("Android 12"), for messages. */
+export function androidRelease(): string {
+  const api = typeof Platform.Version === 'number' ? Platform.Version : 0;
+  const names: Record<number, string> = {
+    21: '5', 22: '5.1', 23: '6', 24: '7', 25: '7.1', 26: '8', 27: '8.1', 28: '9', 29: '10', 30: '11',
+    31: '12', 32: '12L', 33: '13', 34: '14', 35: '15', 36: '16',
+  };
+  return names[api] ?? (api > 36 ? 'the latest' : String(api));
+}
+
+/** Which Health Connect permissions Fareground holds. */
+export async function hcPermissions(): Promise<{ steps: boolean; background: boolean }> {
+  if (!hc || !(await init())) return { steps: false, background: false };
+  try {
+    const granted = await hc.getGrantedPermissions();
+    return {
+      steps: granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read'),
+      background: granted.some((p) => p.recordType === 'BackgroundAccessPermission'),
+    };
+  } catch {
+    return { steps: false, background: false };
+  }
+}
+
+/**
+ * Ask for reading in the background on its own. Older Health Connect
+ * versions do not have the permission and reject the request - resolves
+ * false then, which the setup screen explains rather than retrying.
+ */
+export async function requestBackgroundPermission(): Promise<boolean> {
+  if (!hc || !(await init())) return false;
+  try {
+    const granted = await hc.requestPermission([{ accessType: 'read', recordType: 'BackgroundAccessPermission' }]);
+    return granted.some((p) => p.recordType === 'BackgroundAccessPermission');
+  } catch {
+    return false;
+  }
+}
+
+/** Health Connect's own settings, or its Play Store page if it is not there to open. */
+export function updateHealthConnect(): void {
+  installHealthConnect();
+}
+
+export interface SourceToday {
+  /** Package name - also what the watch guide matches on. */
+  id: string;
+  name: string;
+  /** Steps this app wrote today. Raw: two apps counting one walk both show it. */
+  steps: number;
+  /** When it last wrote anything today. */
+  lastUpdate: Date | null;
+}
+
+/**
+ * Every app that wrote steps TODAY, with how many and when it last did.
+ *
+ * Raw records, not the aggregate, because the point is to name who is
+ * writing and how fresh it is: "Fitbit last sent steps 5 hours ago" is the
+ * whole answer to "my watch steps are missing". Null when it cannot be read.
+ */
+export async function sourcesToday(): Promise<SourceToday[] | null> {
+  if (!hc || !(await init())) return null;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const by = new Map<string, SourceToday>();
+  try {
+    let pageToken: string | undefined;
+    for (let page = 0; page < 6; page++) {
+      const r = await hc.readRecords('Steps', {
+        timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: new Date().toISOString() },
+        pageSize: 500,
+        pageToken,
+      });
+      for (const rec of r.records) {
+        const id = rec.metadata?.dataOrigin ?? 'unknown';
+        const at = new Date(rec.metadata?.lastModifiedTime ?? rec.endTime);
+        const cur = by.get(id) ?? { id, name: sourceName(id), steps: 0, lastUpdate: null };
+        cur.steps += Math.max(0, Math.floor(rec.count ?? 0));
+        if (!cur.lastUpdate || at > cur.lastUpdate) cur.lastUpdate = at;
+        by.set(id, cur);
+      }
+      pageToken = r.pageToken;
+      if (!pageToken) break;
+    }
+    return [...by.values()].sort((a, b) => b.steps - a.steps);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open another app by package name - the watch's own app, so the player can
+ * sync it or switch on its Health Connect link. Google Play's launch link
+ * opens the app when it is installed and its store page when it is not, so
+ * one link covers both without any extra permission.
+ */
+export function openAndroidApp(pkg: string): void {
+  Linking.openURL(`market://launch?id=${pkg}`).catch(() => {
+    void Linking.openURL(`https://play.google.com/store/apps/details?id=${pkg}`);
+  });
 }

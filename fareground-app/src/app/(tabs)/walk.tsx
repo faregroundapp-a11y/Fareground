@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
@@ -12,7 +12,7 @@ import { BoltIcon, ChestIcon, FlagIcon, PulseIcon, StepsIcon } from '@/component
 import { Runner } from '@/components/Runner';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { useGame, useGameDaily } from '@/state/game';
-import { openHealthConnect } from '@/native/healthSteps';
+import { useStepHealth } from '@/hooks/useStepHealth';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
 
@@ -42,6 +42,11 @@ export default function WalkScreen() {
   const [boostOpen, setBoostOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const { daily } = useGameDaily();
+  // Step health, re-checked whenever this tab comes back into view - most
+  // fixes happen on the setup screen or in another app.
+  const { health: stepHealth, refresh: refreshStepHealth } = useStepHealth();
+  useFocusEffect(useCallback(() => { void refreshStepHealth(); }, [refreshStepHealth]));
+  const stepIssues = stepHealth?.issues ?? 0;
   const questsDone = daily ? daily.quests.filter((q) => q.claim).length : 0;
 
   const wp = balance?.walkPoints ?? 0;
@@ -107,70 +112,46 @@ export default function WalkScreen() {
           </Text>
         </View>
 
-        {/* Android: steps walked with the app closed come from Health Connect. */}
-        {Platform.OS === 'android' && sync.health !== 'ready' && sync.health !== 'unsupported' && (
-          <View style={[styles.card, styles.healthCard]}>
-            <View style={styles.row}>
-              <View style={[styles.well, { backgroundColor: colors.accentSoft }]}>
-                <PulseIcon size={24} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={type.headline}>Count every step</Text>
-                <Text style={[type.caption, { marginTop: 2 }]}>
-                  {sync.health === 'not-installed'
-                    ? 'Install Health Connect so steps count even when Fareground is closed.'
-                    : 'Connect Health Connect so steps count even when Fareground is closed.'}
-                </Text>
-              </View>
+        {/* ONE card for step health (2026-09-27). It replaced three: a
+            "connect Health Connect" card, a "no app is sending steps" card
+            and a sources line - each right in its own case, together a wall
+            of warnings. Green when all is well; otherwise how many things to
+            fix and one button to the setup screen that fixes them. */}
+        <View style={[styles.card, stepIssues > 0 && styles.healthCard]}>
+          <View style={styles.row}>
+            <View style={[styles.well, { backgroundColor: stepIssues > 0 ? '#FFF3DC' : colors.accentSoft }]}>
+              <PulseIcon size={24} color={stepIssues > 0 ? colors.claimDeep : colors.accent} />
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={type.label}>
+                {stepIssues > 0
+                  ? 'Steps need setting up'
+                  : stepHealth?.sources?.length
+                    ? `Steps from ${stepHealth.sources.slice(0, 2).map((s) => s.name).join(' + ')} ✓`
+                    : Platform.OS === 'ios'
+                      ? 'Steps from your iPhone ✓'
+                      : sync.health === 'ready'
+                        ? 'Steps from Health Connect ✓'
+                        : 'Steps counted while the app is open'}
+              </Text>
+              <Text style={[type.caption, { marginTop: 2 }]}>
+                {stepIssues > 0
+                  ? `${stepIssues} thing${stepIssues === 1 ? '' : 's'} to fix so every step counts, even with the app closed.`
+                  : sync.lastSyncedAt
+                    ? `Last synced ${sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    : 'Not synced yet'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <Button label="Sync steps" onPress={sync.syncByHand} variant="secondary" busy={sync.syncing} style={{ flex: 1 }} />
             <Button
-              label={sync.health === 'not-installed' ? 'Get Health Connect' : 'Connect'}
-              onPress={sync.connectHealth}
-              variant="primary"
+              label={stepIssues > 0 ? 'Fix it' : 'Step setup'}
+              onPress={() => router.push('/step-setup')}
+              variant={stepIssues > 0 ? 'primary' : 'ghost'}
+              style={{ flex: 1 }}
             />
           </View>
-        )}
-
-        {/* Android: connected, but nothing is WRITING steps into Health
-            Connect - the usual reason steps "only count with the app open". */}
-        {Platform.OS === 'android' && sync.health === 'ready' && sync.sources?.weekSteps === 0 && (
-          <View style={[styles.card, styles.healthCard]}>
-            <View style={styles.row}>
-              <View style={[styles.well, { backgroundColor: colors.accentSoft }]}>
-                <PulseIcon size={24} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={type.headline}>No app is sending steps yet</Text>
-                <Text style={[type.caption, { marginTop: 2 }]}>
-                  Health Connect is on, but nothing has written steps to it this week, so steps only count while
-                  Fareground is open. Samsung phones: open Samsung Health, then Settings, then Health Connect, and allow
-                  Steps. Other phones: turn on step counting in Google Fit or your phone&apos;s health app.
-                </Text>
-              </View>
-            </View>
-            <Button label="Open Health Connect" onPress={openHealthConnect} variant="primary" />
-          </View>
-        )}
-
-        {/* Where steps come from, and a button that syncs right now. */}
-        <View style={[styles.card, styles.row]}>
-          <View style={{ flex: 1 }}>
-            <Text style={type.label}>
-              {Platform.OS === 'ios'
-                ? "Steps from your iPhone's motion history"
-                : sync.sources?.names.length
-                  ? `Steps from ${sync.sources.names.join(' + ')} ✓`
-                  : sync.health === 'ready'
-                    ? 'Steps from Health Connect'
-                    : 'Steps counted while the app is open'}
-            </Text>
-            <Text style={[type.caption, { marginTop: 2 }]}>
-              {sync.lastSyncedAt
-                ? `Last synced ${sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Not synced yet'}
-            </Text>
-          </View>
-          <Button label="Sync steps" onPress={sync.syncByHand} variant="secondary" busy={sync.syncing} />
         </View>
 
         {sync.available === false && (
