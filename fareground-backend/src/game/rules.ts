@@ -419,11 +419,30 @@ export const CHECKIN_EXTRA_NEEDS_AD = true;
  *      that a street full of parcels is worth several ads to clear. After
  *      every stop - waited for or paid for - the clock resets to 5 minutes.
  */
-export const PIT_STOP_WP_OWN = 2;
+/*
+ *  CHECK-INS (2026-09-27). The product owner turned the doorbell into a
+ *  check-in: you stand on SOMEONE ELSE'S land, check in, and BOTH of you earn
+ *  - the visitor 5 WP, the owner 3. Your own land is no longer a stop at all
+ *  (checking in on yourself is not a visit), and the first-visit bonus went,
+ *  so a check-in is always the same simple +5 / +3. The 5-minute wait, the ad
+ *  that skips it and the ad that doubles the visitor's 5 all stay.
+ */
+/** Your own land: not a check-in. Kept at 0 so old callers read "pays nothing". */
+export const PIT_STOP_WP_OWN = 0;
 export const PIT_STOP_WP_NEIGHBOUR = 5;
 
-/** First time on a given parcel, ever. Exploring beats a fixed circuit. */
-export const PIT_STOP_NEW_BONUS_WP = 4;
+/** Retired with the check-in rework: every check-in pays the same. */
+export const PIT_STOP_NEW_BONUS_WP = 0;
+
+/** What the parcel's OWNER earns when someone checks in on it. */
+export const CHECKIN_OWNER_WP = 3;
+
+/**
+ * The most check-ins an owner is paid for per day (local), so two friends
+ * checking in on each other's land all day cannot farm it: 20 x 3 = 60 WP.
+ * Visitors are not limited by this - only what the owner receives.
+ */
+export const CHECKIN_OWNER_DAILY_MAX = 20;
 
 /** Between any two pit stops. A rewarded ad skips whatever is left of it. */
 export const PIT_STOP_COOLDOWN_SECONDS = 5 * 60;

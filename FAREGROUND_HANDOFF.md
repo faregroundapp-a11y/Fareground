@@ -492,6 +492,18 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 31. The doorbell is a check-in (2026-09-27)
+
+Tap someone else's plot -> "Check in here?" -> visitor +5 WP, owner +3 WP.
+Your own land is not a check-in (filtered out of targets). First-visit bonus
+retired. Kept: one check-in per plot per visitor per day, the 5-minute wait,
+the ad that skips it, the ad that doubles the visitor's 5. Owner pay is its
+own transaction after the visitor's (avoids a deadlock when two players check
+in on each other at once), scaled by the VISITOR's integrity share, and capped
+at CHECKIN_OWNER_DAILY_MAX = 20 paid check-ins/day (60 WP). Migration 034
+adds pit_stops.owner_id / owner_wp. Server-side (live on deploy); the new
+wording needs a build.
+
 ## 30. The step rework: any phone, any watch (2026-09-27)
 
 Why: testers' step problems were almost all SET-UP problems they could not

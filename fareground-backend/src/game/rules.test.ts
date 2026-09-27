@@ -63,6 +63,8 @@ import {
   PIT_STOP_PROPERTY_COOLDOWN_HOURS,
   PIT_STOP_WP_NEIGHBOUR,
   PIT_STOP_WP_OWN,
+  CHECKIN_OWNER_WP,
+  CHECKIN_OWNER_DAILY_MAX,
   pitStopWp,
   CASH_REDEMPTION_ENABLED,
   FLAG_WEIGHT,
@@ -704,21 +706,18 @@ test('an invite costs far less than a player is worth, and cannot be farmed', ()
 //  Pit stops
 // ---------------------------------------------------------------------------
 
-test('a pit stop pays more on a neighbour plot than on your own', () => {
-  // The whole point of the feature: walking to a neighbour's plot is the
-  // behaviour worth paying for. Standing in your own garden is not.
-  assert.ok(
-    PIT_STOP_WP_NEIGHBOUR > PIT_STOP_WP_OWN,
-    'a neighbour must beat your own land, or there is no reason to walk',
-  );
-  // But your own land must still pay SOMETHING, or a player with no
-  // neighbours yet cannot use the feature at all - which is most players
-  // while the map is thin.
-  assert.ok(PIT_STOP_WP_OWN > 0, 'your own land must not pay nothing');
-
-  assert.equal(pitStopWp(true, false), PIT_STOP_WP_OWN);
-  assert.equal(pitStopWp(false, false), PIT_STOP_WP_NEIGHBOUR);
-  assert.equal(pitStopWp(false, true), PIT_STOP_WP_NEIGHBOUR + PIT_STOP_NEW_BONUS_WP);
+test('a check-in pays the visitor 5 and the owner 3; your own land is not a check-in', () => {
+  // The product owner's call, 2026-09-27.
+  assert.equal(pitStopWp(false, false), 5);
+  assert.equal(pitStopWp(false, true), 5, 'no first-visit bonus any more');
+  assert.equal(pitStopWp(true, false), 0, 'you cannot check in on yourself');
+  assert.equal(PIT_STOP_WP_OWN, 0);
+  assert.equal(PIT_STOP_NEW_BONUS_WP, 0);
+  assert.equal(CHECKIN_OWNER_WP, 3);
+  // An owner's daily take from check-ins is bounded, so two friends cannot
+  // farm each other's land.
+  assert.ok(CHECKIN_OWNER_WP * CHECKIN_OWNER_DAILY_MAX <= 60);
+  assert.ok(PIT_STOP_WP_NEIGHBOUR > CHECKIN_OWNER_WP, 'the one who walked earns more');
 });
 
 test('pit stop cooldowns make farming slower than walking', () => {

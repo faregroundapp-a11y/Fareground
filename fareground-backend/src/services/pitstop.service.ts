@@ -8,8 +8,11 @@
  * of the world"; a pit stop rewards "I stood on THIS parcel", which puts other
  * players' land on your route.
  *
+ * CHECK-INS since 2026-09-27: on someone else's land only, and BOTH players
+ * earn - the visitor 5 WP, the owner 3 (up to 20 paid check-ins a day).
+ *
  * THE THREE RULES (see rules.ts for why each exists):
- *   1. Someone else's land pays more than your own.
+ *   1. Only someone else's land - your own is not a check-in.
  *   2. The same parcel pays at most once per 24 hours.
  *   3. Five minutes between stops - a rewarded ad skips the remainder, and
  *      the clock resets to five minutes either way.
@@ -19,8 +22,11 @@
  * on one account both read "cooldown expired" and both collect.
  */
 import type { PoolClient } from 'pg';
+import { localMidnightSql } from '../db/localTime';
 import { query, withTransaction } from '../db/pool';
 import {
+  CHECKIN_OWNER_DAILY_MAX,
+  CHECKIN_OWNER_WP,
   PIT_STOP_COOLDOWN_SECONDS,
   PIT_STOP_MAX_ACCURACY_M,
   PIT_STOP_PROPERTY_COOLDOWN_HOURS,
@@ -110,7 +116,8 @@ async function targetsAround(
         readyInSeconds,
       };
     })
-    .filter((t) => t.distanceM <= PIT_STOP_REACH_M)
+    // Your own land is not a check-in (2026-09-27): only other players' plots.
+    .filter((t) => t.distanceM <= PIT_STOP_REACH_M && !t.mine)
     .sort((a, b) => a.distanceM - b.distanceM);
 }
 
@@ -149,14 +156,60 @@ export interface PitStopResult {
   walkPointsBalance: number;
   /** The clock, freshly reset. */
   cooldownSeconds: number;
+  /** What the parcel's owner earned from this check-in (0 once they hit the day's cap). */
+  ownerWp: number;
 }
 
 export async function pitStop(
   userId: string,
   input: { lat: number; lng: number; accuracyM: number; parcelId?: string; mocked?: boolean },
-  /** A rewarded-ad ticket, which skips whatever is left of the cooldown. */
   adNonce?: string,
 ): Promise<PitStopResult> {
+  const result = await visitorCheckIn(userId, input, adNonce);
+  // The owner is paid in a SEPARATE transaction, after the visitor's commits.
+  // Paying inside it would lock two players' rows in opposite orders when
+  // they check in on each other at the same moment - a deadlock.
+  const ownerWp = await payOwner(result.stopId).catch(() => 0);
+  return { ...result.stop, ownerWp };
+}
+
+/**
+ * THE OWNER'S SHARE of a check-in: CHECKIN_OWNER_WP, up to
+ * CHECKIN_OWNER_DAILY_MAX paid check-ins per owner per local day, scaled by
+ * the VISITOR's integrity share so an account farmed by bots pays its owner
+ * no more than it pays itself.
+ */
+async function payOwner(stopId: string): Promise<number> {
+  return withTransaction(async (client: PoolClient) => {
+    const s = await client.query<{ owner_id: string | null; user_id: string }>(
+      `SELECT p.owner_id, ps.user_id FROM pit_stops ps JOIN parcels p ON p.id = ps.parcel_id WHERE ps.id = $1`,
+      [stopId],
+    );
+    const ownerId = s.rows[0]?.owner_id;
+    if (!ownerId || ownerId === s.rows[0].user_id) return 0;
+    await client.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [ownerId]);
+    const paidToday = await client.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM pit_stops
+        WHERE owner_id = $1 AND owner_wp > 0
+          AND created_at >= ${localMidnightSql('(SELECT time_zone FROM users WHERE id = $1)')}`,
+      [ownerId],
+    );
+    const share = await payoutShare({ query: client.query.bind(client) as never }, s.rows[0].user_id);
+    const wp = paidToday.rows[0].n >= CHECKIN_OWNER_DAILY_MAX ? 0 : applyShare(CHECKIN_OWNER_WP, share);
+    await client.query('UPDATE pit_stops SET owner_id = $2, owner_wp = $3 WHERE id = $1', [stopId, ownerId, wp]);
+    if (wp > 0) {
+      await client.query('UPDATE users SET walk_points_balance = walk_points_balance + $2 WHERE id = $1', [ownerId, wp]);
+    }
+    return wp;
+  });
+}
+
+async function visitorCheckIn(
+  userId: string,
+  input: { lat: number; lng: number; accuracyM: number; parcelId?: string; mocked?: boolean },
+  /** A rewarded-ad ticket, which skips whatever is left of the cooldown. */
+  adNonce?: string,
+): Promise<{ stop: Omit<PitStopResult, 'ownerWp'>; stopId: string }> {
   if (input.accuracyM > PIT_STOP_MAX_ACCURACY_M) {
     throw new HttpError(
       422,
@@ -216,9 +269,9 @@ export async function pitStop(
       [userId, today.rows[0].day, amount],
     );
 
-    await client.query(
+    const stop = await client.query<{ id: string }>(
       `INSERT INTO pit_stops (user_id, parcel_id, was_own, first_ever, amount_wp, from_ad, claim_id, accuracy_m)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [userId, target.parcelId, target.mine, target.firstEver, amount, left > 0, claim.rows[0].id, input.accuracyM],
     );
 
@@ -232,13 +285,16 @@ export async function pitStop(
     );
 
     return {
-      claim: { id: claim.rows[0].id, amount, doubled: false, canDouble: true },
-      parcelId: target.parcelId,
-      rarity: target.rarity,
-      mine: target.mine,
-      firstEver: target.firstEver,
-      walkPointsBalance: bal.rows[0].walk_points_balance,
-      cooldownSeconds: PIT_STOP_COOLDOWN_SECONDS,
+      stopId: stop.rows[0].id,
+      stop: {
+        claim: { id: claim.rows[0].id, amount, doubled: false, canDouble: true },
+        parcelId: target.parcelId,
+        rarity: target.rarity,
+        mine: target.mine,
+        firstEver: target.firstEver,
+        walkPointsBalance: bal.rows[0].walk_points_balance,
+        cooldownSeconds: PIT_STOP_COOLDOWN_SECONDS,
+      },
     };
   });
 }

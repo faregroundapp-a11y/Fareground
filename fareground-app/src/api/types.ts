@@ -282,6 +282,8 @@ export interface PitStopResult {
   firstEver: boolean;
   walkPointsBalance: number;
   cooldownSeconds: number;
+  /** What the parcel's owner earned from this check-in (older servers omit it). */
+  ownerWp?: number;
 }
 
 /* ---------------------------- daily chest + quests ---------------------------- */
