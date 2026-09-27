@@ -492,6 +492,28 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 28. Lost steps, invisible parcels, the database move (2026-09-27)
+
+- **Database moved to Neon** (Render's free Postgres expired). Parcels claimed
+  on Render between the dump and the switch were copied back with
+  `src/scripts/recover-parcels.ts` (dry run unless `--apply`; refunds recorded
+  in `parcel_recovery_refunds`, safe to re-run). Keep the old Render DB until
+  nobody reports missing land.
+- **Health-store steps were being thrown away.** Fitbit / Samsung Health /
+  Google Fit write into Health Connect late, in batches. The server judged a
+  batch by "time since last sync" (so a late morning upload hit the 12k/hour
+  cap) and against the GPS trace of the last few open-app minutes (so it was
+  "uncorroborated", capped at 6,000/day and flagged NO_DISPLACEMENT). Fix in
+  steps.service.ts: a HEALTH_STORE batch is judged over the player's whole
+  local day, is never judged against the trace, is stored untraced, and does
+  not count toward the live counter's hourly window. Live-counter checks are
+  unchanged (a shaken phone with the app open is still capped).
+  Trade-off: `source` is client-declared; the 60k rolling-24h cap still bounds
+  a client that lies about it.
+- **Parcels invisible**: the map is now keyed on its style (`styleKey`), so a
+  style swap (launch, or the street-sign toggle) rebuilds it with the parcel
+  layers. Needs a build; unverified on a device.
+
 ## 26. Render hosting, the economy rework, and the reset fixes (2026-09-26)
 
 Work from a CLOUD session (Claude Code on the web), on branch

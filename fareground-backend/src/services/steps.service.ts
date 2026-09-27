@@ -19,6 +19,7 @@
  * deliberate rather than unfinished.
  */
 import type { PoolClient } from 'pg';
+import { localMidnightSql } from '../db/localTime';
 import { withTransaction } from '../db/pool';
 import {
   STEPS_PER_WALK_POINT,
@@ -152,8 +153,10 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // 1. Lock this user's row for the rest of the transaction. Any other
     //    request touching the same user waits here until we commit, which is
     //    what makes every read below safe.
-    const userResult = await client.query<{ walk_points_balance: number; created_at: Date }>(
-      'SELECT walk_points_balance, created_at FROM users WHERE id = $1 FOR UPDATE',
+    const userResult = await client.query<{ walk_points_balance: number; created_at: Date; minutes_today: number }>(
+      `SELECT walk_points_balance, created_at,
+              EXTRACT(EPOCH FROM (NOW() - ${localMidnightSql('time_zone')})) / 60 AS minutes_today
+         FROM users WHERE id = $1 FOR UPDATE`,
       [userId],
     );
 
@@ -205,7 +208,12 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     }>(
       `SELECT
          MAX(logged_at) AS last_sync,
-         COALESCE(SUM(raw_steps) FILTER (WHERE logged_at > NOW() - INTERVAL '1 hour'), 0)::bigint
+         -- The hourly pace check is about the LIVE counter. A health-store
+         -- batch in the last hour holds steps walked hours earlier, so
+         -- counting it here refused an honest walk right after a Fitbit
+         -- upload. Store batches are still in the 24-hour total below.
+         COALESCE(SUM(raw_steps) FILTER (WHERE logged_at > NOW() - INTERVAL '1 hour'
+                                           AND source IS DISTINCT FROM 'HEALTH_STORE'), 0)::bigint
            AS steps_1h,
          COALESCE(SUM(raw_steps) FILTER (WHERE logged_at > NOW() - INTERVAL '24 hours'), 0)::bigint
            AS steps_24h
@@ -218,9 +226,23 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     const lastSync = history.rows[0].last_sync ?? userResult.rows[0].created_at;
     const minutesSinceLastSync = (Date.now() - lastSync.getTime()) / 60_000;
 
+    // A COUNT FROM THE HEALTH STORE IS A DAY TOTAL THAT ARRIVES LATE.
+    //
+    // Fitbit, Samsung Health and Google Fit write into Health Connect in
+    // batches, often hours after the walk. So "time since the last sync" says
+    // nothing about when those steps were walked: a sync ten minutes ago, then
+    // a Fitbit upload of the whole morning, used to be judged as ten minutes of
+    // walking and capped at an hour's pace - and the rest was lost for good.
+    // Testers walking 27,000 steps saw 14,000 of them vanish.
+    //
+    // For a store count the honest window is the player's whole day so far.
+    // The rolling 24-hour ceiling (MAX_STEPS_PER_DAY) still bounds it.
+    const fromStore = source === 'HEALTH_STORE';
+    const minutesToday = Number(userResult.rows[0].minutes_today) || 0;
+
     const allowance = plausibleStepAllowance({
       requestedSteps: rawSteps,
-      minutesSinceLastSync,
+      minutesSinceLastSync: fromStore ? Math.max(minutesSinceLastSync, minutesToday) : minutesSinceLastSync,
       acceptedStepsInLastHour: history.rows[0].steps_1h,
       acceptedStepsInLast24h: history.rows[0].steps_24h,
     });
@@ -231,9 +253,15 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     //    a shopping centre both produce them honestly - but only up to a
     //    daily allowance. Past that they stop earning. An hour of treadmill
     //    is fully paid; a shaker hits the ceiling and stops.
+    //    ONLY FOR THE LIVE COUNTER. The GPS trace covers the minutes the app
+    //    was open; a health-store batch holds steps walked with it closed,
+    //    hours earlier. Judging those against a trace of the last few minutes
+    //    called a whole day's walk "uncorroborated", capped it at 6,000 and
+    //    flagged the player - the other half of the lost 14,000.
+    const judgedDistance = fromStore ? null : (distanceM ?? null);
     const displacement = stepDisplacementVerdict({
       steps: allowance.accepted,
-      distanceM: distanceM ?? null,
+      distanceM: judgedDistance,
     });
 
     // THE CAP APPLIES ONLY WHEN THERE WAS A TRACE TO JUDGE BY.
@@ -256,7 +284,7 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // catch it well because a machine produces identical batches and a
     // metronomic cadence, and to attestation once it is real. What is closed
     // here is the cheap, obvious attack: shaking while watching the screen.
-    const traced = distanceM !== undefined;
+    const traced = !fromStore && distanceM !== undefined;
     const uncorroboratedToday = traced
       ? await client.query<{ n: number }>(
           `SELECT COALESCE(SUM(uncorroborated_steps), 0)::int AS n
@@ -381,7 +409,10 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
         mockedLocation ?? null,
         displacement.corroborated,
         creditedUncorroborated,
-        distanceM ?? null,
+        // A store batch was never judged against the trace, so it is stored
+        // as untraced: otherwise its steps would fill the daily
+        // uncorroborated allowance and cap the player's next LIVE walk.
+        judgedDistance,
       ],
     );
 

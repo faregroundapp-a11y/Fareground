@@ -100,7 +100,19 @@ export async function setStreetNamesPref(on: boolean): Promise<void> {
  * Returns the plain URL until the JSON has loaded (and for ever, if it never
  * does), so the map is never blank while this resolves.
  */
-export function useMapStyle(): { style: string | StyleSpec; labelsOn: boolean; toggleLabels: () => void } {
+export function useMapStyle(): {
+  style: string | StyleSpec;
+  /**
+   * Changes whenever the style does. The map is KEYED on it, so a style change
+   * rebuilds the map from scratch: MapLibre can drop layers the app added (the
+   * parcels, the grid) when its style is swapped underneath them, and testers
+   * saw every parcel vanish. The swap happens on every launch too - the plain
+   * URL first, then the fetched style - so this was not only the toggle.
+   */
+  styleKey: string;
+  labelsOn: boolean;
+  toggleLabels: () => void;
+} {
   const [labelsOn, setLabelsOn] = useState(true);
   const [styles, setStyles] = useState<Cached | null>(null);
 
@@ -131,5 +143,6 @@ export function useMapStyle(): { style: string | StyleSpec; labelsOn: boolean; t
   }, []);
 
   const style = styles ? (labelsOn ? styles.withNames : styles.withoutNames) : MAP_STYLE_URL;
-  return { style, labelsOn, toggleLabels };
+  const styleKey = styles ? (labelsOn ? 'names' : 'plain') : 'url';
+  return { style, styleKey, labelsOn, toggleLabels };
 }

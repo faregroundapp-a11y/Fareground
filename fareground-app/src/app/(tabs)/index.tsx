@@ -98,7 +98,7 @@ function GameView({ fix }: { fix: Fix }) {
   const mapRef = useRef<MapRef>(null);
   // Street names on or off, following the setting. See game/mapStyle.ts.
   // Map labels on or off, from the street-sign button (and Settings).
-  const { style: mapStyle, labelsOn, toggleLabels } = useMapStyle();
+  const { style: mapStyle, styleKey, labelsOn, toggleLabels } = useMapStyle();
   const settled = useSettledPosition(fix.lat, fix.lng);
   const { treasure, open: openBox, refresh: refreshTreasure } = useTreasure(settled.lat, settled.lng);
   const { watch, busy: adBusy } = useRewardedAd(() => {
@@ -395,6 +395,9 @@ function GameView({ fix }: { fix: Fix }) {
   return (
     <Animated.View style={[styles.root, { transform: [{ translateX: shake }] }]}>
       <Map
+        // Rebuilt when the style changes, so the parcel layers come back
+        // with it (see styleKey in mapStyle.ts).
+        key={styleKey}
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         mapStyle={mapStyle}
