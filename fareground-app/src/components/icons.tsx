@@ -307,3 +307,19 @@ export function RedditIcon({ size = 24, color = '#FFFFFF', face = '#FF4500' }: I
     </Svg>
   );
 }
+
+/** A chevron: pointing down to minimise a panel, up to bring it back. */
+export function ChevronIcon({ size = 18, color = '#FFFFFF', up = false }: IconProps & { up?: boolean }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d={up ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}
+        stroke={color}
+        strokeWidth={2.6}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

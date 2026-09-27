@@ -15,7 +15,7 @@ import { PlayerPicture } from '@/components/PlayerPicture';
 import { CountUp } from '@/components/CountUp';
 import { DailySheet } from '@/components/DailySheet';
 import { DoorbellSheet } from '@/components/DoorbellSheet';
-import { BoltIcon, ChestIcon, CoinIcon, CompassIcon, PlayAdIcon, PointerIcon, StepsIcon, StreetSignIcon } from '@/components/icons';
+import { BoltIcon, ChestIcon, ChevronIcon, CoinIcon, CompassIcon, PlayAdIcon, PointerIcon, StepsIcon, StreetSignIcon } from '@/components/icons';
 import { PlayerMarker } from '@/components/PlayerMarker';
 import { TreasureMarkers } from '@/components/TreasureMarkers';
 import { RevealSheet } from '@/components/RevealSheet';
@@ -145,6 +145,22 @@ function GameView({ fix }: { fix: Fix }) {
    * try instead of costing a second ad.
    */
   const [heldClaimAd, setHeldClaimAd] = useState<string | null>(null);
+
+  // The bottom panel, folded or not. Remembered between launches.
+  const [dockMin, setDockMin] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AsyncStorage.getItem(DOCK_MIN_KEY)
+      .then((v) => { if (live && v === '1') setDockMin(true); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+  const toggleDock = useCallback(() => {
+    setDockMin((m) => {
+      void AsyncStorage.setItem(DOCK_MIN_KEY, m ? '0' : '1').catch(() => undefined);
+      return !m;
+    });
+  }, []);
   const [heldKeyAd, setHeldKeyAd] = useState<string | null>(null);
 
   async function grabBox() {
@@ -649,6 +665,10 @@ function GameView({ fix }: { fix: Fix }) {
             </View>
           )}
           <View style={styles.dock}>
+            {/* Minimise / maximise (2026-09-27): the panel covers a good part
+                of the map, so it folds down to the earnings line alone. */}
+            {!dockMin && (
+            <>
             {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M && (
               <View style={styles.hint}>
                 <View style={styles.hintDot} />
@@ -658,6 +678,7 @@ function GameView({ fix }: { fix: Fix }) {
                     : `${pickedInReach ? 'Your pick' : 'Nearest free square'} · ${selectedDistance} m`}
                 </Text>
                 <Text style={styles.hintSub}>tap a lit square</Text>
+                <DockToggle min={false} onPress={toggleDock} />
               </View>
             )}
             <ClaimButton
@@ -678,6 +699,8 @@ function GameView({ fix }: { fix: Fix }) {
                   : null
               }
             />
+            </>
+            )}
             <View style={styles.earnings}>
               <CoinIcon size={16} />
               <CountUp value={Math.round(perMonth)} style={[styles.earnValue, mono]} />
@@ -689,6 +712,11 @@ function GameView({ fix }: { fix: Fix }) {
                 </View>
               )}
               <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
+              {/* The toggle lives on the hint line when that shows; when the
+                  panel is minimised, or there is no hint, it sits here. */}
+              {(dockMin || !(selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M)) && (
+                <DockToggle min={dockMin} onPress={toggleDock} />
+              )}
             </View>
           </View>
         </View>
@@ -718,7 +746,28 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <View style={styles.centered}>{children}</View>;
 }
 
+const DOCK_MIN_KEY = 'fareground.dockMinimised';
+
+/** The round minimise / maximise button on the bottom panel. */
+function DockToggle({ min, onPress }: { min: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => [styles.dockToggle, pressed && { opacity: 0.6 }]}
+      accessibilityRole="button"
+      accessibilityLabel={min ? 'Show the claim panel' : 'Minimise the claim panel'}
+    >
+      <ChevronIcon size={16} color={colors.glassInk} up={min} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  dockToggle: {
+    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)', marginLeft: 6,
+  },
   root: { flex: 1, backgroundColor: colors.bg },
 
   hud: {
