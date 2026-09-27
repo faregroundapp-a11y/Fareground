@@ -124,31 +124,6 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
                 disabledAll={busy !== null}
               />
 
-              {/* collect early */}
-              <Offer
-                icon={<CoinIcon size={26} />}
-                wellColor="#FFF3DC"
-                title={`Collect ${r.instantCollect.hours} hours now`}
-                subtitle={
-                  r.instantCollect.needsLand
-                    ? 'Claim some land first - there is nothing to collect yet'
-                    : `About ${r.instantCollect.coins.toLocaleString()} coins, straight into your balance`
-                }
-                button={{
-                  // No land is its own reason, not "come back tomorrow" -
-                  // waiting for midnight would never help.
-                  label: r.instantCollect.needsLand
-                    ? 'Needs land'
-                    : r.instantCollect.adsLeftToday > 0 ? 'Watch ad · collect early' : 'Back tomorrow',
-                  variant: 'light',
-                  disabled: !r.instantCollect.canCollect,
-                  busy: busy === 'INSTANT_COLLECT',
-                  onPress: () => run('INSTANT_COLLECT'),
-                }}
-                left={`${r.instantCollect.adsLeftToday} left today`}
-                disabledAll={busy !== null}
-              />
-
               {/* scouting */}
               <Offer
                 icon={<PinIcon size={24} color={colors.accent} />}

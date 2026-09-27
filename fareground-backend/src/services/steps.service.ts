@@ -19,7 +19,7 @@
  * deliberate rather than unfinished.
  */
 import type { PoolClient } from 'pg';
-import { localMidnightSql } from '../db/localTime';
+import { USER_TZ, localMidnightSql } from '../db/localTime';
 import { withTransaction } from '../db/pool';
 import {
   STEPS_PER_WALK_POINT,
@@ -211,11 +211,14 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
          -- The hourly pace check is about the LIVE counter. A health-store
          -- batch in the last hour holds steps walked hours earlier, so
          -- counting it here refused an honest walk right after a Fitbit
-         -- upload. Store batches are still in the 24-hour total below.
+         -- upload. Store batches are still in the day's total below.
          COALESCE(SUM(raw_steps) FILTER (WHERE logged_at > NOW() - INTERVAL '1 hour'
                                            AND source IS DISTINCT FROM 'HEALTH_STORE'), 0)::bigint
            AS steps_1h,
-         COALESCE(SUM(raw_steps) FILTER (WHERE logged_at > NOW() - INTERVAL '24 hours'), 0)::bigint
+         -- The daily cap is per LOCAL DAY (since 2026-09-27, when it came down
+         -- to 15,000): a rolling 24 hours let an evening walk eat into the
+         -- next morning's allowance.
+         COALESCE(SUM(raw_steps) FILTER (WHERE logged_at >= ${localMidnightSql(USER_TZ)}), 0)::bigint
            AS steps_24h
        FROM step_logs
        WHERE user_id = $1`,
@@ -236,7 +239,7 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // Testers walking 27,000 steps saw 14,000 of them vanish.
     //
     // For a store count the honest window is the player's whole day so far.
-    // The rolling 24-hour ceiling (MAX_STEPS_PER_DAY) still bounds it.
+    // The daily ceiling (MAX_STEPS_PER_DAY) still bounds it.
     const fromStore = source === 'HEALTH_STORE';
     const minutesToday = Number(userResult.rows[0].minutes_today) || 0;
 

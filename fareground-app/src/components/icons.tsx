@@ -274,3 +274,36 @@ export function RanksTabIcon({ size = 24, color = '#000' }: IconProps) {
     </Svg>
   );
 }
+
+/**
+ * Discord's mark, simplified to read at tile size: the rounded "controller"
+ * head with two eyes. Drawn white, to sit on Discord's blurple tile.
+ */
+export function DiscordIcon({ size = 24, color = '#FFFFFF', eyes = '#5865F2' }: IconProps & { eyes?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M5.2 6.3c1.7-1.2 3.4-1.8 4.8-2l.5 1.1c1-.2 2-.2 3 0l.5-1.1c1.4.2 3.1.8 4.8 2 1.9 2.9 2.7 6 2.4 9.5-1.8 1.4-3.6 2.2-5.3 2.6l-1.1-1.8c.7-.3 1.3-.6 1.9-1l-.5-.4c-3.3 1.5-7 1.5-10.3 0l-.5.4c.6.4 1.2.7 1.9 1l-1.1 1.8c-1.7-.4-3.5-1.2-5.3-2.6-.3-3.5.5-6.6 2.3-9.5z"
+        fill={color}
+      />
+      <Ellipse cx="9" cy="12.4" rx="1.5" ry="1.7" fill={eyes} />
+      <Ellipse cx="15" cy="12.4" rx="1.5" ry="1.7" fill={eyes} />
+    </Svg>
+  );
+}
+
+/** Reddit's Snoo, simplified: head, ears, antenna and a smile. White on orange. */
+export function RedditIcon({ size = 24, color = '#FFFFFF', face = '#FF4500' }: IconProps & { face?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M12 9.2l1.2-5 4 .9" stroke={color} strokeWidth={1.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx="18.2" cy="5.2" r="1.7" fill={color} />
+      <Circle cx="4.6" cy="11.8" r="2" fill={color} />
+      <Circle cx="19.4" cy="11.8" r="2" fill={color} />
+      <Ellipse cx="12" cy="14.6" rx="8.2" ry="5.6" fill={color} />
+      <Circle cx="9" cy="13.8" r="1.3" fill={face} />
+      <Circle cx="15" cy="13.8" r="1.3" fill={face} />
+      <Path d="M9.2 16.8c1.7 1.1 3.9 1.1 5.6 0" stroke={face} strokeWidth={1.2} fill="none" strokeLinecap="round" />
+    </Svg>
+  );
+}

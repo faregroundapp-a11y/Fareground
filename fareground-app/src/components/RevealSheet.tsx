@@ -25,7 +25,7 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
   });
   const [bonus, setBonus] = useState<{ parcelId: string; text: string } | null>(null);
   const bonusLeft = balance?.rewards.walkPoints.adsLeftToday ?? 0;
-  const perAd = balance?.rewards.walkPoints.perAd ?? 5;
+  const perAd = balance?.rewards.walkPoints.perAd ?? 1;
 
   useEffect(() => {
     Animated.spring(y, { toValue: parcel ? 0 : 420, useNativeDriver: true, damping: 17, stiffness: 160 }).start();

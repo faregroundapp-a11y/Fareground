@@ -8,8 +8,14 @@ type HapticsModule = typeof import('expo-haptics');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate: an import would crash builds without the native module (see optional.ts)
 const H = optional<HapticsModule>(() => require('expo-haptics'), 'ExpoHaptics');
 
+/**
+ * OFF (2026-09-27): the product owner turned vibration off across the app.
+ * Every call site stays as it is, so turning it back on is this one line.
+ */
+const ENABLED = false;
+
 function run(fn: (h: HapticsModule) => Promise<void>) {
-  if (!H) return;
+  if (!ENABLED || !H) return;
   fn(H).catch(() => {});
 }
 
@@ -28,7 +34,7 @@ export const haptics = {
    * before you have read the word.
    */
   claim: (rank: number) => {
-    if (!H) return;
+    if (!ENABLED || !H) return;
     const heavy = () => H.impactAsync(H.ImpactFeedbackStyle.Heavy).catch(() => {});
     const rigid = () => H.impactAsync(H.ImpactFeedbackStyle.Rigid).catch(() => {});
     heavy();

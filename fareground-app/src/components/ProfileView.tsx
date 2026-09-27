@@ -32,6 +32,7 @@ export function ProfileView({
   onReload?: () => void;
 }) {
   const [picked, setPicked] = useState<Badge | null>(null);
+  const [gridW, setGridW] = useState(0);
   const [dressing, setDressing] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(profile.username);
@@ -181,60 +182,90 @@ export function ProfileView({
           </Text>
         </View>
 
-        {picked && (
-          <View style={[styles.detail, { borderColor: picked.unlocked ? TIER_COLORS[picked.tier][1] : colors.line }]}>
-            <BadgeMedal tier={picked.tier} icon={picked.icon} color={picked.color} size={54} locked={!picked.unlocked} />
-            <View style={{ flex: 1 }}>
-              <Text style={type.label}>{picked.name}</Text>
-              <Text style={[type.caption, { marginTop: 2 }]}>
-                {TIER_LABEL[picked.tier]} · {picked.description}
-              </Text>
-              <Text style={[type.caption, mono, { marginTop: 4, color: picked.unlocked ? colors.goodInk : colors.ink3 }]}>
-                {picked.unlocked
-                  ? `Unlocked${picked.unlockedAt ? ` ${new Date(picked.unlockedAt).toLocaleDateString()}` : ''}`
-                  : profile.isYou
-                    ? `${fmt(picked.progress)} / ${fmt(picked.target)}`
-                    : 'Not yet unlocked'}
-              </Text>
-              {mine && picked.unlocked && (
+        {/* Tapping a badge opens its details in a bubble beside it, rather
+            than in a panel at the top of the card that you had to look away
+            to read. Tap the badge again, or the bubble, to close it. */}
+        <View style={styles.badges} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
+          {unlockedFirst.map((b, i) => {
+            const open = picked?.key === b.key;
+            const col = i % 3;
+            const lastRow = Math.floor(i / 3) === Math.floor((unlockedFirst.length - 1) / 3);
+            // Centre the bubble on the badge, then keep it inside the card.
+            const colW = gridW / 3;
+            const bubbleW = Math.min(250, Math.max(0, gridW - 8));
+            const inGrid = Math.max(0, Math.min(gridW - bubbleW, col * colW + colW / 2 - bubbleW / 2));
+            const left = inGrid - col * colW;
+            return (
+              <View key={b.key} style={[styles.badge, open && styles.badgeOpen]}>
                 <Pressable
-                  onPress={() => { haptics.tap(); save({ title: profile.title === picked.key ? null : picked.key }); }}
-                  style={styles.wear}
-                  accessibilityRole="button"
+                  onPress={() => { haptics.tap(); setPicked(open ? null : b); }}
+                  style={({ pressed }) => [styles.badgeTap, pressed && { opacity: 0.7 }]}
+                  accessibilityLabel={`${b.name}${b.unlocked ? '' : ', locked'}`}
+                  accessibilityState={{ expanded: open }}
                 >
-                  <Text style={styles.wearText}>
-                    {profile.title === picked.key ? 'Stop wearing this title' : 'Wear as my title'}
+                  <BadgeMedal tier={b.tier} icon={b.icon} color={b.color} size={58} locked={!b.unlocked} />
+                  {b.isNew && (
+                    <View style={styles.newTag}>
+                      <Text style={styles.newText}>NEW</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.badgeName, !b.unlocked && { color: colors.ink3 }]} numberOfLines={2}>
+                    {b.name}
                   </Text>
+                  {!b.unlocked && profile.isYou && (
+                    <View style={styles.miniTrack}>
+                      <View style={[styles.miniFill, { width: `${(b.progress / b.target) * 100}%` }]} />
+                    </View>
+                  )}
                 </Pressable>
-              )}
-            </View>
-          </View>
-        )}
 
-        <View style={styles.badges}>
-          {unlockedFirst.map((b) => (
-            <Pressable
-              key={b.key}
-              onPress={() => { haptics.tap(); setPicked(b); }}
-              style={({ pressed }) => [styles.badge, pressed && { opacity: 0.7 }]}
-              accessibilityLabel={`${b.name}${b.unlocked ? '' : ', locked'}`}
-            >
-              <BadgeMedal tier={b.tier} icon={b.icon} color={b.color} size={58} locked={!b.unlocked} />
-              {b.isNew && (
-                <View style={styles.newTag}>
-                  <Text style={styles.newText}>NEW</Text>
-                </View>
-              )}
-              <Text style={[styles.badgeName, !b.unlocked && { color: colors.ink3 }]} numberOfLines={2}>
-                {b.name}
-              </Text>
-              {!b.unlocked && profile.isYou && (
-                <View style={styles.miniTrack}>
-                  <View style={[styles.miniFill, { width: `${(b.progress / b.target) * 100}%` }]} />
-                </View>
-              )}
-            </Pressable>
-          ))}
+                {open && gridW > 0 && (
+                  <Pressable
+                    onPress={() => setPicked(null)}
+                    style={[
+                      styles.bubble,
+                      { width: bubbleW, left, borderColor: b.unlocked ? TIER_COLORS[b.tier][1] : colors.lineStrong },
+                      // The bottom row opens upwards, so the bubble never
+                      // hangs off the end of the screen.
+                      lastRow ? styles.bubbleUp : styles.bubbleDown,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close badge details"
+                  >
+                    <View
+                      style={[
+                        styles.arrow,
+                        { left: colW / 2 - left - 7, borderColor: b.unlocked ? TIER_COLORS[b.tier][1] : colors.lineStrong },
+                        lastRow ? styles.arrowDown : styles.arrowUp,
+                      ]}
+                    />
+                    <Text style={type.label}>{b.name}</Text>
+                    <Text style={[type.caption, { marginTop: 2 }]}>
+                      {TIER_LABEL[b.tier]} · {b.description}
+                    </Text>
+                    <Text style={[type.caption, mono, { marginTop: 4, color: b.unlocked ? colors.goodInk : colors.ink3 }]}>
+                      {b.unlocked
+                        ? `Unlocked${b.unlockedAt ? ` ${new Date(b.unlockedAt).toLocaleDateString()}` : ''}`
+                        : profile.isYou
+                          ? `${fmt(b.progress)} / ${fmt(b.target)}`
+                          : 'Not yet unlocked'}
+                    </Text>
+                    {mine && b.unlocked && (
+                      <Pressable
+                        onPress={() => { haptics.tap(); save({ title: profile.title === b.key ? null : b.key }); }}
+                        style={styles.wear}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.wearText}>
+                          {profile.title === b.key ? 'Stop wearing this title' : 'Wear as my title'}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -317,12 +348,24 @@ const styles = StyleSheet.create({
   },
   statValue: { fontFamily: fonts.black, fontSize: 18, color: colors.ink, includeFontPadding: false },
   badgeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
-  detail: {
-    flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, marginBottom: space.md,
-    borderRadius: radius.md, borderWidth: 1.5, backgroundColor: colors.bg,
-  },
   badges: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space.lg },
-  badge: { width: '33.33%', alignItems: 'center', gap: 5, paddingHorizontal: 4 },
+  badge: { width: '33.33%', paddingHorizontal: 4 },
+  // The open badge sits above its neighbours so its bubble overlaps them.
+  badgeOpen: { zIndex: 10, elevation: 10 },
+  badgeTap: { alignItems: 'center', gap: 5 },
+  bubble: {
+    ...shadow.card, position: 'absolute', padding: space.md, borderRadius: radius.md, borderWidth: 1.5,
+    backgroundColor: colors.card, elevation: 12,
+  },
+  bubbleDown: { top: '100%', marginTop: 10 },
+  bubbleUp: { bottom: '100%', marginBottom: 10 },
+  // A square turned 45 degrees, half hidden behind the bubble: the pointer.
+  arrow: {
+    position: 'absolute', width: 14, height: 14, backgroundColor: colors.card,
+    transform: [{ rotate: '45deg' }],
+  },
+  arrowUp: { top: -8, borderTopWidth: 1.5, borderLeftWidth: 1.5 },
+  arrowDown: { bottom: -8, borderBottomWidth: 1.5, borderRightWidth: 1.5 },
   badgeName: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink, textAlign: 'center', lineHeight: 15 },
   newTag: { position: 'absolute', top: -2, right: '18%', backgroundColor: colors.danger, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
   newText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 9, includeFontPadding: false },

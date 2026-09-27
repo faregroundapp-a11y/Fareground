@@ -181,14 +181,15 @@ export function boostMultiplierFor(parcels: number): number {
  * us roughly $0.027 a year. The alignment is the point: this is the faucet
  * players pay us the most directly to open.
  */
-export const AD_WALK_POINTS = 5;
+export const AD_WALK_POINTS = 1;
 
 /**
- * TEN a day at 5 WP - 50 WP, one parcel - the product owner's call
- * (2026-09-26). It has been 6, 20, 10, 20 and is 10 again; the button shows
- * how many are LEFT, which is what fixed the "infinite" feeling.
+ * FIFTY a day at 1 WP - still 50 WP, one parcel, but five times the ads for
+ * it: the product owner's call (2026-09-27), to earn more per WP given out.
+ * It has been 6, 20, 10, 20 and 10 at 5 WP each. The button shows how many
+ * are LEFT, which is what fixed the "infinite" feeling.
  */
-export const MAX_WP_ADS_PER_DAY = 10;
+export const MAX_WP_ADS_PER_DAY = 50;
 
 /** How long a "start watching" ticket stays valid. An ad is ~30 s. */
 export const AD_TICKET_TTL_SECONDS = 10 * 60;
@@ -205,7 +206,12 @@ export const AD_TICKET_TTL_SECONDS = 10 * 60;
  *                    kind of ad: people ask for it.
  */
 export const INSTANT_COLLECT_HOURS = 2;
-export const MAX_INSTANT_COLLECT_ADS_PER_DAY = 3;
+/**
+ * ZERO: "collect 2 hours now" was removed on 2026-09-27 (product owner's
+ * call). Kept at 0 rather than deleted so an older APK that still shows the
+ * button gets "back tomorrow" instead of a payout.
+ */
+export const MAX_INSTANT_COLLECT_ADS_PER_DAY = 0;
 
 export const SCOUT_SECONDS_PER_AD = 10 * 60;
 export const SCOUT_MAX_BANKED_SECONDS = 30 * 60;
@@ -704,11 +710,14 @@ export const SHORT_WINDOW_MINUTES = 60;
 export const CATCHUP_WINDOW_MINUTES = 24 * 60;
 
 /**
- * Rolling 24-hour ceiling, and the real backstop. For scale: 10,000 steps is
- * the usual daily target and a 100km ultramarathon is roughly 120,000 steps.
- * 60,000 is a very good day, so honest players will never touch this.
+ * Steps that earn per LOCAL DAY (resets at the player's midnight).
+ *
+ * 15,000 since 2026-09-27, the product owner's call - it was 60,000, a pure
+ * anti-cheat backstop. Now it is also the economy's ceiling: at most 150 WP a
+ * day from walking, whoever you are. Steps past it are still counted by the
+ * phone, they just stop paying (the Walk tab says so).
  */
-export const MAX_STEPS_PER_DAY = 60_000;
+export const MAX_STEPS_PER_DAY = 15_000;
 
 export type StepLimitReason = 'OK' | 'RATE_LIMIT' | 'DAILY_LIMIT';
 

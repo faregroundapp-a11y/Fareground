@@ -99,9 +99,11 @@ export default function WalkScreen() {
             <Text style={type.caption}>steps today</Text>
           </StepRing>
           <Text style={styles.nextWp}>
-            {result
-              ? `${result.stepsUntilNextWalkPoint.toLocaleString()} steps to your next Walk Point`
-              : `Every ${stepsPerWp} steps is a Walk Point`}
+            {(sync.stepsToday ?? 0) >= DAILY_STEP_CAP
+              ? `You've hit today's ${DAILY_STEP_CAP.toLocaleString()} steps. More WP tomorrow!`
+              : result
+                ? `${result.stepsUntilNextWalkPoint.toLocaleString()} steps to your next Walk Point`
+                : `Every ${stepsPerWp} steps is a Walk Point`}
           </Text>
         </View>
 
@@ -271,6 +273,12 @@ function Note({ children, tone }: { children: React.ReactNode; tone?: 'warn' }) 
     </View>
   );
 }
+
+/**
+ * Steps that earn per local day. Must match MAX_STEPS_PER_DAY in the backend's
+ * rules.ts. Display only - the server is what enforces it.
+ */
+const DAILY_STEP_CAP = 15_000;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },

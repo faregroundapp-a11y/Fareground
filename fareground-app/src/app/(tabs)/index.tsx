@@ -668,7 +668,7 @@ function GameView({ fix }: { fix: Fix }) {
               adOffer={
                 claimState.kind === 'short' && adsAvailable() && (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0
                   ? {
-                      label: `Watch an ad · +${balance?.rewards.walkPoints.perAd ?? 5} WP`,
+                      label: `Watch an ad · +${balance?.rewards.walkPoints.perAd ?? 1} WP`,
                       busy: adBusy === 'WALK_POINTS',
                       onPress: async () => {
                         const r = await watch('WALK_POINTS');

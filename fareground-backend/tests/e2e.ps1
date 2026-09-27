@@ -39,8 +39,8 @@ $runId = [guid]::NewGuid().ToString('N').Substring(0, 8)
 # ---------------------------------------------------------------------------
 $RULES = @{
     ParcelBasePrice   = 50      # PARCEL_BASE_PRICE_WP
-    AdWalkPoints      = 5       # AD_WALK_POINTS
-    MaxWpAdsPerDay    = 10      # MAX_WP_ADS_PER_DAY
+    AdWalkPoints      = 1       # AD_WALK_POINTS
+    MaxWpAdsPerDay    = 50      # MAX_WP_ADS_PER_DAY
     ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - per PARCEL_PRICE_STEP_EVERY parcels
     ParcelPriceEvery  = 10      # PARCEL_PRICE_STEP_EVERY
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
