@@ -23,6 +23,7 @@ import {
   MIN_REDEMPTION_COINS,
   PARCEL_BASE_PRICE_WP,
   PARCEL_MAX_UPGRADE,
+  PARCEL_PRICE_STEP_EVERY,
   PARCEL_PRICE_STEP_WP,
   PIT_STOP_COOLDOWN_SECONDS,
   PIT_STOP_NEW_BONUS_WP,
@@ -78,7 +79,7 @@ line();
 line(
   PARCEL_PRICE_STEP_WP === 0
     ? `  Parcel price:  ${PARCEL_BASE_PRICE_WP} WP, flat - every parcel costs the same`
-    : `  Parcel price:  ${PARCEL_BASE_PRICE_WP} WP + ${PARCEL_PRICE_STEP_WP} WP for every parcel you already own`,
+    : `  Parcel price:  ${PARCEL_BASE_PRICE_WP} WP + ${PARCEL_PRICE_STEP_WP} WP for every ${PARCEL_PRICE_STEP_EVERY} parcels you already own`,
 );
 line();
 line('     parcel #      cost        steps to earn it by walking alone');
@@ -446,7 +447,7 @@ line('     TerraMine                        Fareground');
 line(
   PARCEL_PRICE_STEP_WP === 0
     ? `     claim cost   100 TB, FLAT        ${PARCEL_BASE_PRICE_WP} WP, FLAT`
-    : `     claim cost   100 TB, FLAT        ${PARCEL_BASE_PRICE_WP} WP + ${PARCEL_PRICE_STEP_WP} per parcel owned, RISING`,
+    : `     claim cost   100 TB, FLAT        ${PARCEL_BASE_PRICE_WP} WP + ${PARCEL_PRICE_STEP_WP} per ${PARCEL_PRICE_STEP_EVERY} owned, RISING`,
 );
 line(`     boost        up to 20x           ${BOOST_MULTIPLIER}x`);
 line(`                  30 min per boost    ${BOOST_SECONDS_PER_AD / 60} min per ad`);

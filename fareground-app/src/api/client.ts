@@ -140,8 +140,9 @@ export const api = {
   /** Treasure boxes to walk to. */
   treasure: (token: string, lat: number, lng: number) =>
     request<TreasureStatus>('GET', `/treasure?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`, { token }),
-  openBox: (token: string, id: string, at: { lat: number; lng: number }) =>
-    request<OpenBoxResult>('POST', `/treasure/${encodeURIComponent(id)}/open`, { token, body: at }),
+  /** `adNonce`: the TREASURE_KEY ad, for a box an ad did not already spawn. */
+  openBox: (token: string, id: string, at: { lat: number; lng: number }, adNonce?: string) =>
+    request<OpenBoxResult>('POST', `/treasure/${encodeURIComponent(id)}/open`, { token, body: { ...at, adNonce } }),
 
   /** Invite a friend: your code, and using someone else's. */
   referral: (token: string) => request<ReferralStatus>('GET', '/referral', { token }),
@@ -216,7 +217,9 @@ export const api = {
     token: string,
     position: { lat: number; lng: number; accuracyM: number; mocked?: boolean },
     target?: { cellX: number; cellY: number },
-  ) => request<ClaimResult>('POST', '/parcels/claim', { token, body: { ...position, ...target } }),
+    /** The CLAIM ad that pays for this parcel. */
+    adNonce?: string,
+  ) => request<ClaimResult>('POST', '/parcels/claim', { token, body: { ...position, ...target, adNonce } }),
 
   nearby: (token: string, lat: number, lng: number, radius = 300) =>
     request<{ parcels: NearbyParcel[] }>(

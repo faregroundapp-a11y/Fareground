@@ -20,6 +20,7 @@
  *     a lapsed player with an unclaimed chest is not buzzed twice at once.
  */
 import { pool } from '../db/pool';
+import { parcelRateSql } from '../game/rules';
 import { sendToUsers, type PushMessage } from './push.service';
 
 export type NotificationKind = 'STREAK_RISK' | 'CHEST_READY' | 'COMEBACK';
@@ -137,7 +138,7 @@ async function comeback(exclude: Set<string>): Promise<Candidate[]> {
   const r = await pool.query<Candidate>(
     `SELECT u.id AS user_id, ${LOCAL_DAY} AS local_day,
             FLOOR(
-              COALESCE((SELECT SUM(p.coins_per_month + p.upgrade_level) FROM parcels p WHERE p.owner_id = u.id), 0)
+              COALESCE((SELECT SUM(${parcelRateSql('p')}) FROM parcels p WHERE p.owner_id = u.id), 0)
               -- the rate is per 30-day month; hours are capped at 60 days
               * LEAST(EXTRACT(EPOCH FROM (NOW() - u.last_coin_claim_at)) / 3600.0, 24 * 60) / 720.0
             )::bigint AS n

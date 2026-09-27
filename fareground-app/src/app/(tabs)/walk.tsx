@@ -211,7 +211,8 @@ export default function WalkScreen() {
             <View style={[styles.fill, { width: `${Math.min(100, (wp / price) * 100)}%` }]} />
           </View>
           <Text style={[type.caption, { marginTop: space.sm }]}>
-            Every parcel costs the same: {(price * stepsPerWp).toLocaleString()} steps.
+            This one is {(price * stepsPerWp).toLocaleString()} steps and an ad. Land costs 1 WP more for every 10
+            parcels you own.
           </Text>
         </View>
 

@@ -41,7 +41,8 @@ $RULES = @{
     ParcelBasePrice   = 50      # PARCEL_BASE_PRICE_WP
     AdWalkPoints      = 5       # AD_WALK_POINTS
     MaxWpAdsPerDay    = 10      # MAX_WP_ADS_PER_DAY
-    ParcelPriceStep   = 0       # PARCEL_PRICE_STEP_WP - flat, product owner's call
+    ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - per PARCEL_PRICE_STEP_EVERY parcels
+    ParcelPriceEvery  = 10      # PARCEL_PRICE_STEP_EVERY
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
     BoostSecondsPerAd = 1800    # BOOST_SECONDS_PER_AD      (30 min)
     BoostBankSeconds  = 86400   # BOOST_MAX_BANKED_SECONDS  (24 h)
@@ -53,7 +54,7 @@ $RULES = @{
     UpgradeCostL1     = 25      # PARCEL_UPGRADE_COSTS_WP
     UpgradeCostL2     = 50
     # Coins per 30-day MONTH since migration 029 (1,000 coins = `$1).
-    CoinsPerMonth     = @{ ROCKY = 3; COAL = 4; AMETHYST = 5; SAPPHIRE = 8; RUBY = 25 }
+    CoinsPerMonth     = @{ ROCKY = 0.6; COAL = 0.8; AMETHYST = 1.2; SAPPHIRE = 2; RUBY = 6 }
 }
 
 # The welcome bonus is SIGNUP_BONUS_WP = PARCEL_BASE_PRICE_WP in rules.ts -
@@ -61,7 +62,7 @@ $RULES = @{
 $BONUS = $RULES.ParcelBasePrice
 
 # What parcel number n costs (1-based): base + step x parcels already owned.
-function Parcel-Price([int]$n) { $RULES.ParcelBasePrice + $RULES.ParcelPriceStep * ($n - 1) }
+function Parcel-Price([int]$n) { $RULES.ParcelBasePrice + $RULES.ParcelPriceStep * [math]::Floor(($n - 1) / $RULES.ParcelPriceEvery) }
 
 # One HttpClient for the whole run, so the suite reuses a handful of sockets
 # instead of opening one per request. With Invoke-WebRequest (a fresh
@@ -324,12 +325,13 @@ Write-Host "`n=== 15. Passive income actually accrues ===" -ForegroundColor Cyan
 $p = New-Player -Wp (Parcel-Price 1)
 $buy = (Invoke-Api POST '/parcels/claim' (New-Spot) -Token $p.token).body
 $rate = $buy.parcel.coinsPerMonth
-# Rates are per 30-day month, so wind the clock back 35 days: 35/30 of a month.
-Sql "UPDATE users SET last_coin_claim_at = NOW() - INTERVAL '35 days', coin_remainder_micro = 0 WHERE email = '$($p.email)';" | Out-Null
+# Rates are per 30-day month and a rocky pays 0.6, so wind the clock back 175
+# days (35/6 months) - enough for whole coins at any mineral.
+Sql "UPDATE users SET last_coin_claim_at = NOW() - INTERVAL '175 days', coin_remainder_micro = 0 WHERE email = '$($p.email)';" | Out-Null
 $r = Invoke-Api GET '/user/balance' -Token $p.token
-$expectedCoins = [Math]::Floor(35 / 30 * $rate)
-Check "35 days at $rate/month pays $expectedCoins coins" ($r.body.coins -eq $expectedCoins) "got $($r.body.coins)"
-$unpaid = 35 / 30 * $rate - $expectedCoins
+$expectedCoins = [Math]::Floor(175 / 30 * $rate)
+Check "175 days at $rate/month pays $expectedCoins coins" ($r.body.coins -eq $expectedCoins) "got $($r.body.coins)"
+$unpaid = 175 / 30 * $rate - $expectedCoins
 $actualUnpaid = [double](Sql "SELECT coin_remainder_micro / 1000000.0 FROM users WHERE email = '$($p.email)';")
 Check "banks the part-coin (~$([Math]::Round($unpaid,3)) coins)" ([Math]::Abs($actualUnpaid - $unpaid) -lt 0.05) "got $([Math]::Round($actualUnpaid,4))"
 $r2 = Invoke-Api GET '/user/balance' -Token $p.token
@@ -348,7 +350,7 @@ $parts = $entry -split '\|'
 Check 'recorded as an ACCRUAL' ($parts[0] -eq 'ACCRUAL') "got $($parts[0])"
 Check 'amount matches what was paid' ([int]$parts[1] -eq $expectedCoins) "got $($parts[1])"
 Check 'balance_after matches the balance' ([int]$parts[2] -eq $cached) "got $($parts[2])"
-Check 'records the rate it was earned at' ([int]$parts[3] -eq $rate) "got $($parts[3])"
+Check 'records the rate it was earned at' ([double]$parts[3] -eq [double]$rate) "got $($parts[3])"
 $window = [double](Sql "SELECT EXTRACT(EPOCH FROM (earned_to - earned_from))/3600.0 FROM coin_ledger WHERE user_id = '$uid' ORDER BY created_at DESC LIMIT 1;")
 Check 'records the window it covers (3.5h)' ([Math]::Abs($window - 3.5) -lt 0.01) "got $([Math]::Round($window,3))h"
 # Asking again earns nothing, so it must not write a row.
@@ -921,7 +923,7 @@ Check 'an upgrade ticket is issued' ($t.status -eq 201) "got $($t.status) $($t.b
 $g = Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce } -Token $p.token
 Check 'the ad upgrades it to level 1' ($g.body.granted -eq $true -and $g.body.amount -eq 1) "got $($g.body | ConvertTo-Json -Compress)"
 $mine = (Invoke-Api GET '/parcels' -Token $p.token).body.parcels[0]
-Check 'the parcel earns +1 coin/month' ($mine.coinsPerMonth -eq $baseRate + 1 -and $mine.upgradeLevel -eq 1) "got $($mine | ConvertTo-Json -Compress)"
+Check 'the parcel earns +0.15 coins/month' ([math]::Round($mine.coinsPerMonth, 2) -eq [math]::Round($baseRate + 0.15, 2) -and $mine.upgradeLevel -eq 1) "got $($mine | ConvertTo-Json -Compress)"
 Check "and the next level costs $($RULES.UpgradeCostL2) WP" ($mine.nextUpgradeCostWp -eq $RULES.UpgradeCostL2) "got $($mine.nextUpgradeCostWp)"
 $after = (Invoke-Api GET '/user/balance' -Token $p.token).body
 Check "$($RULES.UpgradeCostL1) WP was spent" ($after.walkPoints -eq $before.walkPoints - $RULES.UpgradeCostL1) "got $($after.walkPoints) from $($before.walkPoints)"

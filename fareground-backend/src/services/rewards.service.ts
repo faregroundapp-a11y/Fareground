@@ -43,6 +43,8 @@ import {
   microCoinsFor,
   splitMicroCoins,
   type AdRewardKind,
+  parcelPriceWp,
+  parcelRateSql,
 } from '../game/rules';
 import { HttpError } from '../utils/httpError';
 import { throttledAmount } from './integrity.service';
@@ -171,7 +173,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS scout_ads,
        COALESCE((SELECT GREATEST(EXTRACT(EPOCH FROM (scout_until - NOW())), 0) FROM users WHERE id = $1), 0)::double precision AS scout_remaining_s,
        (SELECT CASE WHEN scout_until > NOW() THEN scout_until END FROM users WHERE id = $1) AS scout_ends_at,
-       COALESCE((SELECT SUM(coins_per_month + upgrade_level) FROM parcels WHERE owner_id = $1), 0)::int AS coins_per_month,
+       COALESCE((SELECT SUM(${parcelRateSql()}) FROM parcels WHERE owner_id = $1), 0)::float8 AS coins_per_month,
        ${nextLocalMidnightSql(USER_TZ)} AS resets_at`,
     [userId],
   );
@@ -294,6 +296,12 @@ export async function startAdReward(
     } else if (kind === 'PHOTO') {
       // Nothing to check: the upload itself validates the image, and the
       // ticket is spent only once a valid one has been stored.
+    } else if (kind === 'CLAIM') {
+      // Refuse the ad up front if the parcel could not be afforded anyway -
+      // nobody should sit through an ad for a claim that cannot happen.
+      await assertCanAffordParcel(client, userId);
+    } else if (kind === 'TREASURE_KEY') {
+      // The box itself is checked when it is opened; the key is spent then.
     } else if (kind === 'COSMETIC') {
       if (!cosmeticKey || !AD_UNLOCKABLE.includes(cosmeticKey)) {
         throw new HttpError(400, 'That item is not unlocked by watching an ad.');
@@ -384,6 +392,9 @@ async function grant(
     amount = 1;
   } else if (ticket.kind === 'PHOTO') {
     // The ad is permission to change your picture; the upload spends it.
+    amount = 1;
+  } else if (ticket.kind === 'CLAIM' || ticket.kind === 'TREASURE_KEY') {
+    // Permission, spent by the claim or the box it unlocks.
     amount = 1;
   } else if (ticket.kind === 'COSMETIC') {
     if (!ticket.cosmetic_key) throw new HttpError(409, 'That item is no longer available.');
@@ -568,6 +579,38 @@ export async function grantFromSsv(input: {
  * the stop is then refused (that parcel already paid today), everything rolls
  * back and the ticket is still there to spend on the next parcel along.
  */
+/**
+ * Spend a gate ad (CLAIM or TREASURE_KEY) inside the caller's transaction, so
+ * a claim or box that then fails rolls back and leaves the ad to use again.
+ * Returns false when there is no such unspent ad.
+ */
+export async function spendGateAd(
+  client: { query: typeof query },
+  userId: string,
+  kind: 'CLAIM' | 'TREASURE_KEY',
+  nonce: string,
+): Promise<boolean> {
+  const r = await client.query(
+    `UPDATE ad_rewards SET consumed_at = NOW()
+      WHERE user_id = $1 AND nonce = $2 AND kind = $3
+        AND status = 'GRANTED' AND consumed_at IS NULL`,
+    [userId, nonce, kind],
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
+async function assertCanAffordParcel(client: { query: typeof query }, userId: string): Promise<void> {
+  const r = await client.query<{ wp: number; owned: string }>(
+    `SELECT walk_points_balance AS wp, (SELECT COUNT(*) FROM parcels WHERE owner_id = $1) AS owned
+       FROM users WHERE id = $1`,
+    [userId],
+  );
+  const price = parcelPriceWp(Number(r.rows[0]?.owned ?? 0));
+  if ((r.rows[0]?.wp ?? 0) < price) {
+    throw new HttpError(400, `Your next parcel costs ${price} WP - walk a little more first.`);
+  }
+}
+
 /** Spend the ad that pays for changing a profile picture. */
 export async function spendPhotoAd(
   client: { query: typeof query },

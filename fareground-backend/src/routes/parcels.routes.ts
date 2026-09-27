@@ -25,6 +25,8 @@ const claimSchema = z.object({
   /** Optional: the square the player picked. Must be within reach. */
   cellX: z.number().int().optional(),
   cellY: z.number().int().optional(),
+  /** The CLAIM ad that pays for this parcel (see AD_GATES). */
+  adNonce: z.string().regex(/^[0-9a-f]{32}$/).optional(),
 }).refine((b) => (b.cellX === undefined) === (b.cellY === undefined), {
   message: 'Send both cellX and cellY, or neither.',
 });
@@ -44,7 +46,7 @@ parcelsRouter.post(
     const body = claimSchema.parse(req.body);
     const target =
       body.cellX !== undefined && body.cellY !== undefined ? { cellX: body.cellX, cellY: body.cellY } : undefined;
-    const result = await claimParcel(getUserId(req), body, target);
+    const result = await claimParcel(getUserId(req), body, target, body.adNonce);
     res.status(201).json(result);
   }),
 );

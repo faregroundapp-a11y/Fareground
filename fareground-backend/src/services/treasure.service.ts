@@ -27,6 +27,8 @@ import {
   TREASURE_TTL_MINUTES,
 } from '../game/rules';
 import { HttpError } from '../utils/httpError';
+import { config } from '../config/env';
+import { spendGateAd } from './rewards.service';
 import { throttledAmount } from './integrity.service';
 
 export interface TreasureBox {
@@ -263,10 +265,12 @@ export async function openBox(
   userId: string,
   boxId: string,
   at: { lat: number; lng: number },
+  /** The TREASURE_KEY ad. Needed for a free box when AD_GATES is on. */
+  adNonce?: string,
 ): Promise<OpenResult> {
   return withTransaction(async (client) => {
-    const r = await client.query<{ lat: number; lng: number; reward_wp: number }>(
-      `SELECT lat, lng, reward_wp FROM treasure_boxes
+    const r = await client.query<{ lat: number; lng: number; reward_wp: number; from_ad: boolean }>(
+      `SELECT lat, lng, reward_wp, from_ad FROM treasure_boxes
         WHERE id = $1 AND user_id = $2 AND collected_at IS NULL AND expires_at > NOW()
         FOR UPDATE`,
       [boxId, userId],
@@ -277,6 +281,19 @@ export async function openBox(
     const away = metresBetween(at.lat, at.lng, box.lat, box.lng);
     if (away > TREASURE_COLLECT_DISTANCE_M) {
       throw new HttpError(422, `You are ${Math.round(away)} m from the box. Get within ${TREASURE_COLLECT_DISTANCE_M} m.`);
+    }
+
+    // THE KEY. A box an ad already paid to spawn opens free. Checked after
+    // the distance, so nobody watches an ad for a box they are not at; spent
+    // in this transaction, so a failure below keeps the key for next time.
+    if (!box.from_ad) {
+      if (adNonce) {
+        if (!(await spendGateAd(client, userId, 'TREASURE_KEY', adNonce))) {
+          throw new HttpError(402, 'That key has already been used. Watch another ad to open the box.');
+        }
+      } else if (config.adGates === 'on') {
+        throw new HttpError(402, 'Watch an ad to unlock this box.');
+      }
     }
 
     const spent = await client.query('UPDATE treasure_boxes SET collected_at = NOW() WHERE id = $1 AND collected_at IS NULL', [

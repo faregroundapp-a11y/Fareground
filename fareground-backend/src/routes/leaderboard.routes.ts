@@ -123,6 +123,8 @@ treasureRouter.get(
 const openSchema = z.object({
   lat: z.number().min(-85).max(85),
   lng: z.number().min(-180).max(180),
+  /** The TREASURE_KEY ad that opens a free box (see AD_GATES). */
+  adNonce: z.string().regex(/^[0-9a-f]{32}$/).optional(),
 });
 
 /** POST /treasure/:id/open - open a box you have walked to. */
@@ -131,6 +133,7 @@ treasureRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const id = z.string().uuid('No such box.').parse(req.params.id);
-    res.json(await openBox(getUserId(req), id, openSchema.parse(req.body)));
+    const body = openSchema.parse(req.body);
+    res.json(await openBox(getUserId(req), id, body, body.adNonce));
   }),
 );

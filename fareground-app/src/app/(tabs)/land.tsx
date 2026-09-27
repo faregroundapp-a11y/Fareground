@@ -10,7 +10,7 @@ import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { haptics } from '@/native/haptics';
 import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
-import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, formatMultiplier } from '@/game/minerals';
+import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate } from '@/game/minerals';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -77,7 +77,7 @@ export default function LandScreen() {
               <View style={styles.summaryTop}>
                 <CoinIcon size={30} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rate, mono]}>{rate} <Text style={styles.rateUnit}>coins / month</Text></Text>
+                  <Text style={[styles.rate, mono]}>{formatRate(rate)} <Text style={styles.rateUnit}>coins / month</Text></Text>
                   <Text style={[styles.usd, mono]}>${(rate * MONTHS_PER_YEAR * COIN_USD).toFixed(3)} per year</Text>
                 </View>
               </View>
@@ -146,13 +146,13 @@ export default function LandScreen() {
                 </View>
                 <View style={styles.rowRate}>
                   <CoinIcon size={14} />
-                  <Text style={[styles.rowRateText, mono]}>+{item.coinsPerMonth}/mo</Text>
+                  <Text style={[styles.rowRateText, mono]}>+{formatRate(item.coinsPerMonth)}/mo</Text>
                 </View>
               </View>
 
               {/* Upgrades: Walk Points plus one ad per level, +1 coin/hour each. */}
               {cost === null ? (
-                <Text style={styles.maxed}>Fully upgraded · +{item.maxUpgradeLevel}/mo from upgrades</Text>
+                <Text style={styles.maxed}>Fully upgraded · +{formatRate(item.maxUpgradeLevel * UPGRADE_COINS_PER_LEVEL)}/mo from upgrades</Text>
               ) : (
                 adsAvailable() && (
                   <Pressable
@@ -168,7 +168,7 @@ export default function LandScreen() {
                   >
                     <PlayAdIcon size={16} color={canAfford ? '#FFFFFF' : colors.ink3} />
                     <Text style={[styles.upgradeText, !canAfford && { color: colors.ink3 }]}>
-                      {adBusy === 'UPGRADE' ? 'Loading ad…' : `Upgrade +1/mo · ${cost} WP + ad`}
+                      {adBusy === 'UPGRADE' ? 'Loading ad…' : `Upgrade +${UPGRADE_COINS_PER_LEVEL}/mo · ${cost} WP + ad`}
                     </Text>
                     <View style={{ flex: 1 }} />
                     <Text style={[styles.upgradeLvl, !canAfford && { color: colors.ink3 }]}>

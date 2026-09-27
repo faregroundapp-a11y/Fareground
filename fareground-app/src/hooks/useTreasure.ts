@@ -43,9 +43,9 @@ export function useTreasure(lat: number, lng: number) {
 
   /** Open a box you have reached. Resolves to its reward, ready to double. */
   const open = useCallback(
-    async (id: string, at: { lat: number; lng: number }): Promise<ClaimSummary> => {
+    async (id: string, at: { lat: number; lng: number }, adNonce?: string): Promise<ClaimSummary> => {
       if (!token) throw new Error('Not signed in.');
-      const r = await api.openBox(token, id, at);
+      const r = await api.openBox(token, id, at, adNonce);
       await refresh(at.lat, at.lng);
       return r.claim;
     },

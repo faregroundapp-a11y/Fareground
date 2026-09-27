@@ -13,6 +13,7 @@ import {
   microCoinsFor,
   parcelPriceWp,
   splitMicroCoins,
+  parcelRateSql,
 } from '../game/rules';
 import { HttpError } from '../utils/httpError';
 import { settleFinishedWeek } from './leaderboard.service';
@@ -116,7 +117,7 @@ export async function settleCoinIncome(
     boosted_s: number;
   }>(
     `SELECT
-       (SELECT COALESCE(SUM(coins_per_month + upgrade_level), 0)::bigint FROM parcels WHERE owner_id = $1) AS coins_per_month,
+       (SELECT COALESCE(SUM(${parcelRateSql()}), 0)::float8 FROM parcels WHERE owner_id = $1) AS coins_per_month,
        (SELECT COUNT(*)::bigint FROM parcels WHERE owner_id = $1)                        AS parcel_count,
        GREATEST(EXTRACT(EPOCH FROM ($3::timestamptz - $2::timestamptz)), 0)::double precision AS elapsed_s,
        COALESCE((

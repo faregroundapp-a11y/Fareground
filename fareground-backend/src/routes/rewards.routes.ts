@@ -11,6 +11,7 @@ const startSchema = z.object({
   kind: z.enum([
     'BOOST', 'WALK_POINTS', 'DOUBLE', 'INSTANT_COLLECT', 'SCOUT', 'COSMETIC',
     'UPGRADE', 'EXTRA_CHECKIN', 'STREAK_SAVE', 'TREASURE', 'PIT_STOP', 'PHOTO',
+    'CLAIM', 'TREASURE_KEY',
   ]),
   /** For DOUBLE: the daily-chest or quest reward to double. */
   targetClaimId: z.string().uuid().optional(),

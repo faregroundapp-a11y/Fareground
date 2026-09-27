@@ -21,6 +21,7 @@ import { cellCenter, cellForLatLng, cellRadius, cellRef } from '../game/grid';
 import { settleCoinIncome } from './user.service';
 import { HttpError } from '../utils/httpError';
 import { checkAndRecordPosition } from './integrity.service';
+import { spendGateAd } from './rewards.service';
 
 /**
  * The worst GPS accuracy we accept for a claim, in metres.
@@ -115,7 +116,8 @@ function toParcel(row: ParcelRow): Parcel {
     id: row.id,
     rarity: row.rarity,
     coinsPerMonth: parcelCoinsPerMonth(row.coins_per_month, level),
-    baseCoinsPerMonth: row.coins_per_month,
+    // NUMERIC arrives from node-pg as a string.
+    baseCoinsPerMonth: Number(row.coins_per_month),
     upgradeLevel: level,
     maxUpgradeLevel: PARCEL_MAX_UPGRADE,
     nextUpgradeCostWp: level >= PARCEL_MAX_UPGRADE ? null : parcelUpgradeCostWp(level),
@@ -156,7 +158,12 @@ export async function claimParcel(
   userId: string,
   position: { lat: number; lng: number; accuracyM: number; mocked?: boolean },
   target?: { cellX: number; cellY: number },
+  /** The CLAIM ad paying for this parcel. Required when AD_GATES is on. */
+  adNonce?: string,
 ): Promise<ClaimParcelResult> {
+  if (config.adGates === 'on' && !adNonce) {
+    throw new HttpError(402, 'Watch an ad to claim this parcel.');
+  }
   if (position.accuracyM > MAX_CLAIM_ACCURACY_M) {
     throw new HttpError(
       422,
@@ -209,6 +216,13 @@ export async function claimParcel(
         );
       }
 
+      // 1b. The claim ad. Spent in this transaction, so a claim that fails
+      //     below (not enough WP, the square taken a moment ago) rolls back
+      //     and the player keeps the ad for their next try.
+      if (adNonce && !(await spendGateAd(client, userId, 'CLAIM', adNonce))) {
+        throw new HttpError(402, 'That ad has already been used. Watch another to claim.');
+      }
+
       // 2. Atomic check-and-deduct.
       const deduction = await client.query<{ walk_points_balance: number }>(
         `UPDATE users
@@ -244,7 +258,7 @@ export async function claimParcel(
            (owner_id, rarity, coins_per_month, cell_x, cell_y,
             claimed_lat, claimed_lng, claimed_accuracy_m)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, rarity, coins_per_month, upgrade_level, cell_x, cell_y, purchased_at`,
+         RETURNING id, rarity, coins_per_month::float8 AS coins_per_month, upgrade_level, cell_x, cell_y, purchased_at`,
         [
           userId, drop.rarity, drop.coinsPerMonth, cellX, cellY,
           position.lat, position.lng, position.accuracyM,
@@ -303,7 +317,7 @@ export async function nearbyParcels(
 /** Everything this player owns, newest first. */
 export async function myParcels(userId: string): Promise<Parcel[]> {
   const result = await query<ParcelRow>(
-    `SELECT id, rarity, coins_per_month, upgrade_level, cell_x, cell_y, purchased_at
+    `SELECT id, rarity, coins_per_month::float8 AS coins_per_month, upgrade_level, cell_x, cell_y, purchased_at
        FROM parcels
       WHERE owner_id = $1
       ORDER BY purchased_at DESC`,

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { Mineral } from '@/api/types';
-import { MINERALS, MINERAL_ORDER } from '@/game/minerals';
+import { MINERALS, MINERAL_ORDER, formatRate } from '@/game/minerals';
 import { GemIcon } from './icons';
 import { fonts } from '@/theme';
 
@@ -160,7 +160,7 @@ export function ClaimCelebration({
         <View>
           <Text style={[styles.tier, { color: m.color }]}>{TIER_LABEL[rarity]}</Text>
           <Text style={styles.name}>{m.label}</Text>
-          <Text style={styles.rate}>+{m.coinsPerMonth} coins / month</Text>
+          <Text style={styles.rate}>+{formatRate(m.coinsPerMonth)} coins / month</Text>
         </View>
       </Animated.View>
     </View>

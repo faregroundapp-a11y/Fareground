@@ -93,17 +93,19 @@ test('the headline economy numbers are what the design doc says', () => {
   assert.equal(SIGNUP_BONUS_WP, 50);
 });
 
-test('every parcel costs the same - flat, for ever', () => {
-  // The product owner's decision, 2026-09-26: "I don't want prices to increase."
-  assert.equal(PARCEL_PRICE_STEP_WP, 0);
+test('the price rises 1 WP for every 10 parcels owned, never falls', () => {
+  // The product owner's call, 2026-09-27, alongside the rate cut.
+  assert.equal(PARCEL_PRICE_STEP_WP, 1);
   assert.equal(parcelPriceWp(0), 50, 'the first parcel is exactly the welcome bonus');
   assert.equal(parcelPriceWp(-3), 50, 'never below the base price');
-  for (let n = 0; n < 500; n++) {
-    assert.equal(parcelPriceWp(n + 1), parcelPriceWp(n), `the price moved at parcel ${n}`);
+  assert.equal(parcelPriceWp(9), 50);
+  assert.equal(parcelPriceWp(10), 51);
+  assert.equal(parcelPriceWp(400), 90);
+  for (let n = 0; n < 2_000; n++) {
+    assert.ok(parcelPriceWp(n + 1) >= parcelPriceWp(n), `the price fell at parcel ${n}`);
   }
-  // The consequence, stated as a property: land grows in a STRAIGHT LINE with
-  // walking. That is what the boost taper and the coin trade exist to absorb.
-  assert.equal(parcelsAfter(200, 100) - parcelsAfter(100, 100), parcelsAfter(100, 100) - parcelsAfter(0, 100));
+  // The consequence, stated as a property: land now grows SLOWER than walking.
+  assert.ok(parcelsAfter(400, 100) - parcelsAfter(200, 100) < parcelsAfter(200, 100) - parcelsAfter(0, 100));
 });
 
 test('the boost is 20x, 30 minutes an ad, and can cover the whole day', () => {
@@ -137,17 +139,17 @@ test('the boost tapers only for very large holders, and never cuts income', () =
   }
   assert.ok(BOOST_TIERS[BOOST_TIERS.length - 1].multiplier >= 2, 'the last tier must still be a boost');
 
-  // The product owner's target: ~400 parcels fully boosted is ~$1 a day.
+  // After the 2026-09-27 rate cut: ~400 parcels fully boosted is ~$0.22 a day.
   const perDayUsd = (parcels: number) =>
     parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * 86_400 * boostMultiplierFor(parcels);
-  assert.ok(perDayUsd(400) >= 0.95 && perDayUsd(400) <= 1.1, `400 parcels boosted all day: $${perDayUsd(400).toFixed(2)}`);
+  assert.ok(perDayUsd(400) >= 0.18 && perDayUsd(400) <= 0.26, `400 parcels boosted all day: $${perDayUsd(400).toFixed(2)}`);
 
   // THE POINT OF THE TAPER: what one 30-minute ad hands out grows far more
-  // slowly than it would at a flat 20x. At 400 parcels it is ~$0.02 - about
-  // what the ad earns - and past that it climbs at a quarter of the flat rate.
+  // slowly than it would at a flat 20x. At 400 parcels it is ~$0.004 - about
+  // half of what the ad earns - and past that it climbs at a quarter of the flat rate.
   const perAdUsd = (parcels: number, m = boostMultiplierFor(parcels)) =>
     parcels * coinsPerMonthToUsdPerSecond(averageCoinsPerMonth) * BOOST_SECONDS_PER_AD * (m - 1);
-  assert.ok(perAdUsd(400) < 0.025, `an ad at 400 parcels hands out $${perAdUsd(400).toFixed(4)}`);
+  assert.ok(perAdUsd(400) < 0.005, `an ad at 400 parcels hands out $${perAdUsd(400).toFixed(4)}`);
   for (const n of [2_000, 5_000]) {
     assert.ok(perAdUsd(n) < perAdUsd(n, 20) * 0.6, `the taper barely bites at ${n} parcels`);
   }
@@ -189,11 +191,11 @@ test('the drop table adds up to exactly 100%', () => {
 
 test('each mineral pays the correct monthly rate', () => {
   const expected: Record<ParcelRarity, { chance: number; coinsPerMonth: number }> = {
-    ROCKY: { chance: 6_000, coinsPerMonth: 3 },
-    COAL: { chance: 2_500, coinsPerMonth: 4 },
-    AMETHYST: { chance: 1_000, coinsPerMonth: 5 },
-    SAPPHIRE: { chance: 400, coinsPerMonth: 8 },
-    RUBY: { chance: 100, coinsPerMonth: 25 },
+    ROCKY: { chance: 6_000, coinsPerMonth: 0.6 },
+    COAL: { chance: 2_500, coinsPerMonth: 0.8 },
+    AMETHYST: { chance: 1_000, coinsPerMonth: 1.2 },
+    SAPPHIRE: { chance: 400, coinsPerMonth: 2 },
+    RUBY: { chance: 100, coinsPerMonth: 6 },
   };
 
   assert.equal(RARITY_TABLE.length, 5);
@@ -301,7 +303,7 @@ test('the tiers get rarer and richer in step, with no ties', () => {
   }
 });
 
-test('the average parcel is worth 3.87 coins a month', () => {
+test('the average parcel is worth 0.82 coins a month', () => {
   // Pins the economy down: if someone retunes a rate, this says by how much
   // the whole game's coin flow just moved.
   const expectedValue = RARITY_TABLE.reduce(
@@ -309,7 +311,7 @@ test('the average parcel is worth 3.87 coins a month', () => {
     0,
   );
 
-  assert.equal(Number(expectedValue.toFixed(4)), 3.87);
+  assert.equal(Number(expectedValue.toFixed(4)), 0.82);
 });
 
 // ---------------------------------------------------------------------------
@@ -531,30 +533,31 @@ test('a thousand coins is one dollar', () => {
   assert.ok(nearlyEqual(coinsToUsd(MIN_REDEMPTION_COINS), 5, 1e-9));
 });
 
-test('a parcel pays TerraMine rates: between their average and Atlas base', () => {
-  // Testers compare us with both, and TerraMine's rates ARE Atlas's. So the
-  // average parcel sits just above TerraMine's and under Atlas's base - which
-  // is only affordable with the valves (taper, trade, $5 minimum).
+test('a parcel pays under TerraMine: we have no in-app purchases to fund more', () => {
+  // Until 2026-09-27 the average parcel sat just above TerraMine's. Both
+  // rivals sell currency in-app; Fareground is funded by ads alone, so the
+  // rate cut put it at about a third of theirs - on purpose.
   const oursPerYear = coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
   const terramineAverage = (0.6 * 0.002851 + 0.3 * 0.004147 + 0.09 * 0.00507 + 0.01 * 0.011405) * 12;
-  assert.ok(oursPerYear > terramineAverage, `ours $${oursPerYear.toFixed(4)}/yr, TerraMine $${terramineAverage.toFixed(4)}`);
+  assert.ok(oursPerYear < terramineAverage / 2, `ours $${oursPerYear.toFixed(4)}/yr, TerraMine $${terramineAverage.toFixed(4)}`);
+  assert.ok(oursPerYear > terramineAverage / 6, 'but not so low that land feels worthless');
   assert.ok(oursPerYear < RIVALS_PER_PARCEL_YEAR.atlasBase, 'must stay under Atlas base');
 });
 
 test('each tier annualises to the documented dollar figure', () => {
   // Monthly rates x 365/30 months a year.
   const expected: Record<string, number> = {
-    ROCKY: 0.0365,
-    COAL: 0.0487,
-    AMETHYST: 0.0608,
-    SAPPHIRE: 0.0973,
-    RUBY: 0.3042,
+    ROCKY: 0.0073,
+    COAL: 0.00973,
+    AMETHYST: 0.0146,
+    SAPPHIRE: 0.02433,
+    RUBY: 0.073,
   };
   for (const entry of RARITY_TABLE) {
     // A "month" is 30 days, so a year is 365/30 of them - hence the tolerance.
     const perYear = coinsPerMonthToUsdPerYear(entry.coinsPerMonth);
     assert.ok(
-      nearlyEqual(perYear, expected[entry.rarity], 1e-3),
+      nearlyEqual(perYear, expected[entry.rarity], 1e-4),
       `${entry.rarity}: expected ~$${expected[entry.rarity]}/yr, got $${perYear.toFixed(4)}`,
     );
   }
@@ -581,18 +584,18 @@ function parcelsAfter(days: number, wpPerDay: number): number {
   return owned;
 }
 
-test('a hard-walking player gains land in a straight line - and what that costs', () => {
-  // 10,000 steps a day = 100 WP a day, every day, and nothing else. With the
-  // flat price, two parcels a day for ever.
+test('a hard-walking player gains land ever more slowly - and what that costs', () => {
+  // 10,000 steps a day = 100 WP a day, every day, and nothing else. The
+  // rising price (+1 WP per 10 owned) bends the line: each year adds less.
   const costAt = (years: number) => parcelsAfter(365 * years, 100) * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
   const y1 = parcelsAfter(365, 100);
-  assert.ok(y1 >= 700 && y1 <= 760, `year one: ${y1} parcels`);
+  assert.ok(y1 >= 460 && y1 <= 520, `year one: ${y1} parcels`);
   const addedY2 = costAt(2) - costAt(1);
   const addedY3 = costAt(3) - costAt(2);
-  assert.ok(Math.abs(addedY3 - addedY2) < 0.5, 'a flat price adds the same liability every year');
+  assert.ok(addedY3 < addedY2 && addedY2 < costAt(1), 'a rising price adds less liability every year');
   // Unboosted land per year, pinned so a silent rate change shows up here.
   // It is REAL money only if cash redemption is switched on - see below.
-  assert.ok(costAt(1) > 25 && costAt(1) < 45, `year one costs $${costAt(1).toFixed(2)}/yr`);
+  assert.ok(costAt(1) > 3.5 && costAt(1) < 6.5, `year one costs $${costAt(1).toFixed(2)}/yr`);
 });
 
 test('CASH REDEMPTION CANNOT BE SWITCHED ON WITHOUT A REVIEW', () => {
@@ -675,12 +678,11 @@ test('EVERY way to earn together still funds itself', () => {
 
   const costAt = (years: number) => parcelsAfter(365 * years, perDay) * coinsPerMonthToUsdPerYear(averageCoinsPerMonth);
 
-  // OPTION A, stated honestly (2026-09-26). This player's UNBOOSTED land is
-  // ~$90/yr in year one, rising in a straight line - more than any realistic
-  // ad revenue. It costs nothing while cash redemption is off, which is the
-  // whole of why option A is allowed; the guard above keeps it that way.
+  // After the 2026-09-27 cut this player's UNBOOSTED land is ~$9/yr in year
+  // one (it was ~$90), and every parcel in it was paid for by a claim ad.
+  // Cash redemption stays off until a revenue-share pool exists.
   assert.equal(CASH_REDEMPTION_ENABLED, false);
-  assert.ok(costAt(1) > 60 && costAt(1) < 120, `year one costs $${costAt(1).toFixed(2)}/yr - did a rate move?`);
+  assert.ok(costAt(1) > 6 && costAt(1) < 12, `year one costs $${costAt(1).toFixed(2)}/yr - did a rate move?`);
 });
 
 test('an invite costs far less than a player is worth, and cannot be farmed', () => {
@@ -768,17 +770,19 @@ function daysToThreshold(wpPerDay: number): number {
   return Infinity;
 }
 
-test('a regular player can reach the $5 cash-out inside a year', () => {
+test('without boosting, $5 is a long road for a regular player', () => {
   // 8,000 steps a day plus the chest and quests, WITHOUT a single boost ad.
+  // Since the 2026-09-27 cut this is about 19 months; boost ads are what
+  // shorten it, and they are what pay for it. Pinned so a change shows up.
   const days = daysToThreshold(80);
-  assert.ok(days <= 365, `a regular player waits ${Math.round(days / 30.4)} months to cash out`);
+  assert.ok(days >= 480 && days <= 650, `a regular player waits ${Math.round(days / 30.4)} months to cash out`);
 });
 
 test('even a casual player gets there eventually', () => {
-  // 3,000 steps and the daily chest. If THIS one runs past about 18 months
-  // the bottom of the funnel has nothing to hope for and will not stay.
+  // 3,000 steps and the daily chest, no boosting: about two and a half
+  // years since the cut. Within the ten-year horizon, so not never.
   const days = daysToThreshold(30);
-  assert.ok(days <= 450, `a casual player waits ${Math.round(days / 30.4)} months to cash out`);
+  assert.ok(days <= 1_000, `a casual player waits ${Math.round(days / 30.4)} months to cash out`);
 });
 
 test('a day of ads is worth staying boosted for, and every ad still earns its keep', () => {

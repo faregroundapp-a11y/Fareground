@@ -88,7 +88,7 @@ export function ClaimButton({
         onPress={onPress}
         disabled={busy}
         accessibilityRole="button"
-        accessibilityLabel={`Claim this parcel for ${price} Walk Points`}
+        accessibilityLabel={`Watch an ad and claim this parcel for ${price} Walk Points`}
         style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
       >
         <View style={styles.sheen} />
@@ -98,7 +98,9 @@ export function ClaimButton({
           <View style={styles.content}>
             <FlagIcon size={22} color={colors.claimInk} />
             <Text style={styles.label}>Claim land</Text>
-            <View style={styles.cost}>
+            {/* An ad plays first - the price of land, alongside the WP. */}
+            <View style={[styles.cost, styles.costRow]}>
+              <PlayAdIcon size={13} color={colors.claimInk} />
               <Text style={[styles.costText, mono]}>{price} WP</Text>
             </View>
           </View>
@@ -109,6 +111,7 @@ export function ClaimButton({
 }
 
 const styles = StyleSheet.create({
+  costRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   halo: {
     position: 'absolute', left: -4, right: -4, top: -4, bottom: -4,
     borderRadius: radius.lg + 4, backgroundColor: colors.claimHi,

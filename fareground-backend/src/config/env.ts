@@ -92,6 +92,16 @@ export const config = {
    *           a server on your Wi-Fi to confirm the ad)
    *   ssv     wait for Google's signed server-side callback (production)
    */
+  /**
+   * Ads that GATE an action rather than reward one (2026-09-27): claiming a
+   * parcel, and opening a treasure box you did not already pay an ad for.
+   *   off  an ad is spent if the app sends one, but nothing requires it -
+   *        so APKs built before the claim ad keep working
+   *   on   the claim and the box refuse without an ad
+   * Switch to `on` in Render once testers have the build with the claim ad.
+   */
+  adGates: enumEnv('AD_GATES', ['off', 'on'] as const, 'off'),
+
   adRewardVerification: enumEnv(
     'AD_REWARD_VERIFICATION',
     ['client', 'ssv'] as const,

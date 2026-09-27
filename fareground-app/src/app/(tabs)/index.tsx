@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '@/api/client';
+import { ApiError, api } from '@/api/client';
 import type { ClaimSummary, NearbyParcel, Parcel, TreasureBox } from '@/api/types';
 import { BoostSheet } from '@/components/BoostSheet';
 import { ClaimButton, type ClaimState } from '@/components/ClaimButton';
@@ -138,18 +138,43 @@ function GameView({ fix }: { fix: Fix }) {
   const [boxClaim, setBoxClaim] = useState<ClaimSummary | null>(null);
   const [community, setCommunity] = useState(false);
 
+  /**
+   * Ads already watched for a claim or a box that then did not happen (the
+   * square was taken a moment before, the box moved out of reach). The server
+   * spends an ad only when the action succeeds, so it is kept for the next
+   * try instead of costing a second ad.
+   */
+  const [heldClaimAd, setHeldClaimAd] = useState<string | null>(null);
+  const [heldKeyAd, setHeldKeyAd] = useState<string | null>(null);
+
   async function grabBox() {
     if (!reachableBox || openingBox) return;
     setOpeningBox(true);
     haptics.press();
     try {
-      const claim = await openBox(reachableBox.id, { lat: fix.lat, lng: fix.lng });
+      // A box an ad already paid to spawn opens free; any other needs a key.
+      let key: string | undefined;
+      if (!reachableBox.fromAd) {
+        key = heldKeyAd ?? undefined;
+        if (!key) {
+          const ad = await watch('TREASURE_KEY');
+          if (!ad.ok) {
+            showToast(ad.message);
+            return;
+          }
+          key = ad.nonce;
+          setHeldKeyAd(key);
+        }
+      }
+      const claim = await openBox(reachableBox.id, { lat: fix.lat, lng: fix.lng }, key);
+      setHeldKeyAd(null);
       haptics.success();
       showToast(`Treasure! +${claim.amount} Walk Points.`);
       setBoxClaim(claim);
       refreshBalance();
     } catch (e) {
       haptics.warn();
+      if (e instanceof ApiError && e.status === 402) setHeldKeyAd(null); // that key is spent
       showToast(e instanceof Error ? e.message : 'Could not open that box.');
     } finally {
       setOpeningBox(false);
@@ -340,12 +365,25 @@ function GameView({ fix }: { fix: Fix }) {
     setClaiming(true);
     haptics.press();
     try {
+      // THE PRICE OF LAND IS AN AD (2026-09-27), watched before the claim.
+      let adNonce = heldClaimAd;
+      if (!adNonce) {
+        const ad = await watch('CLAIM');
+        if (!ad.ok) {
+          showToast(ad.message);
+          return;
+        }
+        adNonce = ad.nonce;
+        setHeldClaimAd(adNonce);
+      }
       // Send where you ARE and the square you chose; the server checks reach.
       const result = await api.claim(
         token,
         { lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM, mocked: fix.mocked },
         { cellX: selected.cellX, cellY: selected.cellY },
+        adNonce,
       );
+      setHeldClaimAd(null);
       const p = result.parcel;
       setPicked(null); // the next nearest free square becomes the target
 
@@ -369,6 +407,7 @@ function GameView({ fix }: { fix: Fix }) {
       );
     } catch (e) {
       haptics.warn();
+      if (e instanceof ApiError && e.status === 402) setHeldClaimAd(null); // that ad is spent
       Alert.alert("Couldn't claim this parcel", e instanceof Error ? e.message : 'Please try again.');
       refreshNearby(); // it may have been taken a moment ago
     } finally {
@@ -649,7 +688,7 @@ function GameView({ fix }: { fix: Fix }) {
                   <Text style={styles.xBadgeText}>{formatMultiplier(multiplier)}×</Text>
                 </View>
               )}
-              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
+              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
             </View>
           </View>
         </View>

@@ -20,34 +20,34 @@ export const STEPS_PER_WALK_POINT = 100;
 
 /**
  * ---------------------------------------------------------------------------
- *  PARCEL PRICE - FLAT. 50 WP, your first parcel and your five hundredth.
+ *  PARCEL PRICE - 50 WP, +1 for every 10 parcels owned.
  * ---------------------------------------------------------------------------
- *  5,000 steps buys a parcel, always. The product owner's decision
- *  (2026-09-26): "I don't want prices to increase." It is also TerraMine's
- *  shape (a flat 100 TB a mine) and the easiest rule in the game to explain.
+ *  5,000 steps buys a first parcel. It was flat from 2026-09-26 ("I don't
+ *  want prices to increase") until the 2026-09-27 rate cut, when the product
+ *  owner asked for a rising price alongside it.
  *
  *  History, because the trade is the same whoever tunes this next: it rose
  *  (20 WP + 8 per parcel owned) until 2026-09-24, went flat at 20 then 50,
- *  rose gently again (+1) for two days, and is flat for good now.
+ *  rose gently again (+1) for two days, went flat, and RISES AGAIN from
+ *  2026-09-27 at the product owner's request: +1 WP for every 10 parcels
+ *  owned. Gentle on purpose - the first parcels are unchanged and a player
+ *  on 400 pays 90 WP - but it bends the line: land owed no longer grows in
+ *  step with walking, it slows as a holding gets big.
  *
- *  WHAT A FLAT PRICE COSTS. Every parcel pays for ever, so land owed grows in
- *  a straight line with walking. That is only affordable because of the
- *  valves further down this file: the boost tapers once a player holds a lot
- *  of land (BOOST_TIERS), coins trade back into Walk Points
- *  (COINS_PER_WALK_POINT), and cash-out starts at $5 (MIN_REDEMPTION_COINS).
- *  Take one of those away and the price has to start rising again.
+ *      owned     0     50    100    200    400    1,000
+ *      price    50     55     60     70     90      150 WP
+ *
+ *  Reaching 400 parcels takes 27,800 WP instead of 20,000 (+39%).
  */
 export const PARCEL_BASE_PRICE_WP = 50;
 
-/**
- * The rise per parcel owned. ZERO - flat. Kept as a number rather than
- * deleted so a future rising price is one edit, not an archaeology exercise.
- */
-export const PARCEL_PRICE_STEP_WP: number = 0;
+/** +PARCEL_PRICE_STEP_WP for every PARCEL_PRICE_STEP_EVERY parcels owned. */
+export const PARCEL_PRICE_STEP_WP: number = 1;
+export const PARCEL_PRICE_STEP_EVERY = 10;
 
 /** What the NEXT parcel costs, given how many the player already owns. */
 export function parcelPriceWp(owned: number): number {
-  return PARCEL_BASE_PRICE_WP + PARCEL_PRICE_STEP_WP * Math.max(0, Math.floor(owned));
+  return PARCEL_BASE_PRICE_WP + PARCEL_PRICE_STEP_WP * Math.floor(Math.max(0, Math.floor(owned)) / PARCEL_PRICE_STEP_EVERY);
 }
 
 /** Kept for older callers: the price of a first parcel. */
@@ -86,7 +86,11 @@ export type AdRewardKind =
   | 'STREAK_SAVE'
   | 'TREASURE'
   | 'PIT_STOP'
-  | 'PHOTO';
+  | 'PHOTO'
+  // 2026-09-27: an ad is the price of claiming a parcel, and the key to a
+  // treasure box. Both are spent by the action they unlock (see AD_GATES).
+  | 'CLAIM'
+  | 'TREASURE_KEY';
 
 /**
  * ---------------------------------------------------------------------------
@@ -94,10 +98,9 @@ export type AdRewardKind =
  * ---------------------------------------------------------------------------
  *  20x coins, 30 minutes per rewarded ad, banking up to 24 hours, and up to
  *  48 ads a day - boosted around the clock, exactly as TerraMine allows. The
- *  product owner's target (2026-09-26): about 400 parcels fully boosted earns
- *  $1 a day, and it does - 400 x 3.87 coins/month x 20 / 30 = ~1,030 coins. That is
- *  exactly TerraMine's boost (researched 2026-09-26), and it is what makes
- *  "400 parcels fully boosted is about $1 a day" true here as it is there.
+ *  2026-09-26 target was about 400 parcels fully boosted = $1 a day. The
+ *  2026-09-27 rate cut (see RARITY_TABLE) brings that to about $0.22 a day:
+ *  400 x 0.82 coins/month x 20 / 30 = ~219 coins.
  *
  *  THE PROBLEM A BIG BOOST HAS, and the valve for it. What one ad COSTS us
  *  grows with the land it multiplies, while what the ad EARNS us does not. At
@@ -464,18 +467,28 @@ export function pitStopWp(mine: boolean, firstEver: boolean): number {
  *  PARCEL UPGRADES - a Walk Point sink that is CHEAPER for us than more land.
  * ---------------------------------------------------------------------------
  *  A parcel can be upgraded four times. Each level costs Walk Points AND a
- *  rewarded ad, and adds a flat +1 coin a month:
+ *  rewarded ad, and adds a flat +0.15 coins a month (was +1 before the
+ *  2026-09-27 rate cut - kept at the same share of an average parcel):
  *
  *      level 1   25 WP + 1 ad     level 3   75 WP + 1 ad
  *      level 2   50 WP + 1 ad     level 4  100 WP + 1 ad
  *
  *  Fully upgrading one parcel costs 250 WP (25,000 steps) and four ads, and
- *  adds 4 coins a month = $0.048 a year - it more than doubles a rocky
- *  parcel. Those 250 WP would otherwise buy five parcels earning about as
+ *  adds 0.6 coins a month - it doubles a rocky parcel. Those 250 WP would otherwise buy five parcels earning about as
  *  much between them, so upgrading costs us no more, and it pays four ads.
  */
 export const PARCEL_MAX_UPGRADE = 4;
-export const PARCEL_UPGRADE_COINS_PER_LEVEL = 1;
+export const PARCEL_UPGRADE_COINS_PER_LEVEL = 0.15;
+
+/**
+ * A parcel's monthly rate as SQL, for queries that total a player's land.
+ * One definition, because four queries used to hard-code "+1 per level".
+ * Cast to float8: node-pg hands NUMERIC back as a string.
+ */
+export function parcelRateSql(alias = ''): string {
+  const a = alias ? `${alias}.` : '';
+  return `(${a}coins_per_month + ${a}upgrade_level * ${PARCEL_UPGRADE_COINS_PER_LEVEL})::float8`;
+}
 
 /** Walk Points to go from `level` to `level + 1`. */
 export function parcelUpgradeCostWp(level: number): number {
@@ -484,7 +497,9 @@ export function parcelUpgradeCostWp(level: number): number {
 
 /** A parcel's real monthly rate: its mineral plus whatever it has been upgraded by. */
 export function parcelCoinsPerMonth(baseCoinsPerMonth: number, upgradeLevel: number): number {
-  return baseCoinsPerMonth + PARCEL_UPGRADE_COINS_PER_LEVEL * Math.max(0, Math.min(PARCEL_MAX_UPGRADE, upgradeLevel));
+  const level = Math.max(0, Math.min(PARCEL_MAX_UPGRADE, upgradeLevel));
+  // Rounded to the cent-of-a-coin the column holds, so 0.6 + 0.15 is 0.75, not 0.7499999.
+  return Math.round((Number(baseCoinsPerMonth) + PARCEL_UPGRADE_COINS_PER_LEVEL * level) * 100) / 100;
 }
 
 /**
@@ -515,6 +530,11 @@ export const AD_STREAK_REWARD_WP = 10;
  *  A box appears a few hundred metres away; reach it and open it for Walk
  *  Points. Two a day are free, and each further one costs a rewarded ad.
  *  They expire, so they cannot be hoarded.
+ *
+ *  THE KEY (2026-09-27). The two free boxes now open with a rewarded ad - a
+ *  TREASURE_KEY - once AD_GATES is on, and pay more for it: 10-20 WP, up
+ *  from 6-14. A box that an ad already paid to spawn opens without a key:
+ *  one ad per box, never two.
  */
 export const TREASURE_FREE_PER_DAY = 2;
 export const TREASURE_MAX_PER_DAY = 10;
@@ -522,8 +542,8 @@ export const TREASURE_MIN_DISTANCE_M = 150;
 export const TREASURE_MAX_DISTANCE_M = 400;
 export const TREASURE_COLLECT_DISTANCE_M = 30;
 export const TREASURE_TTL_MINUTES = 120;
-export const TREASURE_MIN_WP = 6;
-export const TREASURE_MAX_WP = 14;
+export const TREASURE_MIN_WP = 10;
+export const TREASURE_MAX_WP = 20;
 
 /**
  * ---------------------------------------------------------------------------
@@ -1301,22 +1321,40 @@ export interface RarityDefinition {
  * diamond: finding one should still change an account.
  *
  *      mineral    odds   coins/month   $/year
- *      ROCKY      60%        3         $0.036
- *      COAL       25%        4         $0.048
- *      AMETHYST   10%        5         $0.060
- *      SAPPHIRE    4%        8         $0.096
- *      RUBY        1%       25         $0.300
+ *      ROCKY      60%       0.6        $0.0072
+ *      COAL       25%       0.8        $0.0096
+ *      AMETHYST   10%       1.2        $0.0144
+ *      SAPPHIRE    4%       2          $0.024
+ *      RUBY        1%       6          $0.072
  *
- *  Average parcel: 3.87 coins a month ($0.0039), against TerraMine's
- *  $0.0035. Changing a rate is a one-line edit here plus a migration for the
- *  CHECK constraint that pins it (see db/migrations/029).
+ *  Average parcel: 0.82 coins a month. (It was 3.87 - TerraMine's level -
+ *  until 2026-09-27; see the note below for why it came down.) Changing a
+ *  rate is a one-line edit here plus a migration for the CHECK constraint
+ *  that pins it (see db/migrations/032).
+ */
+/*
+ * RATES CUT 2026-09-27 (migration 032), average 3.87 -> 0.82 coins a month.
+ *
+ * The product owner asked for parcels to earn less, and a tester (Zhev) had
+ * the arithmetic right: a parcel costs a day's walk and nothing else, then
+ * pays real-money value for ever. At the old rates a player on 400 parcels
+ * cost about $0.02 per boost ad watched - what a rewarded ad EARNS in the US,
+ * and more than it earns almost anywhere else - and the unboosted part is
+ * paid with no ad behind it at all. Fareground has no in-app purchases (Atlas
+ * Earth and TerraMine both do), so ads are all that funds this.
+ *
+ * Planning figure: $0.008 per rewarded view, paying out at most ~60% of it.
+ * At 400 parcels a boost ad now costs 400 x 0.82 x 19 / 1440 = 4.3 coins
+ * ($0.004), and every parcel is paid for up front by its claim ad (~$0.008,
+ * about a year of its unboosted income). 400 parcels boosted all day is about
+ * $0.22 a day. The ratios between minerals are kept (rocky:ruby = 1:10).
  */
 export const RARITY_TABLE: readonly RarityDefinition[] = [
-  { rarity: 'ROCKY',    weightBasisPoints: 6_000, coinsPerMonth: 3 },  // 60%
-  { rarity: 'COAL',     weightBasisPoints: 2_500, coinsPerMonth: 4 },  // 25%
-  { rarity: 'AMETHYST', weightBasisPoints: 1_000, coinsPerMonth: 5 },  // 10%
-  { rarity: 'SAPPHIRE', weightBasisPoints:   400, coinsPerMonth: 8 },  //  4%
-  { rarity: 'RUBY',     weightBasisPoints:   100, coinsPerMonth: 25 }, //  1%
+  { rarity: 'ROCKY',    weightBasisPoints: 6_000, coinsPerMonth: 0.6 }, // 60%
+  { rarity: 'COAL',     weightBasisPoints: 2_500, coinsPerMonth: 0.8 }, // 25%
+  { rarity: 'AMETHYST', weightBasisPoints: 1_000, coinsPerMonth: 1.2 }, // 10%
+  { rarity: 'SAPPHIRE', weightBasisPoints:   400, coinsPerMonth: 2 },   //  4%
+  { rarity: 'RUBY',     weightBasisPoints:   100, coinsPerMonth: 6 },   //  1%
 ] as const;
 
 /**

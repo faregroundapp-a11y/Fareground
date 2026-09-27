@@ -438,7 +438,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
         <span class="n">03</span>
         <h3>It pays you, hour after hour</h3>
         <p>Every parcel turns out to be a mineral. Rocky ground trickles. A ruby pours. The coins accumulate while the app is closed, and you collect them whenever you open it.</p>
-        <div class="fact">3–25 coins a month, forever</div>
+        <div class="fact">0.6–6 coins a month, forever</div>
       </div>
     </div>
   </div></section>
@@ -456,27 +456,27 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
       <div class="mrow" style="--g: var(--rocky)">
         <i class="mgem"></i><span class="name">Rocky</span>
         <span><span class="bar-odds"><i style="width:100%"></i></span></span>
-        <span class="rate">3 coins/month</span><span class="yr">60% · $0.036</span>
+        <span class="rate">0.6 coins/month</span><span class="yr">60% · $0.007</span>
       </div>
       <div class="mrow" style="--g: var(--coal)">
         <i class="mgem"></i><span class="name">Coal</span>
         <span><span class="bar-odds"><i style="width:41.7%"></i></span></span>
-        <span class="rate">4 coins/month</span><span class="yr">25% · $0.049</span>
+        <span class="rate">0.8 coins/month</span><span class="yr">25% · $0.010</span>
       </div>
       <div class="mrow" style="--g: var(--amethyst)">
         <i class="mgem"></i><span class="name">Amethyst</span>
         <span><span class="bar-odds"><i style="width:16.7%"></i></span></span>
-        <span class="rate">5 coins/month</span><span class="yr">10% · $0.061</span>
+        <span class="rate">1.2 coins/month</span><span class="yr">10% · $0.015</span>
       </div>
       <div class="mrow" style="--g: var(--sapphire)">
         <i class="mgem"></i><span class="name">Sapphire</span>
         <span><span class="bar-odds"><i style="width:6.7%"></i></span></span>
-        <span class="rate">8 coins/month</span><span class="yr">4% · $0.097</span>
+        <span class="rate">2 coins/month</span><span class="yr">4% · $0.024</span>
       </div>
       <div class="mrow" style="--g: var(--ruby)">
         <i class="mgem"></i><span class="name">Ruby</span>
         <span><span class="bar-odds"><i style="width:1.7%"></i></span></span>
-        <span class="rate">25 coins/month</span><span class="yr">1% · $0.30</span>
+        <span class="rate">6 coins/month</span><span class="yr">1% · $0.073</span>
       </div>
     </div>
 
@@ -551,7 +551,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
           <div class="lrow"><span>A rocky parcel, per year</span><span>36 coins</span></div>
           <div class="lrow"><span>A ruby parcel, per year</span><span>304 coins</span></div>
           <div class="lrow"><span>First parcel costs</span><span>50 WP · 5,000 steps</span></div>
-          <div class="lrow"><span>Every parcel after</span><span>50 WP · same price</span></div>
+          <div class="lrow"><span>Every parcel after</span><span>+1 WP per 10 owned · plus an ad</span></div>
           <div class="lrow"><span>Boosts</span><span>20× coins, 30 min per ad, all day</span></div>
         </div>
         <div class="hood">
@@ -585,13 +585,13 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
   'use strict';
 
   // The real economy, straight out of backend/src/game/rules.ts
-  var BASE_PRICE = 50, PRICE_STEP = 0, STEPS_PER_WP = 100;
+  var BASE_PRICE = 50, PRICE_STEP = 1, PRICE_EVERY = 10, STEPS_PER_WP = 100;
   var MINERALS = [
-    { key: 'Rocky',    odds: 60, rate: 3,  color: '#98A69B' },
-    { key: 'Coal',     odds: 25, rate: 4,  color: '#5B6B66' },
-    { key: 'Amethyst', odds: 10, rate: 5,  color: '#A98BFF' },
-    { key: 'Sapphire', odds: 4,  rate: 8,  color: '#4C93F5' },
-    { key: 'Ruby',     odds: 1,  rate: 25, color: '#D23A55' }
+    { key: 'Rocky',    odds: 60, rate: 0.6, color: '#98A69B' },
+    { key: 'Coal',     odds: 25, rate: 0.8, color: '#5B6B66' },
+    { key: 'Amethyst', odds: 10, rate: 1.2, color: '#A98BFF' },
+    { key: 'Sapphire', odds: 4,  rate: 2,   color: '#4C93F5' },
+    { key: 'Ruby',     odds: 1,  rate: 6,   color: '#D23A55' }
   ];
 
   var SIZE = 6;               // 6 x 6 squares of ground
@@ -608,7 +608,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
   var state = { wp: 50, owned: 0, rate: 0 };
   var cells = [];
 
-  function price() { return BASE_PRICE + PRICE_STEP * state.owned; }
+  function price() { return BASE_PRICE + PRICE_STEP * Math.floor(state.owned / PRICE_EVERY); }
 
   function roll() {
     var n = Math.random() * 100, acc = 0;
@@ -624,7 +624,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
   function paint() {
     elWp.textContent = state.wp;
     elOwned.textContent = state.owned;
-    elRate.textContent = state.rate;
+    elRate.textContent = Math.round(state.rate * 100) / 100;
   }
 
   function build() {

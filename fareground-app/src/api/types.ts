@@ -37,7 +37,10 @@ export type AdRewardKind =
   | 'STREAK_SAVE'
   | 'TREASURE'
   | 'PIT_STOP'
-  | 'PHOTO';
+  | 'PHOTO'
+  /** An ad is the price of a parcel, and the key to a treasure box. */
+  | 'CLAIM'
+  | 'TREASURE_KEY';
 
 /**
  * `shoes` was added 2026-09-25, once the runner had chibi proportions and

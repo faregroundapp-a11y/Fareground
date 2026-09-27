@@ -492,6 +492,28 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 29. Parcels earn less, cost more, and cost an ad (2026-09-27)
+
+Product owner's call after Zhev's spreadsheet (a parcel costs a day's walk and
+pays for ever; at 400 parcels a boost ad paid out ~what it earned).
+
+- **Rates cut** (migration 032, `coins_per_month` is now NUMERIC(6,2)):
+  ROCKY 0.6, COAL 0.8, AMETHYST 1.2, SAPPHIRE 2, RUBY 6 (avg 0.82, was 3.87).
+  Upgrades +0.15/level (was +1). All land totals go through `parcelRateSql()`
+  in rules.ts - never hand-write `coins_per_month + upgrade_level` again.
+  400 parcels boosted all day is now ~$0.22/day; a boost ad at 400 parcels
+  pays out ~$0.004 against ~$0.008 earned.
+- **Price rises**: 50 WP + 1 per 10 parcels owned (400 owned -> 90 WP).
+- **Claim ad**: new ad kind CLAIM (migration 033), spent inside the claim's
+  transaction (a failed claim keeps the ad). **Treasure key**: TREASURE_KEY
+  ad opens a free box; boxes an ad spawned open free. Box reward 10-20 WP.
+- **`AD_GATES` env var** (default `off`): off = ads are spent if sent but not
+  required, so old APKs still claim. **Set `AD_GATES=on` in Render once
+  testers have the build with the claim ad.**
+- Unboosted, the $5 cash-out is now ~19 months for a regular walker (tests
+  pin it); boosting is what shortens it. Cash-out stays off.
+- e2e.ps1 updated for fractional rates but NOT run (needs PowerShell).
+
 ## 28. Lost steps, invisible parcels, the database move (2026-09-27)
 
 - **Database moved to Neon** (Render's free Postgres expired). Parcels claimed
