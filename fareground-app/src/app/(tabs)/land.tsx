@@ -84,8 +84,13 @@ export default function LandScreen() {
               {boosted && boostEndsAt && (
                 <View style={styles.boostRow}>
                   <BoltIcon size={18} color="#FFFFFF" />
-                  <Text style={styles.boostText}>{formatMultiplier(boost?.multiplier ?? 1)}× boost · earning {Math.round(rate * (boost?.multiplier ?? 1))}/month</Text>
-                  <Countdown endsAt={boostEndsAt} onDone={refreshBalance} style={[styles.boostText, mono, { marginLeft: 'auto' }]} />
+                  {/* The label gives way (one line, trimmed) so the timer always
+                      fits - on narrow phones it used to push the countdown
+                      out of the pill. */}
+                  <Text style={[styles.boostText, { flex: 1 }]} numberOfLines={1}>
+                    {formatMultiplier(boost?.multiplier ?? 1)}× boost · {formatRate(Math.round(rate * (boost?.multiplier ?? 1) * 10) / 10)}/month
+                  </Text>
+                  <Countdown endsAt={boostEndsAt} onDone={refreshBalance} style={[styles.boostText, mono]} />
                 </View>
               )}
               <View style={styles.collection}>
