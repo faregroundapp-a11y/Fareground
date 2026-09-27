@@ -6,7 +6,8 @@ import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
 import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { Nunito_900Black } from '@expo-google-fonts/nunito/900Black';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 // Side effect: defines the background step-sync task at load time, which the
@@ -36,5 +37,35 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }} />
     </SessionProvider>
+  );
+}
+
+/**
+ * THE SAFETY NET. Expo Router shows this instead of the screen whenever a
+ * screen throws while drawing. Without it, a single error in a release build
+ * closes the whole app ("Fareground keeps stopping") - which is exactly what
+ * the 2026-09-27 build did when the step setup screen read game state it did
+ * not have. Now the player gets a message and a button to try again.
+ *
+ * Plain styles only: this must still draw if the fonts or the theme failed.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#F4F5F1', gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '800', color: '#121814' }}>Something went wrong</Text>
+      <Text style={{ fontSize: 15, color: '#545E51', textAlign: 'center' }}>
+        That screen hit a problem. Your land, steps and Walk Points are safe.
+      </Text>
+      <Pressable
+        onPress={() => void retry()}
+        style={{ backgroundColor: '#2F5D50', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 }}
+        accessibilityRole="button"
+      >
+        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>Try again</Text>
+      </Pressable>
+      <Text style={{ fontSize: 11, color: '#8A9386', textAlign: 'center' }} numberOfLines={3}>
+        {error.message}
+      </Text>
+    </View>
   );
 }

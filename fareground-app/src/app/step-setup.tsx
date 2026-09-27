@@ -20,7 +20,8 @@ import {
   updateHealthConnect,
 } from '@/native/healthSteps';
 import { notifyStepSetupChanged } from '@/native/stepEvents';
-import { useGameSteps } from '@/state/game';
+import { runStepSync } from '@/hooks/useStepSync';
+import { useSession } from '@/state/session';
 import { colors, fonts, radius, shadow, space, type } from '@/theme';
 
 /**
@@ -46,7 +47,28 @@ const BG_TRIED_KEY = 'fareground.bgPermissionTried';
 
 export default function StepSetup() {
   const { health, refresh } = useStepHealth();
-  const steps = useGameSteps();
+  // This screen sits OUTSIDE the tabs, so it cannot use the game's step state
+  // (GameProvider lives in the tabs layout). Reading it here threw on every
+  // open and crashed the 2026-09-27 build right after login. It runs its own
+  // sync instead - the same one the tabs run - and tells them it happened.
+  const { token } = useSession();
+  const [syncing, setSyncing] = useState(false);
+  const [seen, setSeen] = useState<{ steps: number | null; at: Date | null }>({ steps: null, at: null });
+  async function syncNow() {
+    if (!token) return;
+    setSyncing(true);
+    try {
+      const { total } = await runStepSync(token, {
+        onTotal: (t) => setSeen((s) => ({ ...s, steps: t })),
+      });
+      setSeen({ steps: total, at: new Date() });
+    } catch {
+      // Offline or the server asleep: the batch is kept and retried.
+    } finally {
+      setSyncing(false);
+      notifyStepSetupChanged();
+    }
+  }
   const [busy, setBusy] = useState<string | null>(null);
   const [permissionRefused, setPermissionRefused] = useState(false);
   const [bgTried, setBgTried] = useState(false);
@@ -158,14 +180,12 @@ export default function StepSetup() {
         <View style={styles.card}>
           <Text style={type.label}>Check it works</Text>
           <Text style={[type.caption, { marginTop: 2 }]}>
-            {steps.stepsToday !== null
-              ? `Fareground sees ${steps.stepsToday.toLocaleString()} steps today.`
+            {seen.steps !== null
+              ? `Fareground sees ${seen.steps.toLocaleString()} steps today.`
               : 'Tap below and Fareground will fetch your steps now.'}
-            {steps.lastSyncedAt
-              ? ` Last synced ${steps.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
-              : ''}
+            {seen.at ? ` Synced ${seen.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : ''}
           </Text>
-          <Button label="Sync steps now" variant="primary" busy={steps.syncing} onPress={() => void act('sync', steps.syncByHand)} />
+          <Button label="Sync steps now" variant="primary" busy={syncing} onPress={() => void act('sync', syncNow)} />
         </View>
 
         {/* Watches and bands. */}

@@ -27,7 +27,16 @@ export function StepSetupPrompt() {
       .then(async (shown) => {
         if (!live || shown === '1') return;
         await AsyncStorage.setItem(SHOWN_KEY, '1');
-        router.push('/step-setup');
+        // A beat after the tabs have drawn, never mid-launch, and never able
+        // to take the app down if navigation is not ready yet.
+        setTimeout(() => {
+          if (!live) return;
+          try {
+            router.push('/step-setup');
+          } catch {
+            // Not ready: the Walk tab's step card is the way there anyway.
+          }
+        }, 1200);
       })
       .catch(() => undefined);
     return () => {
