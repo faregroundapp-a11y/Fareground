@@ -24,14 +24,31 @@ export function useDaily() {
   const { token } = useSession();
   const [daily, setDaily] = useState<DailyStatus | null>(null);
   const inFlight = useRef(false);
+  /**
+   * A refresh asked for while one is running. It used to be DROPPED, and that
+   * left "Double it" on screen after doubling: closing the ad brings the app
+   * back to the foreground, which starts a refresh BEFORE the double is paid;
+   * the refresh asked for after the payout was then skipped, and the stale
+   * answer stuck until the next timer. Now it waits its turn and runs.
+   */
+  const again = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (!token || inFlight.current) return;
+    if (!token) return;
+    if (inFlight.current) {
+      again.current = true;
+      return;
+    }
     inFlight.current = true;
     try {
-      setDaily(await api.daily(token));
-    } catch {
-      // Keep the last good state; the next refresh will retry.
+      do {
+        again.current = false;
+        try {
+          setDaily(await api.daily(token));
+        } catch {
+          // Keep the last good state; the next refresh will retry.
+        }
+      } while (again.current);
     } finally {
       inFlight.current = false;
     }

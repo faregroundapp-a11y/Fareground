@@ -24,6 +24,8 @@ export function useBalance() {
   /** Coins your land earned while the app was closed, for a "welcome back". */
   const [awayCoins, setAwayCoins] = useState(0);
   const inFlight = useRef(false);
+  /** A refresh asked for mid-flight: run it afterwards, never drop it (see useDaily). */
+  const again = useRef(false);
   const firstSinceOpen = useRef(true);
 
   const apply = useCallback((next: Balance) => {
@@ -41,7 +43,11 @@ export function useBalance() {
 
   /** Fetch once. Resolves to the new balance, or throws. */
   const load = useCallback(async (): Promise<Balance | null> => {
-    if (!token || inFlight.current) return null;
+    if (!token) return null;
+    if (inFlight.current) {
+      again.current = true;
+      return null;
+    }
     inFlight.current = true;
     try {
       return await api.balance(token);
@@ -53,8 +59,15 @@ export function useBalance() {
   /** For callers - after a claim, a step sync, an ad reward. */
   const refresh = useCallback(async () => {
     try {
-      const next = await load();
+      let next = await load();
       if (next) apply(next);
+      // Something changed while that was in flight: fetch again so the
+      // screen shows what happened after it, not before.
+      while (next && again.current) {
+        again.current = false;
+        next = await load();
+        if (next) apply(next);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your balance.');
     }
@@ -65,7 +78,16 @@ export function useBalance() {
     let cancelled = false;
     const tick = () => {
       load().then(
-        (next) => { if (!cancelled && next) apply(next); },
+        (next) => {
+          if (cancelled || !next) return;
+          apply(next);
+          // A refresh was asked for while this ran (an ad just paid out):
+          // this answer predates it, so go again.
+          if (again.current) {
+            again.current = false;
+            tick();
+          }
+        },
         (e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load your balance.'); },
       );
     };
