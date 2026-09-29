@@ -14,6 +14,9 @@ import { Countdown } from './Countdown';
 import { BoltIcon, CoinIcon, PinIcon, PlayAdIcon, StepsIcon } from './icons';
 import { DraggableSheet, SheetScrollView } from './DraggableSheet';
 
+/** Bonus-WP ads come one at a time, this far apart (the server decides). */
+const WP_AD_EVERY_MIN = 20;
+
 /**
  * "Free rewards": every rewarded ad offer in one place.
  *
@@ -73,6 +76,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
   }
 
   const r = balance?.rewards;
+  const wpCooling = (r?.walkPoints.nextInSeconds ?? 0) > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -112,15 +116,22 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
                 icon={<StepsIcon size={24} color={colors.steps} />}
                 wellColor={colors.accentSoft}
                 title={`+${r.walkPoints.perAd} Walk Points`}
-                subtitle={`Worth ${(r.walkPoints.perAd * balance.stepsPerWalkPoint).toLocaleString()} steps, straight away`}
+                subtitle={`Worth ${(r.walkPoints.perAd * balance.stepsPerWalkPoint).toLocaleString()} steps · one every ${WP_AD_EVERY_MIN} min`}
+                // Cooling down: tick to the next one, then refresh so the
+                // button wakes up by itself. The 2 s spare covers a phone
+                // clock a little ahead of the server's.
+                right={wpCooling && r.walkPoints.nextAt ? (
+                  <Live endsAt={Date.parse(r.walkPoints.nextAt) + 2000} onDone={refresh} />
+                ) : null}
                 button={{
-                  label: r.walkPoints.adsLeftToday > 0 ? `Watch ad · +${r.walkPoints.perAd} WP` : 'Back tomorrow',
+                  label: wpCooling ? 'Next one soon'
+                    : r.walkPoints.adsLeftToday > 0 ? `Watch ad · +${r.walkPoints.perAd} WP` : 'Back tomorrow',
                   variant: 'primary',
-                  disabled: r.walkPoints.adsLeftToday === 0,
+                  disabled: wpCooling || r.walkPoints.adsLeftToday === 0,
                   busy: busy === 'WALK_POINTS',
                   onPress: () => run('WALK_POINTS'),
                 }}
-                left={`${r.walkPoints.adsLeftToday} left today`}
+                left={wpCooling ? 'Ready when the timer ends' : 'Ready now'}
                 disabledAll={busy !== null}
               />
 
@@ -177,10 +188,10 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
   );
 }
 
-function Live({ endsAt }: { endsAt: number }) {
+function Live({ endsAt, onDone }: { endsAt: number; onDone?: () => void }) {
   return (
     <View style={styles.live}>
-      <Countdown endsAt={endsAt} style={[styles.liveText, mono]} />
+      <Countdown endsAt={endsAt} onDone={onDone} style={[styles.liveText, mono]} />
     </View>
   );
 }

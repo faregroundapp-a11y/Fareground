@@ -40,7 +40,7 @@ $runId = [guid]::NewGuid().ToString('N').Substring(0, 8)
 $RULES = @{
     ParcelBasePrice   = 50      # PARCEL_BASE_PRICE_WP
     AdWalkPoints      = 1       # AD_WALK_POINTS
-    MaxWpAdsPerDay    = 50      # MAX_WP_ADS_PER_DAY
+    WpAdCooldownMin   = 20      # WP_AD_COOLDOWN_MINUTES
     ParcelPriceStep   = 1       # PARCEL_PRICE_STEP_WP - per PARCEL_PRICE_STEP_EVERY parcels
     ParcelPriceEvery  = 10      # PARCEL_PRICE_STEP_EVERY
     BoostMultiplier   = 20      # BOOST_MULTIPLIER
@@ -520,26 +520,23 @@ $t = Invoke-Api POST '/rewards/start' @{ kind = 'WALK_POINTS' } -Token $p.token
 Check 'start -> 201 with a ticket' ($t.status -eq 201 -and $t.body.nonce.Length -eq 32) "got $($t.status)"
 Check 'ticket names our user id for the ad SDK' ([bool]$t.body.userId) 'no userId'
 $c = Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce } -Token $p.token
-Check 'complete grants +5 WP' ($c.body.granted -eq $true -and $c.body.amount -eq 5) "got $($c.body | ConvertTo-Json -Compress)"
+Check "complete grants +$($RULES.AdWalkPoints) WP" ($c.body.granted -eq $true -and $c.body.amount -eq $RULES.AdWalkPoints) "got $($c.body | ConvertTo-Json -Compress)"
 $again = Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce } -Token $p.token
 Check 'completing twice is a replay' ($again.body.replayed -eq $true) "got $($again.body.replayed)"
-Check '...and pays nothing extra' ((Invoke-Api GET '/user/balance' -Token $p.token).body.walkPoints -eq 5) 'paid twice'
+Check '...and pays nothing extra' ((Invoke-Api GET '/user/balance' -Token $p.token).body.walkPoints -eq $RULES.AdWalkPoints) 'paid twice'
 $other = New-Player
 $steal = Invoke-Api POST '/rewards/complete' @{ nonce = $t.body.nonce } -Token $other.token
 Check "another player's ticket is unknown to them (404)" ($steal.status -eq 404) "got $($steal.status)"
 $bad = Invoke-Api POST '/rewards/start' @{ kind = 'FREE_MONEY' } -Token $p.token
 Check 'unknown reward kind -> 400' ($bad.status -eq 400) "got $($bad.status)"
-# One was already watched above; watch the rest of the day's allowance.
-for ($i = 0; $i -lt ($RULES.MaxWpAdsPerDay - 1); $i++) {
-    $tk = Invoke-Api POST '/rewards/start' @{ kind = 'WALK_POINTS' } -Token $p.token
-    Invoke-Api POST '/rewards/complete' @{ nonce = $tk.body.nonce } -Token $p.token | Out-Null
-}
-$expected = $RULES.MaxWpAdsPerDay * $RULES.AdWalkPoints
+# One bonus-WP ad every 20 minutes: the next is refused until the wait is up.
 $b = (Invoke-Api GET '/user/balance' -Token $p.token).body
-Check "$($RULES.MaxWpAdsPerDay) ads -> $expected WP" ($b.walkPoints -eq $expected) "got $($b.walkPoints)"
-Check 'none left today' ($b.rewards.walkPoints.adsLeftToday -eq 0) "got $($b.rewards.walkPoints.adsLeftToday)"
+Check 'the next one is on a timer' ($b.rewards.walkPoints.nextInSeconds -gt 0 -and $b.rewards.walkPoints.nextAt) "got $($b.rewards.walkPoints | ConvertTo-Json -Compress)"
 $over = Invoke-Api POST '/rewards/start' @{ kind = 'WALK_POINTS' } -Token $p.token
-Check 'one more is refused BEFORE it is shown (429)' ($over.status -eq 429) "got $($over.status)"
+Check 'one straight after is refused BEFORE it is shown (429)' ($over.status -eq 429) "got $($over.status)"
+Sql "UPDATE ad_rewards SET granted_at = granted_at - INTERVAL '$($RULES.WpAdCooldownMin + 1) minutes' WHERE user_id = (SELECT id FROM users WHERE email = '$($p.email)');" | Out-Null
+$later = Invoke-Api POST '/rewards/start' @{ kind = 'WALK_POINTS' } -Token $p.token
+Check "...and allowed again after $($RULES.WpAdCooldownMin) minutes" ($later.status -eq 201) "got $($later.status)"
 
 Write-Host "`n=== 22. Rewarded ads: boosts ===" -ForegroundColor Cyan
 $p = New-Player -Wp (Parcel-Price 1)
@@ -1013,6 +1010,8 @@ Check 'no chest before the third ad (409)' ($early.status -eq 409) "got $($early
 for ($i = 0; $i -lt 3; $i++) {
     $tk = Invoke-Api POST '/rewards/start' @{ kind = 'WALK_POINTS' } -Token $p.token
     Invoke-Api POST '/rewards/complete' @{ nonce = $tk.body.nonce } -Token $p.token | Out-Null
+    # Skip the 20-minute wait between bonus-WP ads.
+    Sql "UPDATE ad_rewards SET granted_at = granted_at - INTERVAL '21 minutes' WHERE user_id = (SELECT id FROM users WHERE email = '$($p.email)');" | Out-Null
 }
 $d = (Invoke-Api GET '/daily' -Token $p.token).body
 Check 'three ads makes the bonus chest ready' ($d.adStreak.adsToday -ge 3 -and $d.adStreak.ready -eq $true) "got $($d.adStreak | ConvertTo-Json -Compress)"

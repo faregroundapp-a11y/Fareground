@@ -71,6 +71,12 @@ export interface RewardStatus {
   walkPoints: {
     perAd: number;
     adsLeftToday: number;
+    /**
+     * One bonus-WP ad every 20 minutes: seconds until the next, 0 = ready.
+     * Optional because a server from before the timer does not send it.
+     */
+    nextInSeconds?: number;
+    nextAt?: string | null;
   };
   /** A leaderboard prize boost, if one is running. */
   prize: {

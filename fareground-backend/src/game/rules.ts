@@ -187,12 +187,15 @@ export function boostMultiplierFor(parcels: number): number {
 export const AD_WALK_POINTS = 1;
 
 /**
- * FIFTY a day at 1 WP - still 50 WP, one parcel, but five times the ads for
- * it: the product owner's call (2026-09-27), to earn more per WP given out.
- * It has been 6, 20, 10, 20 and 10 at 5 WP each. The button shows how many
- * are LEFT, which is what fixed the "infinite" feeling.
+ * ONE bonus-WP ad every 20 minutes (2026-09-29, the product owner's call):
+ * "1 WP ad every 20 minutes, not the 50 consecutive ones". The wait is the
+ * limit now - it spreads the ads through the day instead of letting someone
+ * watch fifty in a row. The daily cap is only the arithmetic ceiling that
+ * follows from it (24 h / 20 min = 72), kept so nothing else changes shape.
+ * History: 6, 20, 10, 20, 10 at 5 WP, then 50 at 1 WP.
  */
-export const MAX_WP_ADS_PER_DAY = 50;
+export const WP_AD_COOLDOWN_MINUTES = 20;
+export const MAX_WP_ADS_PER_DAY = (24 * 60) / WP_AD_COOLDOWN_MINUTES;
 
 /** The post-claim bonus ad: once per parcel, within this long of claiming it. */
 export const CLAIM_BONUS_WP = AD_WALK_POINTS;

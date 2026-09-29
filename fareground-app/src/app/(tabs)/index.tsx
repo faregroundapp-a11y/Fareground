@@ -687,7 +687,8 @@ function GameView({ fix }: { fix: Fix }) {
               busy={claiming}
               onPress={claim}
               adOffer={
-                claimState.kind === 'short' && adsAvailable() && (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0
+                claimState.kind === 'short' && adsAvailable() && (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0 &&
+                (balance?.rewards.walkPoints.nextInSeconds ?? 0) === 0
                   ? {
                       label: `Watch an ad · +${balance?.rewards.walkPoints.perAd ?? 1} WP`,
                       busy: adBusy === 'WALK_POINTS',

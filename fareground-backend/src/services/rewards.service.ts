@@ -30,6 +30,7 @@ import { AD_UNLOCKABLE } from '../game/avatar';
 import {
   AD_TICKET_TTL_SECONDS,
   AD_WALK_POINTS,
+  WP_AD_COOLDOWN_MINUTES,
   BOOST_MAX_BANKED_SECONDS,
   BOOST_SECONDS_PER_AD,
   INSTANT_COLLECT_HOURS,
@@ -80,6 +81,10 @@ export interface RewardStatus {
   walkPoints: {
     perAd: number;
     adsLeftToday: number;
+    /** Seconds until the next bonus-WP ad may be watched. 0 = now. */
+    nextInSeconds: number;
+    /** When the next one unlocks (ISO), or null when it is ready now. */
+    nextAt: string | null;
   };
   /** A leaderboard prize boost, if one is running. */
   prize: {
@@ -139,6 +144,7 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
     remaining_s: number;
     boost_ads: number;
     wp_ads: number;
+    wp_next_s: number;
     parcels: number;
     prize_ends_at: Date | null;
     prize_remaining_s: number;
@@ -168,6 +174,9 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS boost_ads,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'WALK_POINTS'
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS wp_ads,
+       COALESCE((SELECT GREATEST(EXTRACT(EPOCH FROM (MAX(granted_at) + INTERVAL '${WP_AD_COOLDOWN_MINUTES} minutes' - NOW())), 0)
+                   FROM ad_rewards WHERE user_id = $1 AND kind = 'WALK_POINTS' AND status = 'GRANTED'), 0)::float8
+         AS wp_next_s,
        (SELECT COUNT(*) FROM parcels WHERE owner_id = $1)::int AS parcels,
        (SELECT COUNT(*) FROM ad_rewards WHERE user_id = $1 AND kind = 'INSTANT_COLLECT'
            AND status = 'GRANTED' AND granted_at >= ${TODAY_BEGAN})::int AS collect_ads,
@@ -202,6 +211,8 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
     walkPoints: {
       perAd: AD_WALK_POINTS,
       adsLeftToday: Math.max(0, dailyAdCap('WALK_POINTS') - row.wp_ads),
+      nextInSeconds: Math.ceil(row.wp_next_s),
+      nextAt: row.wp_next_s > 0 ? new Date(Date.now() + row.wp_next_s * 1000).toISOString() : null,
     },
     instantCollect: {
       hours: INSTANT_COLLECT_HOURS,
@@ -246,6 +257,11 @@ function assertCanEarn(status: RewardStatus, kind: AdRewardKind): void {
     if (!status.boost.canAdd) {
       throw new HttpError(409, `Your boost is already full (${BOOST_MAX_BANKED_SECONDS / 3600} hours). Top it up later.`);
     }
+  } else if (kind === 'WALK_POINTS' && status.walkPoints.nextInSeconds > 0) {
+    // Checked when the ad starts AND again when it pays, so two ads started
+    // together cannot both land inside one 20-minute window.
+    const mins = Math.max(1, Math.ceil(status.walkPoints.nextInSeconds / 60));
+    throw new HttpError(429, `Your next bonus Walk Point is ready in ${mins} min. Walking still counts!`);
   } else if (kind === 'WALK_POINTS' && status.walkPoints.adsLeftToday <= 0) {
     throw new HttpError(429, 'You have collected all of today\'s bonus Walk Points. Walking still counts!');
   } else if (kind === 'INSTANT_COLLECT') {

@@ -492,6 +492,24 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 32. Bonus WP ads: one every 20 minutes (2026-09-29)
+
+Was 50 a day that could all be watched back to back. Now it is ONE +1 WP
+ad, then the next unlocks 20 minutes after the last one paid
+(`WP_AD_COOLDOWN_MINUTES`). The daily cap left behind (`MAX_WP_ADS_PER_DAY`)
+is just 24 h / 20 min = 72, so the wait is the only limit anyone will feel.
+
+- Server: `rewards.walkPoints.nextInSeconds` and `nextAt` in the balance.
+  `/rewards/start` answers 429 "ready in N min" while waiting, and the same
+  check runs again when the ad pays, so two ads started together cannot both
+  land.
+- App: Free rewards shows a countdown on the bonus-WP card and wakes the
+  button when it ends; the claim panel's "Watch an ad · +1 WP" only shows
+  when one is ready.
+- Old builds do not know about the timer: they show the button and get the
+  429 message instead.
+- Not affected: the bonus ad after a claim (still extra), boosts, scouting.
+
 ## 31. The doorbell pays both players (2026-09-27)
 
 Tap someone else's plot -> "Ring the doorbell?" -> visitor +5 WP, owner +3 WP (still called the doorbell, at the product owner's request).

@@ -61,7 +61,8 @@ export default function WalkScreen() {
   // claim, testers read as "it increases instead of decreasing".
   const stepsToNext =
     toNextParcel === 0 ? 0 : (toNextParcel - 1) * stepsPerWp + (result?.stepsUntilNextWalkPoint ?? stepsPerWp);
-  const bonusLeft = balance?.rewards.walkPoints.adsLeftToday ?? 0;
+  const bonusReady =
+    (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0 && (balance?.rewards.walkPoints.nextInSeconds ?? 0) === 0;
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
@@ -233,7 +234,7 @@ export default function WalkScreen() {
             <View style={{ flex: 1 }}>
               <Text style={type.headline}>Free rewards</Text>
               <Text style={[type.caption, { marginTop: 2 }]}>
-                Double coins, bonus WP, collect early or scout further{bonusLeft ? ` · ${bonusLeft} bonus WP left today` : ''}.
+                Double coins, bonus WP, collect early or scout further{bonusReady ? ' · a bonus WP is ready' : ''}.
               </Text>
             </View>
           </View>
