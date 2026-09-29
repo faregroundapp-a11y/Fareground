@@ -90,7 +90,10 @@ export type AdRewardKind =
   // 2026-09-27: an ad is the price of claiming a parcel, and the key to a
   // treasure box. Both are spent by the action they unlock (see AD_GATES).
   | 'CLAIM'
-  | 'TREASURE_KEY';
+  | 'TREASURE_KEY'
+  // 2026-09-28: the "bonus" ad offered right after claiming a parcel. One per
+  // parcel, and NOT one of the day's MAX_WP_ADS_PER_DAY - it is extra.
+  | 'CLAIM_BONUS';
 
 /**
  * ---------------------------------------------------------------------------
@@ -190,6 +193,10 @@ export const AD_WALK_POINTS = 1;
  * are LEFT, which is what fixed the "infinite" feeling.
  */
 export const MAX_WP_ADS_PER_DAY = 50;
+
+/** The post-claim bonus ad: once per parcel, within this long of claiming it. */
+export const CLAIM_BONUS_WP = AD_WALK_POINTS;
+export const CLAIM_BONUS_WINDOW_MINUTES = 30;
 
 /** How long a "start watching" ticket stays valid. An ad is ~30 s. */
 export const AD_TICKET_TTL_SECONDS = 10 * 60;

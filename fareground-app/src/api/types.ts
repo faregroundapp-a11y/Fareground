@@ -40,7 +40,9 @@ export type AdRewardKind =
   | 'PHOTO'
   /** An ad is the price of a parcel, and the key to a treasure box. */
   | 'CLAIM'
-  | 'TREASURE_KEY';
+  | 'TREASURE_KEY'
+  /** The bonus offered right after a claim: one per parcel, outside the daily bonus-WP ads. */
+  | 'CLAIM_BONUS';
 
 /**
  * `shoes` was added 2026-09-25, once the runner had chibi proportions and

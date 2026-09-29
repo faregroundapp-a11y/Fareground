@@ -4,6 +4,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/api/client';
 import type { Parcel } from '@/api/types';
+import { BoostBubble } from '@/components/BoostBubble';
 import { Countdown } from '@/components/Countdown';
 import { NeighboursCard } from '@/components/NeighboursCard';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
@@ -47,7 +48,7 @@ export default function LandScreen() {
     setNote(null);
     haptics.press();
     const r = await watch('UPGRADE', { targetParcelId: parcel.id });
-    setNote(r.ok ? `Upgraded to level ${r.amount}: +1 coin/hour, forever.` : r.message);
+    setNote(r.ok ? `Upgraded to level ${r.amount}: +${UPGRADE_COINS_PER_LEVEL} coins/month, forever.` : r.message);
   }
 
   // Reload whenever the tab opens - you may have just claimed.
@@ -79,7 +80,17 @@ export default function LandScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.rate, mono]}>{formatRate(rate)} <Text style={styles.rateUnit}>coins / month</Text></Text>
                   <Text style={[styles.usd, mono]}>${(rate * MONTHS_PER_YEAR * COIN_USD).toFixed(3)} per year</Text>
+                  {/* Testers asked where their total is: it was only on the map's
+                      top pill, abbreviated. */}
+                  {balance && (
+                    <Text style={[styles.balanceLine, mono]}>
+                      You have {balance.coins.toLocaleString()} coins · ${(balance.coins * COIN_USD).toFixed(2)}
+                    </Text>
+                  )}
                 </View>
+                {rate > 0 && (
+                  <BoostBubble usdPerYear={rate * (boost?.multiplier ?? 20) * MONTHS_PER_YEAR * COIN_USD} />
+                )}
               </View>
               {boosted && boostEndsAt && (
                 <View style={styles.boostRow}>
@@ -208,6 +219,7 @@ const styles = StyleSheet.create({
   rate: { fontSize: 28, fontFamily: fonts.black, color: colors.ink, letterSpacing: -0.5 },
   rateUnit: { fontSize: 14, fontFamily: fonts.medium, color: colors.ink2 },
   usd: { fontSize: 12.5, color: colors.ink3, fontFamily: fonts.medium },
+  balanceLine: { fontSize: 12.5, color: colors.ink2, fontFamily: fonts.bold, marginTop: 2 },
   collection: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.sunk, borderRadius: radius.md, padding: 10 },
   slot: { alignItems: 'center', gap: 4, flex: 1 },
   slotN: { fontSize: 14, fontFamily: fonts.heavy, color: colors.ink },

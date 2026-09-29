@@ -43,6 +43,8 @@ import {
   microCoinsFor,
   splitMicroCoins,
   type AdRewardKind,
+  CLAIM_BONUS_WINDOW_MINUTES,
+  CLAIM_BONUS_WP,
   parcelPriceWp,
   parcelRateSql,
 } from '../game/rules';
@@ -300,6 +302,9 @@ export async function startAdReward(
       // Refuse the ad up front if the parcel could not be afforded anyway -
       // nobody should sit through an ad for a claim that cannot happen.
       await assertCanAffordParcel(client, userId);
+    } else if (kind === 'CLAIM_BONUS') {
+      if (!targetParcelId) throw new HttpError(400, 'Say which parcel the bonus is for.');
+      await assertCanClaimBonus(client, userId, targetParcelId);
     } else if (kind === 'TREASURE_KEY') {
       // The box itself is checked when it is opened; the key is spent then.
     } else if (kind === 'COSMETIC') {
@@ -323,7 +328,7 @@ export async function startAdReward(
         userId, kind, nonce, AD_TICKET_TTL_SECONDS,
         kind === 'DOUBLE' ? targetClaimId : null,
         kind === 'COSMETIC' ? cosmeticKey : null,
-        kind === 'UPGRADE' ? targetParcelId : null,
+        kind === 'UPGRADE' || kind === 'CLAIM_BONUS' ? targetParcelId : null,
       ],
     );
     return { nonce, kind, expiresAt: inserted.rows[0].expires_at, userId };
@@ -446,6 +451,16 @@ async function grant(
       [ticket.user_id, SCOUT_SECONDS_PER_AD, SCOUT_MAX_BANKED_SECONDS],
     );
     amount = Math.max(1, Math.floor(r.rows[0].seconds));
+  } else if (ticket.kind === 'CLAIM_BONUS') {
+    // Checked again at payout: two tickets started for one parcel must not
+    // both pay.
+    if (!ticket.target_parcel_id) throw new HttpError(409, 'That parcel is gone.');
+    await assertCanClaimBonus(client, ticket.user_id, ticket.target_parcel_id);
+    amount = await throttledAmount(client, ticket.user_id, CLAIM_BONUS_WP);
+    await client.query('UPDATE users SET walk_points_balance = walk_points_balance + $2 WHERE id = $1', [
+      ticket.user_id,
+      amount,
+    ]);
   } else if (ticket.kind === 'WALK_POINTS') {
     amount = await throttledAmount(client, ticket.user_id, AD_WALK_POINTS);
     await client.query('UPDATE users SET walk_points_balance = walk_points_balance + $2 WHERE id = $1', [
@@ -597,6 +612,22 @@ export async function spendGateAd(
     [userId, nonce, kind],
   );
   return (r.rowCount ?? 0) > 0;
+}
+
+/** The post-claim bonus: your parcel, claimed in the last half hour, bonus not yet paid. */
+async function assertCanClaimBonus(client: { query: typeof query }, userId: string, parcelId: string): Promise<void> {
+  const r = await client.query<{ fresh: boolean; paid: boolean }>(
+    `SELECT p.purchased_at > NOW() - ($3 || ' minutes')::interval AS fresh,
+            EXISTS (SELECT 1 FROM ad_rewards a
+                     WHERE a.user_id = $2 AND a.kind = 'CLAIM_BONUS'
+                       AND a.target_parcel_id = p.id AND a.status = 'GRANTED') AS paid
+       FROM parcels p WHERE p.id = $1 AND p.owner_id = $2`,
+    [parcelId, userId, String(CLAIM_BONUS_WINDOW_MINUTES)],
+  );
+  const row = r.rows[0];
+  if (!row) throw new HttpError(404, 'That parcel is not yours.');
+  if (row.paid) throw new HttpError(409, 'You already had the bonus for this parcel.');
+  if (!row.fresh) throw new HttpError(409, 'The bonus is only for a parcel you have just claimed.');
 }
 
 async function assertCanAffordParcel(client: { query: typeof query }, userId: string): Promise<void> {

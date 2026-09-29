@@ -379,13 +379,15 @@ export async function rollNextArea(
     if (u.rowCount === 0) throw new HttpError(401, 'User no longer exists.');
     const today = u.rows[0].today;
 
-    const open = await client.query(
-      'SELECT 1 FROM area_targets WHERE user_id = $1 AND claimed_at IS NULL AND abandoned_at IS NULL',
+    // "Somewhere else instead": the button offers exactly this while a
+    // destination is open, so the open one is set aside and a new one rolled.
+    // It used to refuse ("You already have somewhere to go") - AFTER the
+    // player had watched the ad for it (reported 2026-09-28).
+    await client.query(
+      `UPDATE area_targets SET abandoned_at = NOW()
+        WHERE user_id = $1 AND claimed_at IS NULL AND abandoned_at IS NULL`,
       [userId],
     );
-    if ((open.rowCount ?? 0) > 0) {
-      throw new HttpError(409, 'You already have somewhere to go. Get there first.');
-    }
 
     const pick = rollTarget(lat, lng, PLACE_SCALE);
     await client.query(

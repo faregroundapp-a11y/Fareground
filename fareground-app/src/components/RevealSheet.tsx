@@ -24,7 +24,6 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
     refreshDaily();
   });
   const [bonus, setBonus] = useState<{ parcelId: string; text: string } | null>(null);
-  const bonusLeft = balance?.rewards.walkPoints.adsLeftToday ?? 0;
   const perAd = balance?.rewards.walkPoints.perAd ?? 1;
 
   useEffect(() => {
@@ -76,19 +75,21 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
       {bonus?.parcelId === parcel.id ? (
         <Text style={styles.bonusDone}>{bonus.text}</Text>
       ) : (
-        adsAvailable() && bonusLeft > 0 && (
+        // Its own ad since 2026-09-28: one per parcel, and NOT one of the
+        // day's bonus-WP ads - so there is no "left today" to run out of.
+        adsAvailable() && (
           <Pressable
             style={({ pressed }) => [styles.bonus, pressed && { opacity: 0.85 }]}
             disabled={busy !== null}
             onPress={async () => {
-              const r = await watch('WALK_POINTS');
+              const r = await watch('CLAIM_BONUS', { targetParcelId: parcel.id });
               setBonus({ parcelId: parcel.id, text: r.ok ? `+${r.amount} WP bonus added!` : r.message });
             }}
             accessibilityRole="button"
           >
             <PlayAdIcon size={20} color={colors.boostDeep} />
             <Text style={styles.bonusText}>
-              {busy ? 'Loading ad…' : `Bonus: watch an ad for +${perAd} WP  ·  ${bonusLeft} left today`}
+              {busy ? 'Loading ad…' : `Bonus: watch an ad for +${perAd} WP`}
             </Text>
           </Pressable>
         )
