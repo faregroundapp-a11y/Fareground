@@ -102,6 +102,15 @@ export const config = {
    */
   adGates: enumEnv('AD_GATES', ['off', 'on'] as const, 'off'),
 
+  /**
+   * The oldest app build allowed to play (2026-09-27). Every app from build 3
+   * on sends its number in the X-Fareground-Build header; anything older sends
+   * none. Set this to the newest build's number once testers have it, and
+   * every older build - including ones that crash, or that skip the claim ad -
+   * gets "please update" instead of the game. 0 lets every build in.
+   */
+  minAppBuild: numberEnv('MIN_APP_BUILD', 0),
+
   adRewardVerification: enumEnv(
     'AD_REWARD_VERIFICATION',
     ['client', 'ssv'] as const,

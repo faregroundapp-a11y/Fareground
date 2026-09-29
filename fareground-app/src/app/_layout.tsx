@@ -10,6 +10,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { UpdateGate } from '@/components/UpdateRequired';
 // Side effect: defines the background step-sync task at load time, which the
 // OS needs when it wakes the app headless to run it.
 import '@/native/backgroundSteps';
@@ -35,7 +36,9 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <UpdateGate>
+        <Stack screenOptions={{ headerShown: false }} />
+      </UpdateGate>
     </SessionProvider>
   );
 }

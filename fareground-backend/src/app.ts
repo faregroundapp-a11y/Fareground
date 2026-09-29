@@ -86,6 +86,26 @@ export function createApp() {
     }),
   );
 
+  // --- Out-of-date apps stop here (see MIN_APP_BUILD in config/env.ts). ---
+  // After /health and the pictures, before every game route. Google's ad
+  // callback (/rewards/ssv) is not an app, so it is let through.
+  app.use((req, res, next) => {
+    if (config.minAppBuild <= 0 || req.path === '/rewards/ssv') {
+      next();
+      return;
+    }
+    const build = Number(req.get('X-Fareground-Build') ?? 0);
+    if (Number.isFinite(build) && build >= config.minAppBuild) {
+      next();
+      return;
+    }
+    res.status(426).json({
+      error: 'This version of Fareground is out of date. Please install the latest version to keep playing.',
+      updateRequired: true,
+      minBuild: config.minAppBuild,
+    });
+  });
+
   // --- Feature routes. ---
   app.use('/auth', authLimiter, authRouter); // POST /auth/register, /auth/login
   app.use('/attest', apiLimiter, attestRouter); // POST /attest/challenge

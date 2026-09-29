@@ -1,4 +1,4 @@
-import { API_URL } from '@/config';
+import { API_URL, APP_BUILD } from '@/config';
 import type {
   AdCompleteResult,
   AdRewardKind,
@@ -46,6 +46,22 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
+/** Listeners for "the server says this build is too old". */
+const updateListeners = new Set<() => void>();
+let updateRequired = false;
+export function onUpdateRequired(fn: () => void): () => void {
+  updateListeners.add(fn);
+  if (updateRequired) fn();
+  return () => {
+    updateListeners.delete(fn);
+  };
+}
+function notifyUpdateRequired() {
+  if (updateRequired) return;
+  updateRequired = true;
+  for (const fn of updateListeners) fn();
+}
+
 async function request<T>(
   method: Method,
   path: string,
@@ -54,6 +70,7 @@ async function request<T>(
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  headers['X-Fareground-Build'] = String(APP_BUILD);
 
   let response: Response;
   try {
@@ -71,6 +88,9 @@ async function request<T>(
   const json = text ? safeParse(text) : null;
 
   if (!response.ok) {
+    // This build is too old to play: the whole app switches to the update
+    // screen (components/UpdateRequired.tsx) rather than failing call by call.
+    if (response.status === 426) notifyUpdateRequired();
     const message =
       json && typeof json === 'object' && 'error' in json && typeof json.error === 'string'
         ? json.error

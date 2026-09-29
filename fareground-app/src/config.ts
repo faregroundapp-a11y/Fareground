@@ -15,6 +15,16 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000
  * "liberty" is the full-colour style, with its own 3D buildings. (A pale
  * "positron" variant was tried and reverted - it read as washed out.)
  */
+/**
+ * THIS APP'S BUILD NUMBER, sent with every request (X-Fareground-Build).
+ *
+ * Bump it for every build sent to players. The server's MIN_APP_BUILD turns
+ * away anything older with "please update" - that is how old builds (one
+ * that crashes, one that skips the claim ad) are retired. Builds before 3
+ * sent no number at all, so any minimum of 1 or more locks them out.
+ */
+export const APP_BUILD = 3;
+
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
 /** Must match MAX_CLAIM_ACCURACY_M in the backend's parcels.service.ts. */
