@@ -200,6 +200,8 @@ export const api = {
     token: string,
     body: {
       steps: number;
+      /** The phone's own total per local day; the server pays only what is new. */
+      days?: { day: string; total: number }[];
       platform: 'IOS' | 'ANDROID';
       deviceId: string;
       /** Which counter produced them - the server only uses it to flag, never to pay. */

@@ -58,6 +58,12 @@ export interface StepSyncInput {
   userId: string;
   /** What the phone claims was walked. */
   rawSteps: number;
+  /**
+   * The phone's own total for each day the batch covers. When present, the
+   * server works out what is new from these and its own record, and
+   * `rawSteps` is ignored - see paidDayTotals.
+   */
+  days?: { day: string; total: number }[];
   /** Client-generated unique id for this sync, so retries are safe. */
   idempotencyKey?: string;
   platform?: DevicePlatform;
@@ -145,7 +151,7 @@ async function touchDevice(
  */
 export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
   const {
-    userId, rawSteps, idempotencyKey, platform, deviceId,
+    userId, rawSteps: claimedSteps, days, idempotencyKey, platform, deviceId,
     attested = false, source = 'UNKNOWN', mockedLocation, distanceM, trace,
   } = input;
 
@@ -199,6 +205,11 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
         };
       }
     }
+
+    // 2b. WHAT IS ACTUALLY NEW. The server's own record of each day, not the
+    //     phone's memory of what it sent - that memory is wiped by clearing
+    //     the app's data, and used to be paid again every time.
+    const rawSteps = days ? await newStepsFromDayTotals(client, userId, days) : claimedSteps;
 
     // 3. PLAUSIBILITY. Gather the two facts the rule needs.
     const history = await client.query<{
@@ -485,6 +496,64 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
       replayed: false,
     };
   });
+}
+
+/**
+ * How far back a catch-up day is still paid: a phone left closed for a few
+ * days sends each finished day's total when it next opens.
+ */
+const DAY_TOTALS_MAX_AGE_DAYS = 7;
+
+/**
+ * THE SERVER-SIDE STEP LEDGER. For each day the phone reports, pay only what
+ * is above the highest total this player has reported for that day before,
+ * and raise the record. Clearing the app, reinstalling or a second phone all
+ * report the same day's steps again - and are paid nothing for them.
+ *
+ * Days are the player's local dates. Anything in the future or older than
+ * DAY_TOTALS_MAX_AGE_DAYS (by the SERVER's clock and the account's time zone)
+ * is ignored, so a made-up date cannot open a fresh day.
+ *
+ * A day with no record yet starts from what was already logged for it: that
+ * covers the day this ledger went live, when today's steps had been paid
+ * under the phone's own ledger.
+ *
+ * Runs inside syncSteps' transaction, with the user row locked.
+ */
+async function newStepsFromDayTotals(
+  client: PoolClient,
+  userId: string,
+  days: { day: string; total: number }[],
+): Promise<number> {
+  const seen = new Set<string>();
+  let fresh = 0;
+  for (const { day, total } of days) {
+    if (seen.has(day)) continue;
+    seen.add(day);
+    const row = await client.query<{ ok: boolean; base: number }>(
+      `WITH d AS (SELECT $2::date AS day, (NOW() AT TIME ZONE ${USER_TZ})::date AS today)
+       SELECT (d.day <= d.today AND d.day >= d.today - $3::int) AS ok,
+              COALESCE(
+                (SELECT reported FROM step_day_totals WHERE user_id = $1 AND day = d.day),
+                (SELECT COALESCE(SUM(raw_steps), 0) FROM step_logs
+                  WHERE user_id = $1
+                    AND logged_at >= (d.day::timestamp AT TIME ZONE ${USER_TZ})
+                    AND logged_at <  ((d.day + 1)::timestamp AT TIME ZONE ${USER_TZ}))
+              )::int AS base
+         FROM d`,
+      [userId, day, DAY_TOTALS_MAX_AGE_DAYS],
+    );
+    const { ok, base } = row.rows[0];
+    if (!ok) continue;
+    fresh += Math.max(0, total - base);
+    await client.query(
+      `INSERT INTO step_day_totals (user_id, day, reported) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, day)
+       DO UPDATE SET reported = GREATEST(step_day_totals.reported, EXCLUDED.reported), updated_at = NOW()`,
+      [userId, day, Math.max(base, total)],
+    );
+  }
+  return fresh;
 }
 
 /** Total accepted steps this account has ever logged. */

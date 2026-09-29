@@ -19,6 +19,23 @@ const syncSchema = z.object({
     .nonnegative('steps cannot be negative.')
     .max(MAX_STEPS_PER_SYNC, `steps must be at most ${MAX_STEPS_PER_SYNC} per sync.`),
 
+  /**
+   * The phone's own step total for each day this batch covers: today, plus a
+   * finished day it is catching up on. The server pays only what is above the
+   * highest total it has already seen for that day, so a phone that forgot
+   * what it sent (app data cleared, reinstalled) cannot be paid twice.
+   * Omitted by builds before 4, which get the old behaviour.
+   */
+  days: z
+    .array(
+      z.object({
+        day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'day must be YYYY-MM-DD.'),
+        total: z.number().int().nonnegative().max(500_000),
+      }),
+    )
+    .max(8)
+    .optional(),
+
   /** Which phone this came from. Optional until attestation is required. */
   platform: z.enum(['IOS', 'ANDROID']).optional(),
   deviceId: z.string().trim().min(1).max(255).optional(),
@@ -124,6 +141,7 @@ stepsRouter.post(
     const result = await syncSteps({
       userId,
       rawSteps: body.steps,
+      days: body.days,
       idempotencyKey,
       platform: body.platform,
       deviceId: body.deviceId,

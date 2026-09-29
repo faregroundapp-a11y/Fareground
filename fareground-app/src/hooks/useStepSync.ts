@@ -68,7 +68,12 @@ interface StepLedger {
   /** Steps owed from an earlier day, sent with the next batch. */
   carry: number;
   /** A batch in flight. Survives app restarts so its key is reused. */
-  pending: { key: string; steps: number } | null;
+  pending: { key: string; steps: number; days?: DayTotal[] } | null;
+  /**
+   * Finished days' totals not yet sent, so the server can check them against
+   * its own record (it pays only what is above what it has already seen).
+   */
+  closedDays?: DayTotal[];
   /** Older app versions kept an "unsent" counter; folded into carry once. */
   unsent?: number;
   /** Ledger format. Version 1 counted Android steps differently. */
@@ -79,6 +84,12 @@ interface StepLedger {
    * reading is a baseline, not new steps. Stops a one-off double payment.
    */
   needsBaseline?: boolean;
+}
+
+/** The phone's own step total for one local day. */
+interface DayTotal {
+  day: string;
+  total: number;
 }
 
 function dayOf(d: Date): string {
@@ -114,6 +125,7 @@ async function loadLedger(): Promise<StepLedger> {
 function rollOver(ledger: StepLedger, finalTotal: number | null) {
   const total = Math.max(finalTotal ?? 0, ledger.appToday);
   ledger.carry += Math.max(0, total - ledger.syncedToday);
+  ledger.closedDays = [...(ledger.closedDays ?? []), { day: ledger.day, total }].slice(-7);
   ledger.day = today();
   ledger.syncedToday = 0;
   ledger.appToday = 0;
@@ -250,7 +262,14 @@ export async function runStepSync(
         const fresh = Math.max(0, dayTotal - ledger.syncedToday) + ledger.carry;
         ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);
         ledger.carry = 0;
-        if (fresh > 0) ledger.pending = { key: Crypto.randomUUID(), steps: fresh };
+        if (fresh > 0) {
+          // The server decides what is new from these totals and its own
+          // record, so a ledger wiped by clearing the app's data (which
+          // makes `fresh` the whole day again) is not paid twice.
+          const days = [...(ledger.closedDays ?? []), { day: ledger.day, total: dayTotal }];
+          ledger.pending = { key: Crypto.randomUUID(), steps: fresh, days };
+          ledger.closedDays = [];
+        }
       }
       return { batch: ledger.pending, total: dayTotal };
     });
@@ -292,6 +311,7 @@ export async function runStepSync(
       token,
       {
         steps: batch.steps,
+        ...(batch.days ? { days: batch.days } : {}),
         platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
         deviceId: await deviceId(),
         source,

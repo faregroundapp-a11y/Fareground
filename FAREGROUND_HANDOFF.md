@@ -492,6 +492,23 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 33. Step replay after clearing app data - closed (2026-09-29)
+
+A player reported: clear Fareground's storage, log back in, sync, and the
+day's steps pay again, repeatable (bounded only by the 15,000-a-day cap).
+Cause: the "already sent today" ledger lived only on the phone.
+
+Fix: the app (build 5+) sends `days: [{day, total}]` - the phone's own total
+for today and any finished days it is catching up on. The server keeps
+`step_day_totals` (migration 036), the highest total seen per player and
+day, and pays only what is above it (`newStepsFromDayTotals` in
+steps.service.ts). Days in the future or more than 7 days old are ignored.
+A day with no record starts from the steps already logged for it, so the
+switch-over day is not paid twice either.
+
+Builds before 5 do not send `days` and still use the old path - set
+MIN_APP_BUILD=5 on the server once build 5 is out to close it for them.
+
 ## 32. Bonus WP ads: one every 20 minutes (2026-09-29)
 
 Was 50 a day that could all be watched back to back. Now it is ONE +1 WP
