@@ -1,0 +1,508 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fareground Promo</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F5F1; --ink: #121814; --ink2: #545E51;
+    --accent: #2F5D50; --accentHi: #3C7564; --accentSoft: #E1EBE6;
+    --glass: rgba(14,19,26,0.84); --glassLine: rgba(255,255,255,0.14); --glassInk: #F5F7F3;
+    --claim: #F2A93B; --claimHi: #FFC968; --claimInk: #2A1A03;
+    --boost: #8A5CF6; --coin: #F2B53B; --steps: #4DBE94; --grid: #E39A2E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 540px; height: 960px; overflow: hidden; background: #0E131A; }
+  body { font-family: 'Nunito', system-ui, sans-serif; color: var(--ink); }
+  #stage { position: relative; width: 540px; height: 960px; overflow: hidden; background: #0E131A; }
+  .layer { position: absolute; inset: 0; }
+  .center { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cap {
+    position: absolute; left: 24px; right: 24px; top: 92px; text-align: center;
+    font-weight: 900; font-size: 40px; line-height: 1.05; letter-spacing: -1px; color: #fff;
+    text-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.5);
+  }
+  #shade { position: absolute; left: 0; right: 0; top: 0; height: 330px; pointer-events: none;
+    background: linear-gradient(rgba(10,20,16,0.82), rgba(10,20,16,0.55) 60%, rgba(10,20,16,0)); }
+  .sub {
+    display: block; margin-top: 10px; font-weight: 800; font-size: 20px; letter-spacing: 0;
+    color: rgba(255,255,255,0.92);
+  }
+  .pill {
+    position: absolute; display: flex; align-items: center; gap: 8px;
+    background: var(--glass); border: 1px solid var(--glassLine); color: var(--glassInk);
+    border-radius: 999px; padding: 9px 16px 9px 10px; font-weight: 900; font-size: 22px;
+  }
+  .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 900; color: #fff; }
+  .card {
+    background: #fff; border-radius: 22px; border: 1px solid #E0E3DB;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+  }
+  .btn {
+    position: absolute; left: 40px; right: 40px; height: 72px; border-radius: 20px;
+    background: linear-gradient(180deg, var(--claimHi), var(--claim)); color: var(--claimInk);
+    display: grid; place-items: center; font-weight: 900; font-size: 26px;
+    box-shadow: 0 6px 0 #C4801E, 0 16px 30px rgba(0,0,0,0.3);
+  }
+  .fine { position: absolute; left: 30px; right: 30px; bottom: 34px; text-align: center; color: rgba(255,255,255,0.7); font-size: 15px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- the map, shared by the middle scenes -->
+  <div id="mapWrap" class="layer"><svg id="map" width="540" height="960"></svg></div>
+  <div id="gridLayer" class="layer"></div>
+  <div id="shade"></div>
+  <div id="runnerLayer" class="layer"></div>
+  <div id="fxLayer" class="layer"></div>
+  <div id="hud" class="layer"></div>
+  <div id="ui" class="layer"></div>
+  <div id="flash" class="layer" style="background:#fff;opacity:0;pointer-events:none"></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ */
+/*  Timing helpers. Everything is a pure function of t (seconds), so  */
+/*  the recorder can step frame by frame and get a smooth video.      */
+/* ------------------------------------------------------------------ */
+const DURATION = 34;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeIn = (x) => x * x * x;
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const backOut = (x) => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+function bounce(x) {
+  const n = 7.5625, d = 2.75;
+  if (x < 1 / d) return n * x * x;
+  if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+  if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+  return n * (x -= 2.625 / d) * x + 0.984375;
+}
+/** 0 -> 1 -> 0 visibility for a scene that lives from a to b, with fades. */
+const vis = (t, a, b, f = 0.35) => Math.min(seg(t, a, a + f), 1 - seg(t, b - f, b));
+const fmt = (n) => Math.round(n).toLocaleString('en-GB');
+
+/* ------------------------------------------------------------------ */
+/*  The runner - a straight port of components/Runner.tsx             */
+/* ------------------------------------------------------------------ */
+const W = 64, H = 84, HEAD_R = 11, GROUND = 76, CONTOUR = '#14201A', SHOULDER_SPAN = 4.6;
+const HIP = { x: 32, y: 55 }, SHOULDER = { x: 32, y: 40 };
+const THIGH = 9, SHIN = 9, UPPER_ARM = 7, FOREARM = 6.5;
+const rad = (d) => (d * Math.PI) / 180;
+const joint = (f, len, a) => ({ x: f.x + len * Math.sin(rad(a)), y: f.y + len * Math.cos(rad(a)) });
+
+function poseFor(gait, phase) {
+  const s = Math.sin(phase), c = Math.cos(phase);
+  if (gait === 'idle') {
+    const b = Math.sin(phase * 0.5) * 0.9;
+    return { bob: b, lean: 0, legs: [6, 2, -6, -2], arms: [-10, 14, 10, 18], tilt: Math.sin(phase * 0.5 - 0.6) * 1.6 };
+  }
+  if (gait === 'cheer') {
+    const hop = Math.max(0, Math.sin(phase)) * 8;
+    return { bob: -hop, lean: 0, legs: [30, -20, -30, 20], arms: [105, 125, -105, -125], tilt: -4 - hop * 0.3 };
+  }
+  const run = gait === 'run', swing = run ? 46 : 30;
+  const bend = (p) => (run ? 22 + 78 * (0.5 - 0.5 * Math.cos(p)) : 8 + 38 * (0.5 - 0.5 * Math.cos(p)));
+  const tA = swing * s, tB = -swing * s;
+  return {
+    bob: -(run ? 3.4 : 1.6) * Math.abs(c), lean: run ? 10 : 3.5,
+    legs: [tA, tA - bend(phase), tB, tB - bend(phase + Math.PI)],
+    arms: [-swing * 0.8 * s, -swing * 0.8 * s + (run ? 78 : 34), swing * 0.8 * s, swing * 0.8 * s + (run ? 78 : 34)],
+    tilt: run ? -3 : -1,
+  };
+}
+function limb(root, l1, a1, l2, a2) {
+  const mid = joint(root, l1, a1), end = joint(mid, l2, a2);
+  return { d: `M${root.x} ${root.y}L${mid.x} ${mid.y}L${end.x} ${end.y}`, end };
+}
+const L = (d, color, w) =>
+  `<path d="${d}" stroke="${CONTOUR}" stroke-width="${w + 2.6}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
+  `<path d="${d}" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+
+function runnerSVG(p, gait, phase, size, shadowOpacity = 0.22) {
+  const pose = poseFor(gait, phase);
+  const hip = { x: HIP.x, y: HIP.y + pose.bob };
+  const sh = { x: SHOULDER.x + pose.lean * 0.35, y: SHOULDER.y + pose.bob };
+  const legA = limb(hip, THIGH, pose.legs[0], SHIN, pose.legs[1]);
+  const legB = limb(hip, THIGH, pose.legs[2], SHIN, pose.legs[3]);
+  const armA = limb({ x: sh.x + SHOULDER_SPAN, y: sh.y + 1 }, UPPER_ARM, pose.arms[0], FOREARM, pose.arms[1]);
+  const armB = limb({ x: sh.x - SHOULDER_SPAN, y: sh.y + 1 }, UPPER_ARM, pose.arms[2], FOREARM, pose.arms[3]);
+  const hd = { x: sh.x + pose.lean * 0.5, y: sh.y - HEAD_R - 2 };
+  const lift = Math.max(0, -pose.bob), ss = 1 - lift * 0.035;
+  const showHat = p.hat !== 'none', showHair = !showHat && p.hair !== 'none';
+  let o = `<svg width="${size}" height="${(size * H) / W}" viewBox="0 0 ${W} ${H}" style="overflow:visible">
+  <defs><linearGradient id="fc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+  <ellipse cx="32" cy="${GROUND}" rx="${13 * ss}" ry="${3.4 * ss}" fill="#0B1410" opacity="${shadowOpacity}"/>`;
+  o += L(legB.d, '#2B3750', 8) + L(armB.d, '#1F4A3F', 6);
+  o += `<path d="M${sh.x} ${sh.y}L${hip.x} ${hip.y}" stroke="${CONTOUR}" stroke-width="16.6" stroke-linecap="round"/>`;
+  o += `<path d="M${sh.x} ${sh.y}L${hip.x} ${hip.y}" stroke="${p.shirt}" stroke-width="14" stroke-linecap="round"/>`;
+  o += `<path d="M${sh.x + 3.4} ${sh.y + 2}L${hip.x + 3.4} ${hip.y - 3}" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".28"/>`;
+  if (p.face === 'scarf') o += `<path d="M${sh.x - 5} ${sh.y + 5}h10" stroke="#D24B5E" stroke-width="5" stroke-linecap="round"/>`;
+  o += L(legA.d, '#3B4A68', 8.5) + L(armA.d, p.shirt, 6.4);
+  for (const [leg, w] of [[legB, 6.4], [legA, 7]]) o += `<path d="M${leg.end.x - 2.5} ${leg.end.y + 1}h8" stroke="${CONTOUR}" stroke-width="${w}" stroke-linecap="round"/>`;
+  o += `<path d="M${legB.end.x - 2.5} ${legB.end.y + 1}h8" stroke="${p.shoes}" stroke-width="4.4" stroke-linecap="round" opacity=".72"/>`;
+  o += `<path d="M${legA.end.x - 2.5} ${legA.end.y + 1}h8" stroke="${p.shoes}" stroke-width="5" stroke-linecap="round"/>`;
+  o += `<path d="M${legA.end.x - 2} ${legA.end.y + 2.6}h7" stroke="${p.trim}" stroke-width="1.6" stroke-linecap="round"/>`;
+  o += `<circle cx="${armA.end.x}" cy="${armA.end.y}" r="2.8" fill="${CONTOUR}"/><circle cx="${armA.end.x}" cy="${armA.end.y}" r="2.1" fill="${p.skin}"/>`;
+  o += `<g transform="rotate(${pose.tilt} ${hd.x} ${hd.y + HEAD_R})">`;
+  o += `<circle cx="${hd.x}" cy="${hd.y}" r="${HEAD_R + 1.3}" fill="${CONTOUR}"/><circle cx="${hd.x}" cy="${hd.y}" r="${HEAD_R}" fill="${p.skin}"/><circle cx="${hd.x}" cy="${hd.y}" r="${HEAD_R}" fill="url(#fc)"/>`;
+  if (showHair) {
+    if (p.hairStyle === 'punk') o += `<path d="M${hd.x} ${hd.y - HEAD_R - 6}l3 5v${HEAD_R}h-6v-${HEAD_R}z" fill="${p.hair}"/>`;
+    else if (p.hairStyle === 'curls') o += `<g fill="${p.hair}"><circle cx="${hd.x - 6}" cy="${hd.y - HEAD_R + 2}" r="4.6"/><circle cx="${hd.x + 1}" cy="${hd.y - HEAD_R - 1}" r="5.2"/><circle cx="${hd.x + 7}" cy="${hd.y - HEAD_R + 2}" r="4.6"/></g>`;
+    else o += `<path d="M${hd.x - HEAD_R} ${hd.y - 0.5}a${HEAD_R} ${HEAD_R} 0 01${HEAD_R * 2} 0q-${HEAD_R * 0.5} -3 -${HEAD_R} -3q-${HEAD_R * 0.5} 0 -${HEAD_R} 3z" fill="${p.hair}"/>`;
+  }
+  if (showHat) {
+    o += `<path d="M${hd.x - HEAD_R} ${hd.y - 1}a${HEAD_R} ${HEAD_R} 0 01${HEAD_R * 2} 0z" fill="${p.hatColor}" stroke="${CONTOUR}" stroke-width="1.4" stroke-linejoin="round"/>`;
+    if (p.hat === 'cap' || p.hat === 'miner') {
+      o += `<path d="M${hd.x + HEAD_R - 3} ${hd.y - 2.5}h5.5" stroke="${CONTOUR}" stroke-width="5" stroke-linecap="round"/>`;
+      o += `<path d="M${hd.x + HEAD_R - 3} ${hd.y - 2.5}h5.2" stroke="${p.hatColor}" stroke-width="3" stroke-linecap="round"/>`;
+    }
+    if (p.hat === 'miner') o += `<circle cx="${hd.x + 1}" cy="${hd.y - HEAD_R + 3}" r="2.6" fill="${CONTOUR}"/><circle cx="${hd.x + 1}" cy="${hd.y - HEAD_R + 3}" r="1.9" fill="#FFF3CC"/>`;
+    if (p.hat === 'crown') o += `<path d="M${hd.x - HEAD_R} ${hd.y - 2}l4 -6 3.5 4 3.5 -6 3.5 6 3.5 -4 4 6z" fill="${p.hatColor}" stroke="${CONTOUR}" stroke-width="1.2" stroke-linejoin="round"/>`;
+    if (p.hat === 'beanie') o += `<path d="M${hd.x - HEAD_R - 0.5} ${hd.y - 3}h${HEAD_R * 2 + 1}" stroke="${p.hatColor}" stroke-width="4.5" stroke-linecap="round" opacity=".8"/>`;
+  }
+  if (p.face === 'shades') o += `<path d="M${hd.x - 2.6} ${hd.y + 2.6}h11" stroke="#141A2B" stroke-width="5" stroke-linecap="round"/>`;
+  else if (p.face === 'glasses') o += `<g stroke="#3B4048" stroke-width="1.3" fill="none"><circle cx="${hd.x + 0.8}" cy="${hd.y + 2.6}" r="2.7"/><circle cx="${hd.x + 6.4}" cy="${hd.y + 2.6}" r="2.7"/></g>`;
+  else o += `<circle cx="${hd.x + 0.8}" cy="${hd.y + 2.6}" r="1.7" fill="#1B2330"/><circle cx="${hd.x + 5.9}" cy="${hd.y + 2.6}" r="1.7" fill="#1B2330"/>`;
+  if (gait === 'cheer' || gait === 'idle') o += `<path d="M${hd.x + 1.2} ${hd.y + 6.4}q2.3 2.6 4.6 0" stroke="#1B2330" stroke-width="1.4" stroke-linecap="round" fill="none"/>`;
+  o += `</g></svg>`;
+  return o;
+}
+
+/* The looks the character tries on, in order. The last one is kept. */
+const BASE = { skin: '#E7B48C', hair: '#2B2018', hairStyle: 'short', hat: 'none', hatColor: 'transparent', shirt: '#2F5D50', shoes: '#FFFFFF', trim: '#F2A93B', face: 'none' };
+const LOOKS = [
+  { label: 'Hair', tile: '#C2551F', set: { hair: '#C2551F', hairStyle: 'curls' } },
+  { label: 'Hat', tile: '#F2A93B', set: { hat: 'cap', hatColor: '#F2A93B' } },
+  { label: 'Shirt', tile: '#7E56A6', set: { shirt: '#7E56A6' } },
+  { label: 'Face', tile: '#141A2B', set: { face: 'shades' } },
+  { label: 'Hat', tile: '#D9822B', set: { hat: 'miner', hatColor: '#D9822B' } },
+  { label: 'Shirt', tile: '#C0304A', set: { shirt: '#C0304A' } },
+  { label: 'Shoes', tile: '#E0B93C', set: { shoes: '#E0B93C', trim: '#8A6A12' } },
+];
+function lookAt(n) {
+  const p = { ...BASE };
+  for (let i = 0; i < Math.min(n, LOOKS.length); i++) Object.assign(p, LOOKS[i].set);
+  return p;
+}
+
+/* ------------------------------------------------------------------ */
+/*  The map: OpenFreeMap-liberty-ish colours, drawn once, very tall so */
+/*  it can scroll while the runner runs.                              */
+/* ------------------------------------------------------------------ */
+const MAP_H = 3400;
+(function drawMap() {
+  const s = document.getElementById('map');
+  s.setAttribute('height', MAP_H);
+  let o = `<rect width="540" height="${MAP_H}" fill="#F2EFE9"/>`;
+  // blocks
+  for (let y = 0; y < MAP_H; y += 150) for (let x = -20; x < 560; x += 170) {
+    const k = (x * 7 + y * 3) % 5;
+    const fill = k === 0 ? '#CFE5B8' : k === 3 ? '#E9E4DA' : '#EDE8DF';
+    o += `<rect x="${x + 14}" y="${y + 14}" width="142" height="122" rx="6" fill="${fill}"/>`;
+    if (k !== 0) for (let i = 0; i < 3; i++) o += `<rect x="${x + 24 + i * 44}" y="${y + 26}" width="34" height="30" rx="3" fill="#DDD6CA"/><rect x="${x + 24 + i * 44}" y="${y + 86}" width="34" height="34" rx="3" fill="#DDD6CA"/>`;
+    else o += `<circle cx="${x + 60}" cy="${y + 60}" r="16" fill="#B9D89E"/><circle cx="${x + 110}" cy="${y + 96}" r="20" fill="#B9D89E"/>`;
+  }
+  // a river
+  o += `<path d="M-20 ${MAP_H - 900} C 160 ${MAP_H - 980}, 360 ${MAP_H - 820}, 560 ${MAP_H - 900}" stroke="#A9CBEA" stroke-width="46" fill="none"/>`;
+  // roads
+  for (let y = 0; y < MAP_H; y += 150) o += `<rect x="0" y="${y - 2}" width="540" height="18" fill="#fff" stroke="#DCD6CB"/>`;
+  for (let x = -20; x < 560; x += 170) o += `<rect x="${x - 2}" y="0" width="18" height="${MAP_H}" fill="#fff" stroke="#DCD6CB"/>`;
+  // the main road the runner uses
+  o += `<rect x="252" y="0" width="36" height="${MAP_H}" fill="#FBE4A6" stroke="#E8C77A" stroke-width="2"/>`;
+  s.innerHTML = o;
+})();
+
+/* ------------------------------------------------------------------ */
+/*  Small icon helpers (plain SVG, no emoji fonts needed)             */
+/* ------------------------------------------------------------------ */
+const ICON = {
+  steps: `<svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#4DBE94"/><ellipse cx="10" cy="11" rx="3" ry="4.5" fill="#fff"/><ellipse cx="16.5" cy="15" rx="3" ry="4.5" fill="#fff"/></svg>`,
+  wp: `<svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#2F5D50"/><text x="13" y="17.5" font-size="11" font-weight="900" fill="#fff" text-anchor="middle" font-family="Nunito">WP</text></svg>`,
+  coin: (s = 26) => `<svg width="${s}" height="${s}" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="#F2B53B" stroke="#C4801E" stroke-width="2"/><circle cx="13" cy="13" r="7" fill="none" stroke="#FFE3A0" stroke-width="2"/></svg>`,
+  bell: `<svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="27" fill="#FFF3DC"/><path d="M17 35h20l-3-5v-7a7 7 0 0 0-14 0v7z" fill="#F2A93B" stroke="#2A1A03" stroke-width="2" stroke-linejoin="round"/><circle cx="27" cy="38" r="3" fill="#2A1A03"/></svg>`,
+  chest: `<svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="27" fill="#FDE9D9"/><rect x="14" y="22" width="26" height="17" rx="2" fill="#B8651E" stroke="#2A1A03" stroke-width="2"/><path d="M14 24a13 8 0 0 1 26 0" fill="#D9822B" stroke="#2A1A03" stroke-width="2"/><rect x="24" y="25" width="6" height="7" rx="1" fill="#F2B53B" stroke="#2A1A03" stroke-width="1.5"/></svg>`,
+  bolt: `<svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="27" fill="#EFE9FF"/><path d="M29 12 17 30h9l-2 12 12-18h-9z" fill="#8A5CF6" stroke="#2A1A03" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  watch: `<svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="27" fill="#E1EBE6"/><rect x="21" y="11" width="12" height="32" rx="4" fill="#3B4048"/><rect x="17" y="18" width="20" height="18" rx="6" fill="#2F5D50" stroke="#14201A" stroke-width="2"/><path d="M22 27h3l2-4 2 7 2-3h2" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
+  trophy: `<svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="27" fill="#FFF3DC"/><path d="M19 14h16v8a8 8 0 0 1-16 0z" fill="#F2B53B" stroke="#2A1A03" stroke-width="2"/><path d="M19 17h-4a4 4 0 0 0 4 6M35 17h4a4 4 0 0 1-4 6" fill="none" stroke="#2A1A03" stroke-width="2"/><rect x="24" y="30" width="6" height="6" fill="#C4801E"/><rect x="19" y="36" width="16" height="5" rx="1" fill="#2F5D50"/></svg>`,
+};
+function mine(color, size, rise = 1) {
+  const h = 30 * rise;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 60 60" style="overflow:visible">
+    <path d="M30 ${54 - h}L44 ${54 - h * 0.45}L38 54H22L16 ${54 - h * 0.45}Z" fill="${color}" stroke="#14201A" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M30 ${54 - h}L30 54M16 ${54 - h * 0.45}L30 ${54 - h * 0.3}L44 ${54 - h * 0.45}" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" fill="none"/></svg>`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  THE TIMELINE                                                       */
+/*   0.0  intro            3.0  the drop        6.5  customise        */
+/*  12.0  run + WP        18.0  claim land     23.0  features         */
+/*  27.5  cash-outs       31.0  OG + download  34.0  end              */
+/* ------------------------------------------------------------------ */
+const MINES = [
+  { name: 'Rocky', color: '#8A887B' }, { name: 'Coal', color: '#3B4048' }, { name: 'Amethyst', color: '#7E56A6' },
+  { name: 'Sapphire', color: '#2A5FA8' }, { name: 'Ruby', color: '#C0304A' },
+];
+const $ = (id) => document.getElementById(id);
+
+function render(t) {
+  const ui = $('ui'), hud = $('hud'), fx = $('fxLayer'), rl = $('runnerLayer'), gl = $('gridLayer');
+  let U = '', F = '', R = '', G = '', HUD = '';
+
+  /* ---------- the map: visible from the drop to the end of claiming */
+  const mapVis = Math.min(seg(t, 2.8, 3.4), 1 - seg(t, 22.7, 23.2));
+  // It scrolls while the runner runs (12 -> 18), then stops.
+  const scroll = 1600 * easeInOut(seg(t, 12, 18)) + 18 * Math.max(0, t - 3);
+  $('mapWrap').style.opacity = mapVis;
+  $('shade').style.opacity = mapVis;
+  $('map').style.transform = `translateY(${-(MAP_H - 960) + scroll}px) scale(${1 + 0.06 * (1 - seg(t, 3, 5))})`;
+  // During customising the map dims behind the editor.
+  $('mapWrap').style.filter = `brightness(${1 - 0.45 * vis(t, 6.3, 12.2, 0.4)}) saturate(${1 - 0.3 * vis(t, 6.3, 12.2, 0.4)})`;
+
+  /* ---------- 1. INTRO 0 - 3 */
+  const i1 = vis(t, 0, 3.1, 0.3);
+  if (i1 > 0) {
+    const k = backOut(seg(t, 0.15, 0.9));
+    const gl2 = 0.5 + 0.5 * Math.sin(t * 4);
+    U += `<div class="layer center" style="opacity:${i1};background:radial-gradient(circle at 50% 42%, #3C7564 0%, #2F5D50 45%, #16302A 100%)">
+      <div style="transform:scale(${k});display:flex;flex-direction:column;align-items:center">
+        <div style="width:150px;height:150px;border-radius:40px;background:#fff;display:grid;place-items:center;box-shadow:0 20px 60px rgba(0,0,0,.35), 0 0 0 ${6 + 6 * gl2}px rgba(242,169,59,.35)">
+          ${runnerSVG(lookAt(0), 'run', t * 1.45 * 2 * Math.PI, 92, 0)}
+        </div>
+        <div style="margin-top:28px;font-weight:900;font-size:64px;color:#fff;letter-spacing:-2px">Fareground</div>
+      </div>
+      <div style="margin-top:14px;font-weight:900;font-size:30px;color:#FFC968;opacity:${seg(t, 1.0, 1.5)};transform:translateY(${12 * (1 - easeOut(seg(t, 1.0, 1.5)))}px)">Walk. Claim. Earn.</div>
+      <div style="margin-top:10px;font-weight:800;font-size:19px;color:#fff;opacity:${seg(t, 1.5, 2.0)}">The real world is your game board</div>
+    </div>`;
+  }
+
+  /* ---------- the runner: position, size and gait depend on the scene */
+  let rx = 270, ry = 560, size = 150, gait = 'idle', rVis = 0, look = lookAt(0), flip = 1;
+  if (t >= 3 && t < 6.5) {
+    // THE DROP: falls from the sky and bounces on the map.
+    const d = seg(t, 3.1, 4.6);
+    ry = -220 + (560 + 220) * bounce(d);
+    rVis = seg(t, 3.0, 3.2);
+    gait = d >= 1 ? 'cheer' : 'idle';
+    // a dust ring where it lands
+    const land = seg(t, 3.75, 4.5);
+    if (land > 0 && land < 1) F += `<div style="position:absolute;left:${270 - 90 * land - 20}px;top:${628 - 16 * land}px;width:${180 * land + 40}px;height:${32 * land + 8}px;border-radius:50%;border:4px solid rgba(255,255,255,${0.9 * (1 - land)})"></div>`;
+  } else if (t >= 6.5 && t < 12) {
+    // CUSTOMISE: big, centred, trying on looks.
+    size = 180; ry = 500; rVis = 1;
+    const n = Math.floor(seg(t, 7.2, 11.3) * LOOKS.length + 0.001);
+    look = lookAt(n);
+    gait = 'idle';
+    // a little hop each time a part changes
+    const since = ((t - 7.2) % ((11.3 - 7.2) / LOOKS.length));
+    if (t > 7.2 && t < 11.4) ry -= 16 * Math.max(0, Math.sin(Math.min(1, since / 0.3) * Math.PI));
+    if (t > 11.3) gait = 'cheer';
+  } else if (t >= 12 && t < 18) {
+    look = lookAt(99); gait = 'run'; rVis = 1; size = 150; ry = 600; flip = 1;
+  } else if (t >= 18 && t < 23) {
+    look = lookAt(99); rVis = 1; size = 104; ry = 556;
+    gait = t > 19.4 && t < 22.2 ? 'cheer' : 'idle';
+  }
+  rVis *= 1 - seg(t, 22.7, 23.1);
+  if (rVis > 0) {
+    const cad = gait === 'run' ? 1.45 : gait === 'cheer' ? 1.6 : 0.35;
+    const h = (size * H) / W;
+    // runner is facing "up the road" - shown side-on, so the flip adds nothing; keep right-facing
+    R += `<div style="position:absolute;left:${rx - size / 2}px;top:${ry - h * 0.9}px;opacity:${rVis};transform:scaleX(${flip})">${runnerSVG(look, gait, t * cad * 2 * Math.PI, size)}</div>`;
+  }
+
+  /* ---------- 2. THE DROP captions 3 - 6.5 */
+  const i2 = vis(t, 3.3, 6.6);
+  if (i2 > 0) U += `<div class="cap" style="opacity:${i2}">Drop into the<br>real world<span class="sub">Your street. Your city. Your map.</span></div>`;
+
+  /* ---------- 3. CUSTOMISE 6.5 - 12 */
+  const i3 = vis(t, 6.5, 12.1);
+  if (i3 > 0) {
+    const n = Math.floor(seg(t, 7.2, 11.3) * LOOKS.length + 0.001);
+    const slide = easeOut(seg(t, 6.5, 7.1));
+    let tiles = '';
+    const cats = ['Hair', 'Hat', 'Shirt', 'Face', 'Shoes'];
+    cats.forEach((c, ci) => {
+      const active = n > 0 && LOOKS[Math.min(n, LOOKS.length) - 1].label === c && t < 11.4;
+      tiles += `<div style="padding:10px 14px;border-radius:999px;font-weight:900;font-size:18px;${active ? 'background:#2F5D50;color:#fff;transform:scale(1.08)' : 'background:#ECEEE8;color:#545E51'}">${c}</div>`;
+    });
+    let swatches = '';
+    LOOKS.forEach((l, li) => {
+      const on = li === n - 1;
+      const done = li < n;
+      swatches += `<div style="width:56px;height:56px;border-radius:16px;background:${l.tile};border:3px solid ${on ? '#F2A93B' : done ? '#2F5D50' : '#E0E3DB'};transform:scale(${on ? 1.15 : 1});box-shadow:${on ? '0 0 0 5px rgba(242,169,59,.35)' : 'none'}"></div>`;
+    });
+    U += `<div class="cap" style="opacity:${i3}">Make them<br>yours<span class="sub">Hats, hair, shirts, shoes and more</span></div>
+      <div class="card" style="position:absolute;left:22px;right:22px;bottom:${60 - 400 * (1 - slide)}px;padding:22px;opacity:${i3}">
+        <div style="font-weight:900;font-size:24px;margin-bottom:14px">Your character</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${tiles}</div>
+        <div style="display:flex;gap:10px;justify-content:space-between">${swatches}</div>
+      </div>`;
+    // sparkles on each change
+    if (t > 7.2 && t < 11.4) {
+      const per = (11.3 - 7.2) / LOOKS.length, age = ((t - 7.2) % per) / 0.45;
+      if (age < 1) for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + n;
+        F += `<div style="position:absolute;left:${270 + Math.cos(a) * (70 + 60 * age)}px;top:${390 + Math.sin(a) * (70 + 60 * age)}px;width:12px;height:12px;background:#FFC968;transform:rotate(45deg);opacity:${1 - age}"></div>`;
+      }
+    }
+  }
+
+  /* ---------- 4. RUN + WALK POINTS 12 - 18 */
+  const i4 = vis(t, 12, 18.2);
+  const runP = seg(t, 12.3, 17.6);
+  const wp = Math.floor(runP * 60);
+  const steps = runP * 6000;
+  if (i4 > 0) {
+    U += `<div class="cap" style="opacity:${i4}">Walk to earn<span class="sub">Every 100 steps = 1 Walk Point</span></div>`;
+    // floating +1 WP bubbles
+    for (let i = 0; i < 16; i++) {
+      const born = 12.5 + i * 0.33, age = (t - born) / 1.2;
+      if (age <= 0 || age >= 1) continue;
+      const x = 250 + ((i * 53) % 120) - 30;
+      F += `<div style="position:absolute;left:${x}px;top:${440 - 150 * easeOut(age)}px;opacity:${Math.min(1, (1 - age) * 2)};transform:scale(${0.7 + 0.5 * backOut(Math.min(1, age * 3))});
+        background:#2F5D50;color:#fff;font-weight:900;font-size:24px;padding:6px 14px;border-radius:999px;border:2px solid #7FD99A;box-shadow:0 6px 16px rgba(0,0,0,.25)">+1 WP</div>`;
+    }
+  }
+  // HUD pills from the run to the end of claiming
+  const hv = Math.min(seg(t, 12, 12.4), 1 - seg(t, 22.7, 23.1));
+  if (hv > 0) {
+    const claimSpent = t > 19.5 ? 50 : 0;
+    const wpShown = t < 18 ? wp : 60 - claimSpent;
+    const pulse = t > 12.3 && t < 17.6 ? 1 + 0.06 * Math.max(0, Math.sin(t * 19)) : 1;
+    HUD += `<div class="pill" style="left:20px;top:${760}px;opacity:${hv}">${ICON.steps}<span>${fmt(t < 18 ? steps : 6000)}</span><span style="font-size:15px;opacity:.7">steps</span></div>
+            <div class="pill" style="right:20px;top:${760}px;opacity:${hv};transform:scale(${pulse});transform-origin:right center">${ICON.wp}<span>${wpShown}</span><span style="font-size:15px;opacity:.7">WP</span></div>`;
+    // progress to the next parcel
+    const toParcel = Math.min(1, (t < 19.5 ? (t < 18 ? wp : 60) : 10) / 50);
+    HUD += `<div style="position:absolute;left:20px;right:20px;top:830px;opacity:${hv};background:var(--glass);border-radius:18px;padding:12px 16px;color:#fff;border:1px solid var(--glassLine)">
+      <div style="display:flex;justify-content:space-between;font-weight:900;font-size:17px"><span>Next parcel</span><span>${toParcel >= 1 ? 'Ready to claim!' : Math.round(toParcel * 50) + ' / 50 WP'}</span></div>
+      <div style="height:12px;background:rgba(255,255,255,.15);border-radius:6px;margin-top:8px;overflow:hidden"><div style="height:100%;width:${toParcel * 100}%;background:${toParcel >= 1 ? '#F2A93B' : '#4DBE94'};border-radius:6px"></div></div></div>`;
+  }
+
+  /* ---------- 5. CLAIM LAND 18 - 23 */
+  const i5 = vis(t, 18, 23.1);
+  if (i5 > 0) {
+    U += `<div class="cap" style="opacity:${i5}">Claim real land<span class="sub">Every square becomes a mine that earns coins</span></div>`;
+    // the grid around the runner
+    const cell = 76, ox = 270 - cell * 3.5, oy = 250;
+    const gridIn = seg(t, 18.1, 18.6);
+    const claims = [
+      { c: 4, r: 3, at: 19.5, m: 4 }, { c: 2, r: 2, at: 20.2, m: 0 }, { c: 4, r: 2, at: 20.6, m: 2 },
+      { c: 5, r: 3, at: 21.0, m: 1 }, { c: 1, r: 3, at: 21.4, m: 3 }, { c: 3, r: 1, at: 21.8, m: 0 },
+    ];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 7; c++) {
+      const cl = claims.find((k) => k.c === c && k.r === r);
+      const got = cl && t >= cl.at;
+      const pick = c === 4 && r === 3 && t < 19.5;
+      const pulse = pick ? 0.5 + 0.5 * Math.sin(t * 9) : 0;
+      G += `<div style="position:absolute;left:${ox + c * cell}px;top:${oy + r * cell}px;width:${cell - 4}px;height:${cell - 4}px;opacity:${gridIn * i5};
+        border:2px solid rgba(227,154,46,${pick ? 1 : 0.7});border-radius:8px;
+        background:${got ? MINES[cl.m].color + 'CC' : pick ? `rgba(242,169,59,${0.25 + 0.35 * pulse})` : 'rgba(227,154,46,0.10)'}"></div>`;
+      if (got) {
+        const rise = backOut(seg(t, cl.at, cl.at + 0.5));
+        G += `<div style="position:absolute;left:${ox + c * cell + 6}px;top:${oy + r * cell - 4}px;opacity:${i5}">${mine(MINES[cl.m].color, cell - 16, rise)}</div>`;
+        const pop = seg(t, cl.at, cl.at + 0.9);
+        if (pop < 1) F += `<div style="position:absolute;left:${ox + c * cell + 4}px;top:${oy + r * cell - 30 - 40 * pop}px;opacity:${1 - pop};font-weight:900;font-size:17px;color:#fff;background:${MINES[cl.m].color};padding:3px 9px;border-radius:999px;border:2px solid #fff">${MINES[cl.m].name}!</div>`;
+      }
+    }
+    // the claim button, pressed at 19.5
+    const bIn = easeOut(seg(t, 18.6, 19.0)), press = t > 19.35 && t < 19.6 ? 0.94 : 1;
+    const bOut = seg(t, 19.7, 20.0);
+    if (bOut < 1) U += `<div class="btn" style="bottom:${225 - 280 * (1 - bIn)}px;opacity:${(1 - bOut) * i5};transform:scale(${press})">Claim this square · 50 WP</div>`;
+    // mineral legend
+    const lg = seg(t, 20.3, 20.8);
+    if (lg > 0) {
+      let chips = MINES.map((m, i) => `<div style="display:flex;align-items:center;gap:6px;opacity:${seg(t, 20.3 + i * 0.12, 20.6 + i * 0.12)}">${mine(m.color, 30)}<span style="font-weight:900;font-size:16px;color:#fff">${m.name}</span></div>`).join('');
+      U += `<div style="position:absolute;left:14px;right:14px;top:590px;opacity:${lg * i5};display:flex;justify-content:space-between;background:var(--glass);border:1px solid var(--glassLine);border-radius:18px;padding:12px 12px 8px">${chips}</div>
+            <div style="position:absolute;left:0;right:0;top:664px;text-align:center;opacity:${lg * i5}"><span style="display:inline-block;font-weight:900;font-size:19px;color:#FFC968;background:var(--glass);padding:6px 16px;border-radius:999px">Rarer mines earn more</span></div>`;
+    }
+  }
+
+  /* ---------- 6. FEATURES 23 - 27.5 */
+  const i6 = vis(t, 23, 27.6);
+  if (i6 > 0) {
+    const feats = [
+      { icon: ICON.bell, title: 'Ring the doorbell', text: 'Visit a player\'s land: you get +5 WP, they get +3' },
+      { icon: ICON.chest, title: 'Treasure boxes', text: 'Hidden around your area. Walk to them and open' },
+      { icon: ICON.bolt, title: 'Boosts', text: 'Supercharge your mines for more coins' },
+      { icon: ICON.watch, title: 'Works with your watch', text: 'Fitbit, Garmin, Samsung, Apple Watch and more' },
+      { icon: ICON.trophy, title: 'Leaderboards', text: 'Top your street, your city, the world' },
+    ];
+    let cards = '';
+    feats.forEach((f, i) => {
+      const a = 23.3 + i * 0.45, k = easeOut(seg(t, a, a + 0.45));
+      cards += `<div class="card" style="display:flex;align-items:center;gap:16px;padding:16px 18px;margin-bottom:14px;opacity:${k};transform:translateX(${(i % 2 ? 1 : -1) * 300 * (1 - k)}px)">
+        ${f.icon}<div><div style="font-weight:900;font-size:22px">${f.title}</div><div style="font-weight:700;font-size:16px;color:#545E51;margin-top:2px">${f.text}</div></div></div>`;
+    });
+    U += `<div class="layer" style="opacity:${i6};background:radial-gradient(circle at 50% 30%, #3C7564, #16302A)">
+      <div class="cap" style="top:90px">So much more<br>to do</div>
+      <div style="position:absolute;left:24px;right:24px;top:250px">${cards}</div></div>`;
+  }
+
+  /* ---------- 7. CASH-OUTS 27.5 - 31 */
+  const i7 = vis(t, 27.5, 31.1);
+  if (i7 > 0) {
+    const fill = easeInOut(seg(t, 28.0, 30.0));
+    let coins = '';
+    for (let i = 0; i < 14; i++) {
+      const born = 27.9 + i * 0.15, age = (t - born) / 0.8;
+      if (age <= 0 || age >= 1) continue;
+      const x = 120 + ((i * 71) % 300);
+      coins += `<div style="position:absolute;left:${x + (270 - x) * easeIn(age)}px;top:${200 + 330 * easeIn(age)}px;opacity:${1 - age * 0.4};transform:rotate(${age * 360}deg)">${ICON.coin(36)}</div>`;
+    }
+    U += `<div class="layer" style="opacity:${i7};background:radial-gradient(circle at 50% 55%, #3A2A0C, #16140E 75%)">
+      <div class="cap" style="top:90px">Coins today.<br><span style="color:#FFC968">Cash-outs soon.</span></div>
+      ${coins}
+      <div class="card" style="position:absolute;left:50px;right:50px;top:520px;padding:26px 24px;text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-weight:900;font-size:24px">${ICON.coin(34)} Your coin wallet</div>
+        <div style="height:18px;background:#ECEEE8;border-radius:9px;margin:18px 0 12px;overflow:hidden"><div style="height:100%;width:${fill * 100}%;background:linear-gradient(90deg,#F2A93B,#FFC968);border-radius:9px"></div></div>
+        <div style="font-weight:900;font-size:30px;color:#2F5D50">1,000 coins = $1</div>
+        <div style="margin-top:14px;display:inline-block;background:#2F5D50;color:#fff;font-weight:900;font-size:20px;padding:10px 20px;border-radius:999px;opacity:${seg(t, 29.4, 29.8)};transform:scale(${backOut(seg(t, 29.4, 29.8))})">Cash out · coming soon</div>
+      </div>
+      <div class="fine">Cash-outs are planned and not live yet. Earnings vary and are not guaranteed.</div>
+    </div>`;
+  }
+
+  /* ---------- 8. OG REWARDS + CTA 31 - 34 */
+  const i8 = seg(t, 31, 31.35);
+  if (i8 > 0) {
+    const k = backOut(seg(t, 31.1, 31.7));
+    let rays = '';
+    for (let i = 0; i < 12; i++) rays += `<div style="position:absolute;left:270px;top:360px;width:4px;height:230px;background:linear-gradient(#FFC96800,#FFC968AA);transform-origin:2px 0;transform:rotate(${i * 30 + t * 20}deg)"></div>`;
+    U += `<div class="layer" style="opacity:${i8};background:radial-gradient(circle at 50% 38%, #3C7564, #102621 80%)">
+      ${rays}
+      <div style="position:absolute;left:170px;top:${260}px;width:200px;height:200px;transform:scale(${k})">
+        <svg width="200" height="200" viewBox="0 0 200 200"><path d="M100 10 176 40v58c0 46-32 78-76 92-44-14-76-46-76-92V40z" fill="#F2B53B" stroke="#8A6A12" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M100 30 158 52v46c0 36-24 62-58 74-34-12-58-38-58-74V52z" fill="#FFC968"/>
+        <text x="100" y="128" text-anchor="middle" font-family="Nunito" font-weight="900" font-size="72" fill="#2A1A03">OG</text></svg>
+      </div>
+      <div style="position:absolute;left:24px;right:24px;top:500px;text-align:center;opacity:${seg(t, 31.5, 31.9)}">
+        <div style="font-weight:900;font-size:40px;color:#fff;letter-spacing:-1px;line-height:1.05">Join early</div>
+        <div style="font-weight:800;font-size:21px;color:#FFC968;margin-top:10px">Early players may get exclusive OG rewards</div>
+      </div>
+      <div class="btn" style="bottom:140px;opacity:${seg(t, 32.2, 32.6)};transform:scale(${0.9 + 0.1 * backOut(seg(t, 32.2, 32.6))})">Download Fareground</div>
+      <div style="position:absolute;left:0;right:0;bottom:92px;text-align:center;font-weight:900;font-size:22px;color:#fff;opacity:${seg(t, 32.5, 32.9)}">Walk. Claim. Earn.</div>
+    </div>`;
+  }
+
+  /* ---------- a white flash on each scene cut */
+  const cuts = [3.0, 23.0];
+  let fl = 0;
+  for (const c of cuts) fl = Math.max(fl, 1 - Math.abs(t - c) / 0.18);
+  $('flash').style.opacity = Math.max(0, fl) * 0.55;
+
+  ui.innerHTML = U; fx.innerHTML = F; rl.innerHTML = R; gl.innerHTML = G; hud.innerHTML = HUD;
+}
+
+window.DURATION = DURATION;
+window.render = render;
+// Live preview when opened in a browser (the recorder calls render(t) itself).
+if (!/record/.test(location.search)) {
+  const start = performance.now();
+  (function loop() { render(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); })();
+}
+</script>
+</body>
+</html>
