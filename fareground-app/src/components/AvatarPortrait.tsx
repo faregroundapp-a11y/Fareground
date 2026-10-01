@@ -130,6 +130,8 @@ export function AvatarPortrait({
         {/* Shoulders, with the head resting on them. */}
         <Path d="M9 66c2.4-10.4 10.4-17 23-17s20.6 6.6 23 17z" fill={CONTOUR} />
         <Path d="M11.4 66c2.2-8.8 9.4-14.6 20.6-14.6S50.4 57.2 52.6 66z" fill={shirt} />
+        {/* A crew neck, so the shirt is a shirt and not a coloured blob. */}
+        <Path d="M23.5 51.6q8.5 5.6 17 0" stroke="#000000" strokeWidth={1.6} strokeLinecap="round" fill="none" opacity={0.22} />
         {a.face === 'face_scarf' && (
           <Path
             d="M19.5 48.5c4.4 3.6 20.6 3.6 25 0v5.4c-4.4 3.6-20.6 3.6-25 0z"
@@ -140,18 +142,36 @@ export function AvatarPortrait({
         )}
         {a.face === 'face_medal' && (
           <G>
-            <Path d="M29 51l3 5 3-5" stroke="#3E6FB0" strokeWidth={2} fill="none" />
-            <Circle cx="32" cy="58" r="3.6" fill={extra} stroke="#B98A1C" strokeWidth={1} />
+            <Path d="M25 49.5l7 7.5 7-7.5" stroke="#2A5FA8" strokeWidth={3} strokeLinejoin="round" fill="none" />
+            <Circle cx="32" cy="58.6" r="5" fill={extra} stroke={CONTOUR} strokeWidth={1.3} />
+            <Circle cx="32" cy="58.6" r="2.8" fill="none" stroke="#FFFFFF" strokeWidth={1} opacity={0.55} />
           </G>
         )}
+
+        {/* EARS, redrawn 2026-10-01. They used to be two outlined circles
+            stuck on the sides of the head, which read as handles. Now they
+            are drawn BEHIND the head, so only the outer half shows: a soft
+            oval with the head's own outline running across it, and a little
+            inner curve so it reads as an ear. */}
+        {[-1, 1].map((side) => (
+          <G key={side}>
+            <Ellipse cx={CX + side * (R - 0.4)} cy={EYE_Y + 1.4} rx={3.6} ry={4.3} fill={CONTOUR} />
+            <Ellipse cx={CX + side * (R - 0.4)} cy={EYE_Y + 1.4} rx={2.5} ry={3.2} fill={skin} />
+            <Path
+              d={`M${CX + side * (R + 1.2)} ${EYE_Y - 0.4}q${side * 1.1} 1.8 0 3.6`}
+              stroke="#000000"
+              strokeWidth={1}
+              strokeLinecap="round"
+              fill="none"
+              opacity={0.22}
+            />
+          </G>
+        ))}
 
         {/* Head. */}
         <Circle cx={CX} cy={CY} r={R + 1.4} fill={CONTOUR} />
         <Circle cx={CX} cy={CY} r={R} fill={skin} />
         <Circle cx={CX} cy={CY} r={R} fill={`url(#${gid})`} />
-        {/* Ears, just peeking, so the head reads as a head and not a ball. */}
-        <Circle cx={CX - R} cy={EYE_Y + 1} r={2.6} fill={skin} stroke={CONTOUR} strokeWidth={1.2} />
-        <Circle cx={CX + R} cy={EYE_Y + 1} r={2.6} fill={skin} stroke={CONTOUR} strokeWidth={1.2} />
 
         {/* ---- hair, under the hat ---- */}
         {(PLAIN_HAIR.has(a.hair) || a.hair === 'hair_long' || a.hair === 'hair_bun') && (
@@ -169,27 +189,49 @@ export function AvatarPortrait({
             <Circle cx="32" cy="15" r="6.6" />
           </G>
         )}
-        {a.hair === 'hair_punk' && !tallHairHidden && (
-          <Path
-            d="M27.4 19L29 9.5 32 4l3 5.5 1.6 9.5z"
-            fill={hair}
-            stroke={CONTOUR}
-            strokeWidth={1.2}
-            strokeLinejoin="round"
-          />
+        {a.hair === 'hair_punk' && (
+          <G>
+            {/* Shaved sides, then a crest of spikes from the forehead back. */}
+            <Path d={HAIR_CAP} fill={hair} opacity={0.3} />
+            <Path
+              d={
+                tallHairHidden
+                  ? 'M27 22.5Q32 20.5 37 22.5L36 15Q32 13.6 28 15z'
+                  : 'M26.6 23.4L23.6 13.6 28.4 15.6 28.6 6.4 32.4 12 35.6 5.2 36.4 13.2 41 10.4 37.4 23.4Q32 21.4 26.6 23.4z'
+              }
+              fill={hair}
+              stroke={CONTOUR}
+              strokeWidth={1.2}
+              strokeLinejoin="round"
+            />
+          </G>
         )}
 
         {/* ---- face ---- */}
         {a.face === 'face_beard' && (
-          <Path
-            d="M15.5 34c1.2 9.6 8 14.6 16.5 14.6S47.3 43.6 48.5 34c-4.2 5.2-10.2 6.4-16.5 6.4S19.7 39.2 15.5 34z"
-            fill={extra}
-          />
+          <G fill={extra} stroke={CONTOUR} strokeWidth={1.1} strokeLinejoin="round">
+            <Path d="M15.4 32.5c.4 10.4 7.4 16 16.6 16s16.2-5.6 16.6-16c-2.6 5-6 7.6-9.6 8.2q-7-2.6-14 0c-3.6-.6-7-3.2-9.6-8.2z" />
+            <Path d="M26.4 39.6q5.6-3.4 11.2 0q-5.6 1.6-11.2 0z" />
+          </G>
         )}
         {a.face === 'face_shades' ? (
           <G>
-            <Rect x="19.5" y={EYE_Y - 4} width="25" height="7.6" rx="3.6" fill={extra} />
-            <Rect x="22" y={EYE_Y - 2.6} width="5" height="1.6" rx="0.8" fill="#FFFFFF" opacity={0.35} />
+            {/* Sunglasses (2026-10-01): two lenses, flat on top and rounded
+                below, on a frame with a bridge - not a black bar. */}
+            <Path d={`M14.6 ${EYE_Y - 3.4}h34.8`} stroke={CONTOUR} strokeWidth={1.6} strokeLinecap="round" />
+            {[26, 38].map((ex) => (
+              <G key={ex}>
+                <Path
+                  d={`M${ex - 5.4} ${EYE_Y - 3.6}h10.8q.4 7.6-5.4 7.8q-5.8-.2-5.4-7.8z`}
+                  fill={extra}
+                  stroke={CONTOUR}
+                  strokeWidth={1.3}
+                  strokeLinejoin="round"
+                />
+                <Path d={`M${ex - 3.2} ${EYE_Y - 1.6}l2.6-1`} stroke="#FFFFFF" strokeWidth={1.3} strokeLinecap="round" opacity={0.6} />
+              </G>
+            ))}
+            <Path d={`M30.6 ${EYE_Y - 2.2}q1.4-1.2 2.8 0`} stroke={CONTOUR} strokeWidth={1.4} fill="none" />
           </G>
         ) : (
           <G fill="#1B2330">
@@ -235,8 +277,8 @@ export function AvatarPortrait({
               strokeLinejoin="round"
             />
             <Circle cx="32" cy="13.2" r="1.5" fill={CONTOUR} />
-            <Ellipse cx="32" cy="26" rx="15.5" ry="3.6" fill={hat} stroke={CONTOUR} strokeWidth={1.4} />
-            <Ellipse cx="32" cy="26.8" rx="12" ry="1.6" fill="#000000" opacity={0.15} />
+            <Path d="M15 26.4Q32 35.4 49 26.4Q32 23 15 26.4z" fill={hat} stroke={CONTOUR} strokeWidth={1.4} strokeLinejoin="round" />
+            <Path d="M19 27.6Q32 33 45 27.6" stroke="#000000" strokeWidth={1.2} fill="none" opacity={0.18} />
             {a.hat === 'hat_miner' && (
               <G>
                 <Circle cx="32" cy="18" r="3.8" fill={CONTOUR} />
@@ -290,10 +332,12 @@ export function AvatarPortrait({
           </G>
         )}
         {hasHat && (a.hat === 'hat_band' || a.hat === 'hat_visor') && (
-          <Rect x="12" y="19.2" width="40" height="4.6" fill={hat} clipPath={`url(#${clipId})`} />
+          <G clipPath={`url(#${clipId})`}>
+            <Path d="M12 23.6Q32 17.6 52 23.6v5Q32 22.6 12 28.6z" fill={hat} stroke={CONTOUR} strokeWidth={1.3} strokeLinejoin="round" />
+          </G>
         )}
         {hasHat && a.hat === 'hat_visor' && (
-          <Ellipse cx="32" cy="24" rx="14.5" ry="3.2" fill={hat} stroke={CONTOUR} strokeWidth={1.3} />
+          <Path d="M17 26.4Q32 36 47 26.4Q32 24.4 17 26.4z" fill={hat} stroke={CONTOUR} strokeWidth={1.3} strokeLinejoin="round" />
         )}
       </G>
 

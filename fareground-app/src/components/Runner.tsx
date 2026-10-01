@@ -145,6 +145,282 @@ function Limb({ d, color, width }: { d: string; color: string; width: number }) 
   );
 }
 
+/** A trainer: rounded toe, flat sole, heel at the ankle. */
+function shoePath(end: { x: number; y: number }) {
+  const x = end.x - 3, y = end.y - 1.2;
+  return `M${x} ${y}h4.2q5.6 0 6.4 3.8v1.2h-10.6q-1.2 0-1.2-1.4z`;
+}
+
+/** A point on the head's outline, `deg` clockwise from "3 o'clock". */
+function onHead(cx: number, cy: number, r: number, deg: number) {
+  const a = (deg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+const f = (n: number) => n.toFixed(2);
+
+/** Hats that cover the crown: a bun or a mohawk would poke through them. */
+const CROWN_HATS = new Set(['hat_cap', 'hat_miner', 'hat_beanie', 'hat_winter', 'hat_bucket', 'hat_explorer', 'hat_flatcap']);
+
+/**
+ * THE RUNNER'S HEAD, redrawn 2026-10-01 ("make the characters look better,
+ * some items are questionable"). The figure faces right in a three-quarter
+ * view, so everything is drawn for that view rather than borrowed from the
+ * front-facing portrait:
+ *
+ *   * HAIR covers the crown AND the back of the head, ends in a fringe at
+ *     the front, and has the same dark outline as everything else - it used
+ *     to be an outline-less cap that looked pasted on.
+ *   * HAIR SHOWS UNDER HATS at the back, instead of every hat going bald.
+ *   * THE HEADBAND AND VISOR are bands, not a full dome hat.
+ *   * THE MOHAWK is a row of spikes, not a purple rectangle.
+ *   * SHADES are two dark lenses with a bridge, an arm and a glint - not a
+ *     black bar across the face.
+ *   * A BEARD follows the jaw and leaves the mouth showing.
+ *   * The face itself (eyes, the cheering smile) is unchanged.
+ */
+function RunnerHead({
+  x, y, skin, hairKey, hairColor, hatKey, hatColor, faceKey, faceColor, happy,
+}: {
+  x: number; y: number; skin: string;
+  hairKey: string; hairColor: string; hatKey: string; hatColor: string;
+  faceKey: string; faceColor: string; happy: boolean;
+}) {
+  const R = HEAD_R;
+  const hasHair = hairKey !== 'hair_none' && hairColor !== 'transparent';
+  const hasHat = hatKey !== 'hat_none';
+  const crownCovered = hasHat && CROWN_HATS.has(hatKey);
+  const tall = hasHair && !crownCovered;
+
+  // The hair cap: over the crown from a fringe at the front to the nape.
+  const front = onHead(x, y, R + 0.6, -32);
+  const back = onHead(x, y, R + 0.6, 198);
+  const hairCap =
+    `M${f(front.x)} ${f(front.y)}A${R + 0.6} ${R + 0.6} 0 0 0 ${f(back.x)} ${f(back.y)}` +
+    `Q${f(x - R * 0.55)} ${f(y + R * 0.05)} ${f(x - R * 0.25)} ${f(y - R * 0.3)}` +
+    `Q${f(x + R * 0.25)} ${f(y - R * 0.62)} ${f(front.x)} ${f(front.y)}z`;
+
+  const eyeY = y + 2.6;
+  const eyes: [number, number] = [x + 0.8, x + 5.9];
+
+  return (
+    <G>
+      {/* Behind the head: long hair falls down the back, a bun sits high. */}
+      {hasHair && hairKey === 'hair_long' && (
+        <Path
+          d={`M${f(x - R * 0.95)} ${f(y - 1)}q-2 ${f(R * 0.9)} 0 ${f(R * 1.45)}h${f(R * 0.75)}q-1 ${f(-R * 0.6)} 1.4 ${f(-R * 1.3)}z`}
+          fill={hairColor}
+          stroke={CONTOUR}
+          strokeWidth={1.3}
+          strokeLinejoin="round"
+        />
+      )}
+      {tall && hairKey === 'hair_bun' && (() => {
+        const b = onHead(x, y, R + 1.6, -140);
+        return <Circle cx={b.x} cy={b.y} r={4.4} fill={hairColor} stroke={CONTOUR} strokeWidth={1.3} />;
+      })()}
+
+      {/* The head. */}
+      <Circle cx={x} cy={y} r={R + 1.3} fill={CONTOUR} />
+      <Circle cx={x} cy={y} r={R} fill={skin} />
+      <Circle cx={x} cy={y} r={R} fill="url(#face)" />
+
+      {/* Hair. */}
+      {hasHair && (hairKey === 'hair_punk' ? (
+        <>
+          {/* Shaved sides, then the crest. */}
+          <Path d={hairCap} fill={hairColor} opacity={0.3} />
+          <Path
+            d={(() => {
+              let d = '';
+              const spikes = [-40, -72, -104, -136, -166];
+              spikes.forEach((deg, i) => {
+                const base1 = onHead(x, y, R - 1, deg + 14);
+                const tip = onHead(x, y, R + (tall ? 6.5 - Math.abs(i - 2) * 0.8 : 1.5), deg);
+                const base2 = onHead(x, y, R - 1, deg - 14);
+                d += `${i === 0 ? 'M' : 'L'}${f(base1.x)} ${f(base1.y)}L${f(tip.x)} ${f(tip.y)}L${f(base2.x)} ${f(base2.y)}`;
+              });
+              const inner = onHead(x, y, R - 4, -100);
+              return `${d}Q${f(inner.x)} ${f(inner.y)} ${f(onHead(x, y, R - 1, -26).x)} ${f(onHead(x, y, R - 1, -26).y)}z`;
+            })()}
+            fill={hairColor}
+            stroke={CONTOUR}
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+          />
+        </>
+      ) : hairKey === 'hair_curls' && tall ? (
+        <G>
+          {[-20, -55, -90, -125, -160, 195].map((deg) => {
+            const c = onHead(x, y, R - 0.4, deg);
+            return <Circle key={`o${deg}`} cx={c.x} cy={c.y} r={4.9} fill={CONTOUR} />;
+          })}
+          {[-20, -55, -90, -125, -160, 195].map((deg) => {
+            const c = onHead(x, y, R - 0.4, deg);
+            return <Circle key={deg} cx={c.x} cy={c.y} r={3.7} fill={hairColor} />;
+          })}
+        </G>
+      ) : (
+        <Path d={hairCap} fill={hairColor} stroke={CONTOUR} strokeWidth={1.3} strokeLinejoin="round" />
+      ))}
+
+      {/* ---- the face ---- */}
+      {faceKey === 'face_beard' && (
+        <Path
+          d={`M${f(x - 3)} ${f(y + 2.5)}Q${f(x - 2)} ${f(y + R + 1.6)} ${f(x + 4)} ${f(y + R + 1)}Q${f(x + R)} ${f(y + R * 0.75)} ${f(x + R - 0.4)} ${f(y + 4)}` +
+             `Q${f(x + 6)} ${f(y + 5.6)} ${f(x + 3.3)} ${f(y + 5.2)}Q${f(x + 0.5)} ${f(y + 6.8)} ${f(x - 3)} ${f(y + 2.5)}z`}
+          fill={faceColor}
+          stroke={CONTOUR}
+          strokeWidth={1}
+          strokeLinejoin="round"
+        />
+      )}
+
+      {/* The eyes, as they always were. Shades replace them. */}
+      {faceKey !== 'face_shades' &&
+        eyes.map((ex) => <Circle key={ex} cx={ex} cy={eyeY} r={1.7} fill="#1B2330" />)}
+
+      {faceKey === 'face_shades' && (
+        <G>
+          {/* the arm back towards the ear */}
+          <Path d={`M${f(eyes[0] - 2.4)} ${f(eyeY - 1)}L${f(x - 5.5)} ${f(eyeY - 2)}`} stroke={CONTOUR} strokeWidth={1.4} strokeLinecap="round" />
+          {/* two lenses: flat top, rounded bottom - sunglasses, not a bar */}
+          {eyes.map((ex, i) => (
+            <Path
+              key={ex}
+              d={`M${f(ex - (i ? 2.3 : 2.6))} ${f(eyeY - 1.6)}h${i ? 4.6 : 5.2}q0.2 3.6 -2.5 3.7q-2.6 0 -2.7 -3.7z`}
+              fill={faceColor}
+              stroke={CONTOUR}
+              strokeWidth={1}
+              strokeLinejoin="round"
+            />
+          ))}
+          <Path d={`M${f(eyes[0] + 2.6)} ${f(eyeY - 1.2)}h${f(eyes[1] - eyes[0] - 4.9)}`} stroke={CONTOUR} strokeWidth={1.2} />
+          {eyes.map((ex) => (
+            <Path key={`g${ex}`} d={`M${f(ex - 1.3)} ${f(eyeY - 0.6)}l1.3 -0.6`} stroke="#FFFFFF" strokeWidth={0.8} strokeLinecap="round" opacity={0.7} />
+          ))}
+        </G>
+      )}
+      {faceKey === 'face_glasses' && (
+        <G stroke={faceColor} strokeWidth={1.2} fill="#FFFFFF" fillOpacity={0.18}>
+          <Path d={`M${f(eyes[0] - 2.6)} ${f(eyeY - 0.8)}L${f(x - 5.5)} ${f(eyeY - 1.8)}`} fill="none" />
+          <Circle cx={eyes[0]} cy={eyeY} r={2.7} />
+          <Circle cx={eyes[1]} cy={eyeY} r={2.7} />
+          <Path d={`M${f(eyes[0] + 2.7)} ${f(eyeY)}h${f(eyes[1] - eyes[0] - 5.4)}`} fill="none" />
+        </G>
+      )}
+      {faceKey === 'face_monocle' && (
+        <G>
+          <Circle cx={eyes[1]} cy={eyeY} r={2.9} stroke={faceColor} strokeWidth={1.3} fill="#FFFFFF" fillOpacity={0.2} />
+          <Path d={`M${f(eyes[1] + 1.6)} ${f(eyeY + 2.4)}q1.6 4 -1 7.5`} stroke={faceColor} strokeWidth={0.8} fill="none" />
+        </G>
+      )}
+
+      {/* A smile only when cheering, as before. */}
+      {happy && (
+        <Path d={`M${f(x + 1.2)} ${f(y + 6.4)}q2.3 2.6 4.6 0`} stroke="#1B2330" strokeWidth={1.4} strokeLinecap="round" fill="none" />
+      )}
+
+      {/* ---- hats, on top ---- */}
+      {hasHat && <RunnerHat x={x} y={y} hatKey={hatKey} color={hatColor} />}
+    </G>
+  );
+}
+
+function RunnerHat({ x, y, hatKey, color }: { x: number; y: number; hatKey: string; color: string }) {
+  const R = HEAD_R;
+  const outline = { stroke: CONTOUR, strokeWidth: 1.4, strokeLinejoin: 'round' as const };
+  // A dome over the crown, its rim a little above the eyes.
+  const dome = (lift: number, h: number) =>
+    `M${f(x - R - 0.6)} ${f(y - lift)}C${f(x - R)} ${f(y - lift - h)} ${f(x + R)} ${f(y - lift - h)} ${f(x + R + 0.6)} ${f(y - lift)}z`;
+  // A brim that sticks out forward (the figure faces right).
+  const peak = (len: number, at: number) => (
+    <Path
+      d={`M${f(x + R * 0.35)} ${f(y - at)}h${f(R * 0.65 + len)}q1.6 0 1.2 1.4q-0.4 1 -2 1h${f(-(R * 0.65 + len) + 0.8)}z`}
+      fill={color}
+      {...outline}
+    />
+  );
+
+  switch (hatKey) {
+    case 'hat_cap':
+    case 'hat_miner':
+      return (
+        <G>
+          <Path d={dome(1.6, R * 1.25)} fill={color} {...outline} />
+          {peak(5.5, 2.4)}
+          {hatKey === 'hat_miner' ? (
+            <>
+              <Circle cx={x + R * 0.55} cy={y - 5.6} r={2.8} fill={CONTOUR} />
+              <Circle cx={x + R * 0.55} cy={y - 5.6} r={2} fill="#FFF3CC" />
+            </>
+          ) : (
+            <Circle cx={x - 1} cy={y - R + 0.4} r={1.1} fill={CONTOUR} />
+          )}
+        </G>
+      );
+    case 'hat_flatcap':
+      return (
+        <G>
+          <Path d={`M${f(x - R - 0.6)} ${f(y - 1.6)}C${f(x - R)} ${f(y - R - 1)} ${f(x + R * 0.6)} ${f(y - R - 1.4)} ${f(x + R + 2)} ${f(y - 3.4)}L${f(x + R + 1)} ${f(y - 1.6)}z`} fill={color} {...outline} />
+          {peak(2.5, 2.2)}
+        </G>
+      );
+    case 'hat_beanie':
+    case 'hat_winter':
+      return (
+        <G>
+          <Path d={dome(2.6, R * 1.55)} fill={color} {...outline} />
+          <Path d={`M${f(x - R - 0.4)} ${f(y - 3.4)}h${f(R * 2 + 0.8)}`} stroke={CONTOUR} strokeWidth={5.2} strokeLinecap="round" />
+          <Path d={`M${f(x - R - 0.4)} ${f(y - 3.4)}h${f(R * 2 + 0.8)}`} stroke={color} strokeWidth={2.8} strokeLinecap="round" />
+          <Path d={`M${f(x - R + 1)} ${f(y - 3.4)}h${f(R * 2 - 2)}`} stroke="#000000" strokeWidth={2.8} strokeDasharray="1 1.6" opacity={0.15} />
+          {hatKey === 'hat_winter' && (
+            <Circle cx={x - 1.5} cy={y - R - 3.6} r={2.8} fill="#FFFFFF" stroke={CONTOUR} strokeWidth={1.1} />
+          )}
+        </G>
+      );
+    case 'hat_bucket':
+    case 'hat_explorer':
+      return (
+        <G>
+          <Path d={dome(2.2, R * (hatKey === 'hat_explorer' ? 1.5 : 1.3))} fill={color} {...outline} />
+          {hatKey === 'hat_explorer' && (
+            <Path d={`M${f(x - R + 0.4)} ${f(y - 4.2)}h${f(R * 2 - 0.8)}`} stroke="#3B2F1C" strokeWidth={2.4} />
+          )}
+          <Path
+            d={`M${f(x - R - 4.5)} ${f(y - 0.4)}Q${f(x)} ${f(y - 4.6)} ${f(x + R + 4.5)} ${f(y - 0.4)}Q${f(x)} ${f(y - 2.2)} ${f(x - R - 4.5)} ${f(y - 0.4)}z`}
+            fill={color}
+            {...outline}
+          />
+        </G>
+      );
+    case 'hat_crown':
+      return (
+        <G>
+          <Path
+            d={`M${f(x - R + 1)} ${f(y - R + 3)}l1 -6.5 3.6 3.6 3.4 -5.6 3.4 5.6 3.6 -3.6 1 6.5z`}
+            fill={color}
+            {...outline}
+          />
+          <Circle cx={x + 0.5} cy={y - R + 0.4} r={1.2} fill="#D8434F" />
+        </G>
+      );
+    case 'hat_band':
+    case 'hat_visor':
+      return (
+        <G>
+          {/* A band round the forehead: a strip, not a hat. */}
+          <Path d={`M${f(x - R + 0.2)} ${f(y - 5.6)}Q${f(x)} ${f(y - 7.4)} ${f(x + R - 0.2)} ${f(y - 4.8)}`} stroke={CONTOUR} strokeWidth={4.8} strokeLinecap="round" fill="none" />
+          <Path d={`M${f(x - R + 0.2)} ${f(y - 5.6)}Q${f(x)} ${f(y - 7.4)} ${f(x + R - 0.2)} ${f(y - 4.8)}`} stroke={color} strokeWidth={2.6} strokeLinecap="round" fill="none" />
+          {hatKey === 'hat_visor' && peak(5, 5.6)}
+        </G>
+      );
+    default:
+      return (
+        <Path d={dome(1.6, R * 1.25)} fill={color} {...outline} />
+      );
+  }
+}
+
 export function Runner({
   gait = 'idle',
   facing = 1,
@@ -204,7 +480,9 @@ export function Runner({
   const faceColor = avatar ? partColor(parts.face, '#1B2330') : '#1B2330';
   const hairKey = avatar ? parts.hair : 'hair_short';
   const showHat = hatKey !== 'hat_none';
-  const showHair = !showHat && hairColor !== 'transparent';
+  // Hair shows UNDER a hat now - at the back and the sides, the way a hat
+  // actually sits - instead of every hat making the runner bald.
+  const showHair = hairColor !== 'transparent';
 
   const pose = poseFor(gait, phase);
   const hip = { x: HIP.x, y: HIP.y + pose.bob };
@@ -265,21 +543,43 @@ export function Runner({
             opacity={0.28}
           />
 
-          {/* A scarf and a medal hang on the CHEST, which the runner has and
-              the head-and-shoulders portrait barely does. Drawn over the
+          {/* THE SCARF wraps the neck and its ends fly out behind - it is a
+              silhouette now, not a red dash on the chest. Drawn over the
               torso and under the near arm, so the arm swings in front. */}
           {faceKey === 'face_scarf' && (
-            <Path
-              d={`M${shoulder.x - 5} ${shoulder.y + 5}h10`}
-              stroke={faceColor}
-              strokeWidth={5}
-              strokeLinecap="round"
-            />
+            <>
+              <Path
+                d={`M${shoulder.x - 2} ${shoulder.y + 2}q-6 ${2 + pose.bob * 0.3} -11 ${5 - Math.sin(phase) * 1.5}`}
+                stroke={CONTOUR}
+                strokeWidth={6.4}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <Path
+                d={`M${shoulder.x - 2} ${shoulder.y + 2}q-6 ${2 + pose.bob * 0.3} -11 ${5 - Math.sin(phase) * 1.5}`}
+                stroke={faceColor}
+                strokeWidth={4}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <Path d={`M${shoulder.x - 6} ${shoulder.y + 0.5}h12`} stroke={CONTOUR} strokeWidth={7.6} strokeLinecap="round" />
+              <Path d={`M${shoulder.x - 6} ${shoulder.y + 0.5}h12`} stroke={faceColor} strokeWidth={5.2} strokeLinecap="round" />
+              <Path d={`M${shoulder.x - 4} ${shoulder.y + 0.5}h8`} stroke="#FFFFFF" strokeWidth={1} strokeDasharray="1.6 2" opacity={0.5} />
+            </>
           )}
+          {/* THE MEDAL hangs on a ribbon, big enough to see on the map. */}
           {faceKey === 'face_medal' && (
             <>
-              <Circle cx={shoulder.x + 1} cy={shoulder.y + 9} r={3} fill={CONTOUR} />
-              <Circle cx={shoulder.x + 1} cy={shoulder.y + 9} r={2.2} fill={faceColor} />
+              <Path
+                d={`M${shoulder.x - 3} ${shoulder.y + 1}L${shoulder.x + 2} ${shoulder.y + 8}L${shoulder.x + 6} ${shoulder.y + 1}`}
+                stroke="#2A5FA8"
+                strokeWidth={2.2}
+                strokeLinejoin="round"
+                fill="none"
+              />
+              <Circle cx={shoulder.x + 2} cy={shoulder.y + 10} r={3.9} fill={CONTOUR} />
+              <Circle cx={shoulder.x + 2} cy={shoulder.y + 10} r={3} fill={faceColor} />
+              <Circle cx={shoulder.x + 2} cy={shoulder.y + 10} r={1.4} fill="#FFFFFF" opacity={0.45} />
             </>
           )}
 
@@ -287,23 +587,26 @@ export function Runner({
           <Limb d={legA.d} color="#3B4A68" width={8.5} />
           <Limb d={armA.d} color={shirtColor} width={6.4} />
 
-          {/* Shoes: a stubby wedge rather than a line, which is the difference
-              between "has feet" and "ends in a point" at this size. */}
+          {/* Shoes: a chunky trainer - a rounded upper on a sole - rather than
+              a dash, which is the difference between "has feet" and "ends in
+              a point" at this size. */}
           {[legB, legA].map((leg, i) => (
             <Path
               key={i}
-              d={`M${leg.end.x - 2.5} ${leg.end.y + 1}h8`}
+              d={shoePath(leg.end)}
+              fill={i === 0 ? shoeColor : shoeColor}
+              opacity={i === 0 ? 0.8 : 1}
               stroke={CONTOUR}
-              strokeWidth={i === 0 ? 6.4 : 7}
-              strokeLinecap="round"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
             />
           ))}
-          {/* Far shoe is dimmed so the two read as depth rather than as one
-              shape; the near one carries the trim, which is the part anyone
-              actually notices at 64px. */}
-          <Path d={`M${legB.end.x - 2.5} ${legB.end.y + 1}h8`} stroke={shoeColor} strokeWidth={4.4} strokeLinecap="round" opacity={0.72} />
-          <Path d={`M${legA.end.x - 2.5} ${legA.end.y + 1}h8`} stroke={shoeColor} strokeWidth={5} strokeLinecap="round" />
-          <Path d={`M${legA.end.x - 2} ${legA.end.y + 2.6}h7`} stroke={shoeTrim} strokeWidth={1.6} strokeLinecap="round" />
+          <Path
+            d={`M${legA.end.x - 2.6} ${legA.end.y + 3.3}h9.6`}
+            stroke={shoeTrim}
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          />
 
           {/* Hands. */}
           <Circle cx={armA.end.x} cy={armA.end.y} r={2.8} fill={CONTOUR} />
@@ -311,162 +614,18 @@ export function Runner({
 
           {/* -------- the head: the biggest shape, and the character -------- */}
           <G transform={`rotate(${pose.tilt} ${head.x} ${head.y + HEAD_R})`}>
-            <Circle cx={head.x} cy={head.y} r={HEAD_R + 1.3} fill={CONTOUR} />
-            <Circle cx={head.x} cy={head.y} r={HEAD_R} fill={skin} />
-            <Circle cx={head.x} cy={head.y} r={HEAD_R} fill="url(#face)" />
-
-            {/* Hair, in the shapes the portrait uses. Only the ones that
-                change the SILHOUETTE are worth distinguishing at 64px -
-                a mohawk and a top knot read instantly; short and long do
-                not, so they share the same cap shape. */}
-            {showHair && (
-              <>
-                {hairKey === 'hair_punk' ? (
-                  <Path
-                    d={`M${head.x} ${head.y - HEAD_R - 6}l3 5v${HEAD_R}h-6v-${HEAD_R}z`}
-                    fill={hairColor}
-                  />
-                ) : hairKey === 'hair_curls' ? (
-                  <G fill={hairColor}>
-                    <Circle cx={head.x - 6} cy={head.y - HEAD_R + 2} r={4.6} />
-                    <Circle cx={head.x + 1} cy={head.y - HEAD_R - 1} r={5.2} />
-                    <Circle cx={head.x + 7} cy={head.y - HEAD_R + 2} r={4.6} />
-                  </G>
-                ) : (
-                  <Path
-                    d={`M${head.x - HEAD_R} ${head.y - 0.5}a${HEAD_R} ${HEAD_R} 0 01${HEAD_R * 2} 0` +
-                       `q-${HEAD_R * 0.5} -3 -${HEAD_R} -3q-${HEAD_R * 0.5} 0 -${HEAD_R} 3z`}
-                    fill={hairColor}
-                  />
-                )}
-                {hairKey === 'hair_bun' && <Circle cx={head.x} cy={head.y - HEAD_R - 2} r={4} fill={hairColor} />}
-                {hairKey === 'hair_long' && (
-                  <Path
-                    d={`M${head.x - HEAD_R + 0.5} ${head.y}q-1 8 0 12h4q-2-6-1-12z` +
-                       `M${head.x + HEAD_R - 0.5} ${head.y}q1 8 0 12h-4q2-6 1-12z`}
-                    fill={hairColor}
-                  />
-                )}
-              </>
-            )}
-
-            {showHat && (
-              <>
-                {/* Crown. */}
-                <Path
-                  d={`M${head.x - HEAD_R} ${head.y - 1}a${HEAD_R} ${HEAD_R} 0 01${HEAD_R * 2} 0z`}
-                  fill={hatColor}
-                  stroke={CONTOUR}
-                  strokeWidth={1.4}
-                  strokeLinejoin="round"
-                />
-                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor' || hatKey === 'hat_flatcap') && (
-                  <Path
-                    d={`M${head.x + HEAD_R - 3} ${head.y - 2.5}h5.5`}
-                    stroke={CONTOUR}
-                    strokeWidth={5}
-                    strokeLinecap="round"
-                  />
-                )}
-                {(hatKey === 'hat_cap' || hatKey === 'hat_miner' || hatKey === 'hat_visor' || hatKey === 'hat_flatcap') && (
-                  <Path
-                    d={`M${head.x + HEAD_R - 3} ${head.y - 2.5}h5.2`}
-                    stroke={hatColor}
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                  />
-                )}
-                {(hatKey === 'hat_bucket' || hatKey === 'hat_explorer') && (
-                  <>
-                    <Path d={`M${head.x - HEAD_R - 3} ${head.y - 1}h${HEAD_R * 2 + 6}`} stroke={CONTOUR} strokeWidth={5} strokeLinecap="round" />
-                    <Path d={`M${head.x - HEAD_R - 3} ${head.y - 1}h${HEAD_R * 2 + 6}`} stroke={hatColor} strokeWidth={3} strokeLinecap="round" />
-                  </>
-                )}
-                {hatKey === 'hat_miner' && (
-                  <>
-                    <Circle cx={head.x + 1} cy={head.y - HEAD_R + 3} r={2.6} fill={CONTOUR} />
-                    <Circle cx={head.x + 1} cy={head.y - HEAD_R + 3} r={1.9} fill="#FFF3CC" />
-                  </>
-                )}
-                {/* A crown is a silhouette, and the whole point of earning
-                    one is that other people can see it. */}
-                {hatKey === 'hat_crown' && (
-                  <Path
-                    d={`M${head.x - HEAD_R} ${head.y - 2}l4 -6 3.5 4 3.5 -6 3.5 6 3.5 -4 4 6z`}
-                    fill={hatColor}
-                    stroke={CONTOUR}
-                    strokeWidth={1.2}
-                    strokeLinejoin="round"
-                  />
-                )}
-                {hatKey === 'hat_winter' && (
-                  <Circle cx={head.x} cy={head.y - HEAD_R - 1.5} r={2.6} fill="#FFFFFF" stroke={CONTOUR} strokeWidth={1} />
-                )}
-                {(hatKey === 'hat_beanie' || hatKey === 'hat_winter') && (
-                  <Path
-                    d={`M${head.x - HEAD_R - 0.5} ${head.y - 3}h${HEAD_R * 2 + 1}`}
-                    stroke={hatColor}
-                    strokeWidth={4.5}
-                    strokeLinecap="round"
-                    opacity={0.8}
-                  />
-                )}
-                {hatKey === 'hat_band' && (
-                  <Path
-                    d={`M${head.x - HEAD_R} ${head.y - 4}h${HEAD_R * 2}`}
-                    stroke={hatColor}
-                    strokeWidth={3.6}
-                    strokeLinecap="round"
-                  />
-                )}
-              </>
-            )}
-
-            {/* A beard sits UNDER the eyes but over the face, same as the
-                portrait draws it. */}
-            {faceKey === 'face_beard' && (
-              <Path
-                d={`M${head.x - HEAD_R + 1} ${head.y + 3}q1 7 ${HEAD_R - 1} 7t${HEAD_R - 1} -7` +
-                   `q-3 4 -${HEAD_R - 1} 4t-${HEAD_R - 1} -4z`}
-                fill={faceColor}
-              />
-            )}
-
-            {/* Two eyes, not one. A single dot read as a profile and made the
-                figure look like it was always looking away.
-                Shades and glasses REPLACE them, exactly as in the portrait -
-                the two have to be the same character. */}
-            {faceKey === 'face_shades' ? (
-              <Path
-                d={`M${head.x - 2.6} ${head.y + 2.6}h11`}
-                stroke={faceColor}
-                strokeWidth={5}
-                strokeLinecap="round"
-              />
-            ) : faceKey === 'face_glasses' ? (
-              <G stroke={faceColor} strokeWidth={1.3} fill="none">
-                <Circle cx={head.x + 0.8} cy={head.y + 2.6} r={2.7} />
-                <Circle cx={head.x + 6.4} cy={head.y + 2.6} r={2.7} />
-                <Path d={`M${head.x + 3.5} ${head.y + 2.6}h0.6`} />
-              </G>
-            ) : (
-              <>
-                <Circle cx={head.x + 0.8} cy={head.y + 2.6} r={1.7} fill="#1B2330" />
-                <Circle cx={head.x + 5.9} cy={head.y + 2.6} r={1.7} fill="#1B2330" />
-                {faceKey === 'face_monocle' && (
-                  <Circle cx={head.x + 5.9} cy={head.y + 2.6} r={2.8} stroke={faceColor} strokeWidth={1.2} fill="none" />
-                )}
-              </>
-            )}
-            {gait === 'cheer' ? (
-              <Path
-                d={`M${head.x + 1.2} ${head.y + 6.4}q2.3 2.6 4.6 0`}
-                stroke="#1B2330"
-                strokeWidth={1.4}
-                strokeLinecap="round"
-                fill="none"
-              />
-            ) : null}
+            <RunnerHead
+              x={head.x}
+              y={head.y}
+              skin={skin}
+              hairKey={showHair ? hairKey : 'hair_none'}
+              hairColor={hairColor}
+              hatKey={showHat ? hatKey : 'hat_none'}
+              hatColor={hatColor}
+              faceKey={faceKey}
+              faceColor={faceColor}
+              happy={gait === 'cheer'}
+            />
           </G>
         </G>
       </Svg>
