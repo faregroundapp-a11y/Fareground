@@ -31,6 +31,7 @@ import { useGameCamera } from '@/hooks/useGameCamera';
 import { useLocation, type Fix } from '@/hooks/useLocation';
 import { useNearby } from '@/hooks/useNearby';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useTreasure } from '@/hooks/useTreasure';
 import { adsAvailable } from '@/native/ads';
@@ -328,6 +329,7 @@ function GameView({ fix }: { fix: Fix }) {
   // iPhone and a 360pt Android are both below it and a 412pt Pixel is not.
   const compactHud = width < 400;
   const tabBarSpace = useTabBarSpace();
+  const screen = useScreenSize();
 
   const { cellX, cellY } = cellForLatLng(fix.lat, fix.lng);
   const playerCell = useMemo<Cell>(() => ({ cellX, cellY }), [cellX, cellY]);
@@ -553,7 +555,7 @@ function GameView({ fix }: { fix: Fix }) {
           </Pressable>
         </View>
 
-        <View style={styles.rail}>
+        <View style={[styles.rail, screen.short && styles.railShort]}>
           <Pressable
             onPress={() => { haptics.tap(); setDailyOpen(true); }}
             style={styles.railBtn}
@@ -602,7 +604,10 @@ function GameView({ fix }: { fix: Fix }) {
       </View>
 
       {!revealed && !celebrating && (
-        <View style={[styles.bottom, { bottom: tabBarSpace }]} pointerEvents="box-none">
+        <View
+          style={[styles.bottom, { bottom: tabBarSpace }, screen.wide && { left: (screen.width - screen.maxCardWidth) / 2, right: (screen.width - screen.maxCardWidth) / 2 }]}
+          pointerEvents="box-none"
+        >
           {finderOn && nearestBox && (
             <Pressable onPress={toggleFinder} style={styles.finderPill} accessibilityLabel="Treasure pointer. Tap to hide">
               <PointerIcon size={26} rotation={pointerRotation} />
@@ -786,9 +791,11 @@ const styles = StyleSheet.create({
   },
   root: { flex: 1, backgroundColor: colors.bg },
 
+  // A column: the top bar, then the tool rail under it on the right. (It was
+  // still a row from the old layout, which pushed the rail and half of Boost
+  // off the right edge of the screen - 2026-10-04.)
   hud: {
-    position: 'absolute', left: 0, right: 0, top: 0,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: space.md,
+    position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: space.md,
   },
   // flexShrink + minWidth:0 let the left group give way on a narrow phone
   // instead of pushing the boost chip off the right edge. Without minWidth a
@@ -819,6 +826,8 @@ const styles = StyleSheet.create({
   railBtn: { width: TOUCH - 2, height: TOUCH - 2, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   // A tool that is switched ON (labels hidden, finder showing).
   railBtnOn: { backgroundColor: 'rgba(242,169,59,0.25)' },
+  // Short phones: the rail would reach down into the claim card.
+  railShort: { padding: 2, gap: 0, transform: [{ scale: 0.88 }], transformOrigin: 'top right', marginTop: 0 },
   railDivider: { height: 1, marginHorizontal: 8, marginVertical: 2, backgroundColor: colors.glassLine },
   finderArrow: { position: 'absolute', top: 5, right: 5 },
   finderPill: {

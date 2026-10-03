@@ -111,8 +111,7 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={closeSheet} statusBarTranslucent>
-        <Pressable style={styles.scrim} onPress={closeSheet} accessibilityLabel="Close" />
+      <Modal visible={sheet !== null} transparent animationType="none" onRequestClose={closeSheet} statusBarTranslucent>
         <DraggableSheet
           onClose={closeSheet}
           style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}

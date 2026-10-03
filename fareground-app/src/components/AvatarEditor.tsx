@@ -146,8 +146,7 @@ export function AvatarEditor({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
 
         <View style={styles.head}>

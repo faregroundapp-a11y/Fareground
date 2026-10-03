@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { ClaimSummary, Quest } from '@/api/types';
@@ -91,8 +91,7 @@ export function DailySheet({
   const d = daily?.daily;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
         <SheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Today</Text>

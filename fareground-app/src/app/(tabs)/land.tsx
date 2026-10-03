@@ -12,6 +12,7 @@ import { haptics } from '@/native/haptics';
 import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate } from '@/game/minerals';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
@@ -60,6 +61,7 @@ export default function LandScreen() {
   const boosted = !!boost?.active && boostEndsAt !== null;
   const firstPriceSteps = (balance?.parcelPrice ?? DEFAULT_PARCEL_PRICE) * (balance?.stepsPerWalkPoint ?? DEFAULT_STEPS_PER_WP);
   const tabBarSpace = useTabBarSpace();
+  const screen = useScreenSize();
   const counts = MINERAL_ORDER.map((k) => ({ k, n: parcels.filter((p) => p.rarity === k).length }));
 
   return (
@@ -103,7 +105,11 @@ export default function LandScreen() {
                   </View>
                 </View>
                 {rate > 0 && (
-                  <BoostBubble usdPerYear={rate * (boost?.multiplier ?? 20) * MONTHS_PER_YEAR * COIN_USD} />
+                  // 126pt wide is a third of a small phone: shrink it there
+                  // (scaled, so it keeps its exact facets and wording).
+                  <View style={screen.narrow ? styles.bubbleSmall : null}>
+                    <BoostBubble usdPerYear={rate * (boost?.multiplier ?? 20) * MONTHS_PER_YEAR * COIN_USD} />
+                  </View>
                 )}
               </View>
               {boosted && boostEndsAt && (
@@ -220,6 +226,7 @@ function Separator() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   body: { padding: space.lg },
+  bubbleSmall: { transform: [{ scale: 0.8 }], marginHorizontal: -12, marginVertical: -9 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   title: type.display,
   titleCount: { fontFamily: fonts.heavy, fontSize: 13, color: colors.ink3, marginBottom: 6 },

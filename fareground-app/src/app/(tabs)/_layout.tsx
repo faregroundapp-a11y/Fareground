@@ -1,4 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
 import { LandTabIcon, MapTabIcon, RanksTabIcon, WalkTabIcon } from '@/components/icons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { StepSetupPrompt } from '@/components/StepSetupPrompt';
@@ -12,6 +13,9 @@ import { colors, fonts } from '@/theme';
 export default function TabsLayout() {
   const { ready, token } = useSession();
   const tabBarBottom = useTabBarBottom();
+  // On a tablet the bar stops at a phone's width, centred.
+  const { width } = useWindowDimensions();
+  const barInset = Math.max(12, (width - 560) / 2);
 
   if (!ready) return <LoadingScreen message="Finding your ground…" />;
   if (!token) return <Redirect href="/sign-in" />;
@@ -35,7 +39,7 @@ export default function TabsLayout() {
           tabBarActiveBackgroundColor: 'rgba(255,255,255,0.12)',
           tabBarStyle: {
             position: 'absolute',
-            marginHorizontal: 12,
+            marginHorizontal: barInset,
             bottom: tabBarBottom,
             height: TAB_BAR_HEIGHT,
             paddingTop: 7,

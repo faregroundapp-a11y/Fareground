@@ -6,8 +6,10 @@ import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
 import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { Nunito_900Black } from '@expo-google-fonts/nunito/900Black';
 import { useFonts } from 'expo-font';
+import { useEffect } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { AppState, Platform, Pressable, Text, View } from 'react-native';
+import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { UpdateGate } from '@/components/UpdateRequired';
@@ -36,6 +38,12 @@ export default function RootLayout() {
   return (
     <SessionProvider>
       <StatusBar style="dark" />
+      {/* Android's button bar (back / home / recents) is hidden while you
+          play, as in most games: swipe up from the bottom edge to bring it
+          back for a moment. It used to sit there with a grey band behind it,
+          under the tab bar (2026-10-04). See also KeepNavBarHidden. */}
+      <NavigationBar hidden style="dark" />
+      <KeepNavBarHidden />
       <UpdateGate>
         <Stack screenOptions={{ headerShown: false }} />
       </UpdateGate>
@@ -71,4 +79,19 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       </Text>
     </View>
   );
+}
+
+/**
+ * Ads, the share sheet and other apps can bring the button bar back; hide it
+ * again whenever Fareground returns to the front.
+ */
+function KeepNavBarHidden() {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') NavigationBar.setHidden(true);
+    });
+    return () => sub.remove();
+  }, []);
+  return null;
 }

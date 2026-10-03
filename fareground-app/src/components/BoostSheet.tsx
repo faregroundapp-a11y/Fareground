@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, ApiError } from '@/api/client';
 import { formatMultiplier } from '@/game/minerals';
@@ -79,8 +79,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
   const wpCooling = (r?.walkPoints.nextInSeconds ?? 0) > 0;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <DraggableSheet onClose={onClose} style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]} gripStyle={styles.grip}>
         <SheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.sm }}>
           <Text style={type.title}>Free rewards</Text>

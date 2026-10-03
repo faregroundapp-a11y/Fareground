@@ -14,6 +14,7 @@ import { Runner } from '@/components/Runner';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { useGame, useGameDaily } from '@/state/game';
 import { useStepHealth } from '@/hooks/useStepHealth';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
@@ -44,6 +45,8 @@ export default function WalkScreen() {
   const { user } = useSession();
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
+  const screen = useScreenSize();
+  const ringSize = screen.s(148);
   const { balance: { balance }, steps: sync } = useGame();
   const [boostOpen, setBoostOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
@@ -122,15 +125,15 @@ export default function WalkScreen() {
 
           <View style={styles.heroRow}>
             <View style={styles.ringWell}>
-              <StepRing progress={stepsToday / DAILY_STEP_CAP} size={148} stroke={12}>
-                <Runner gait={stepsToday ? 'walk' : 'idle'} size={30} avatar={balance?.avatar} />
-                <CountUp value={stepsToday} style={[styles.steps, mono]} />
+              <StepRing progress={stepsToday / DAILY_STEP_CAP} size={ringSize} stroke={Math.round(ringSize / 12)}>
+                <Runner gait={stepsToday ? 'walk' : 'idle'} size={screen.s(30)} avatar={balance?.avatar} />
+                <CountUp value={stepsToday} style={[styles.steps, { fontSize: screen.s(26) }, mono]} />
                 <Text style={type.caption}>of {DAILY_STEP_CAP.toLocaleString()}</Text>
               </StepRing>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.headLabel}>WALK POINTS</Text>
-              <CountUp value={wp} style={[styles.headWp, mono]} />
+              <CountUp value={wp} style={[styles.headWp, { fontSize: screen.s(40) }, mono]} />
               <Text style={styles.headNext}>
                 {capped
                   ? 'Daily steps done. More WP tomorrow!'
