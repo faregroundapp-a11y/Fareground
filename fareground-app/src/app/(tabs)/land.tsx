@@ -12,6 +12,7 @@ import { haptics } from '@/native/haptics';
 import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate } from '@/game/minerals';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -58,6 +59,7 @@ export default function LandScreen() {
   const boost = balance?.rewards.boost;
   const boosted = !!boost?.active && boostEndsAt !== null;
   const firstPriceSteps = (balance?.parcelPrice ?? DEFAULT_PARCEL_PRICE) * (balance?.stepsPerWalkPoint ?? DEFAULT_STEPS_PER_WP);
+  const tabBarSpace = useTabBarSpace();
   const counts = MINERAL_ORDER.map((k) => ({ k, n: parcels.filter((p) => p.rarity === k).length }));
 
   return (
@@ -66,27 +68,39 @@ export default function LandScreen() {
         data={parcels}
         keyExtractor={(p) => p.id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
         ItemSeparatorComponent={Separator}
         ListHeaderComponent={
           <View style={{ gap: 14, marginBottom: 14 }}>
-            <Text style={styles.title}>My land</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>My land</Text>
+              {parcels.length > 0 && (
+                <Text style={styles.titleCount}>{parcels.length} parcel{parcels.length === 1 ? '' : 's'}</Text>
+              )}
+            </View>
 
             <NeighboursCard />
 
+            {/* THE HERO (2026-10-03 refresh): your coin total, big, first -
+                testers could not find it. What your land earns sits under it,
+                and the boost bubble stays on the right. */}
             <View style={styles.summary}>
               <View style={styles.summaryTop}>
-                <CoinIcon size={30} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.rate, mono]}>{formatRate(rate)} <Text style={styles.rateUnit}>coins / month</Text></Text>
-                  <Text style={[styles.usd, mono]}>${(rate * MONTHS_PER_YEAR * COIN_USD).toFixed(3)} per year</Text>
-                  {/* Testers asked where their total is: it was only on the map's
-                      top pill, abbreviated. */}
-                  {balance && (
-                    <Text style={[styles.balanceLine, mono]}>
-                      You have {balance.coins.toLocaleString()} coins · ${(balance.coins * COIN_USD).toFixed(2)}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.heroLabel}>YOUR COINS</Text>
+                  <View style={styles.heroRow}>
+                    <CoinIcon size={28} />
+                    <Text style={[styles.heroCoins, mono]} numberOfLines={1} adjustsFontSizeToFit>
+                      {(balance?.coins ?? 0).toLocaleString()}
                     </Text>
-                  )}
+                  </View>
+                  <Text style={[styles.heroUsd, mono]}>${((balance?.coins ?? 0) * COIN_USD).toFixed(2)}</Text>
+                  <View style={styles.earnChip}>
+                    <Text style={[styles.earnChipText, mono]}>
+                      +{formatRate(rate)} <Text style={styles.earnChipUnit}>coins / month</Text>
+                    </Text>
+                    <Text style={[styles.earnChipSub, mono]}>${(rate * MONTHS_PER_YEAR * COIN_USD).toFixed(3)} per year</Text>
+                  </View>
                 </View>
                 {rate > 0 && (
                   <BoostBubble usdPerYear={rate * (boost?.multiplier ?? 20) * MONTHS_PER_YEAR * COIN_USD} />
@@ -116,7 +130,6 @@ export default function LandScreen() {
 
             {error && <Text style={styles.error}>{error}</Text>}
             {note && <Text style={styles.note}>{note}</Text>}
-            {parcels.length > 0 && <Text style={styles.section}>{parcels.length} PARCEL{parcels.length === 1 ? '' : 'S'}</Text>}
           </View>
         }
         ListEmptyComponent={
@@ -138,7 +151,7 @@ export default function LandScreen() {
           const cost = item.nextUpgradeCostWp;
           const canAfford = cost !== null && wp >= cost;
           return (
-            <View style={styles.row}>
+            <View style={[styles.row, { borderLeftColor: m.color }]}>
               <View style={styles.rowTop}>
                 <View style={[styles.gemWell, { backgroundColor: m.color + '1F' }]}>
                   <GemIcon size={26} color={m.color} />
@@ -152,17 +165,16 @@ export default function LandScreen() {
                       </View>
                     )}
                   </View>
-                  {/* The cell reference used to lead this line. It is a grid
-                      coordinate - meaningless to a player, and the product
-                      owner had already rejected showing one on the map. The
-                      date is the part anyone actually reads. */}
-                  <Text style={[styles.rowSub, mono]} numberOfLines={1}>
-                    Claimed {new Date(item.purchasedAt).toLocaleDateString()}
-                  </Text>
+                  {/* Upgrade pips: one per level, filled in the mineral's colour. */}
+                  <View style={styles.pips}>
+                    {Array.from({ length: item.maxUpgradeLevel }, (_, i) => (
+                      <View key={i} style={[styles.pip, i < item.upgradeLevel && { backgroundColor: m.color }]} />
+                    ))}
+                  </View>
                 </View>
                 <View style={styles.rowRate}>
-                  <CoinIcon size={14} />
-                  <Text style={[styles.rowRateText, mono]}>+{formatRate(item.coinsPerMonth)}/mo</Text>
+                  <Text style={[styles.rowRateText, mono]}>+{formatRate(item.coinsPerMonth)}</Text>
+                  <Text style={styles.rowRateUnit}>coins / mo</Text>
                 </View>
               </View>
 
@@ -182,13 +194,13 @@ export default function LandScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Upgrade this parcel for ${cost} Walk Points and an ad`}
                   >
-                    <PlayAdIcon size={16} color={canAfford ? '#FFFFFF' : colors.ink3} />
+                    <PlayAdIcon size={16} color={canAfford ? colors.boostDeep : colors.ink3} />
                     <Text style={[styles.upgradeText, !canAfford && { color: colors.ink3 }]}>
-                      {adBusy === 'UPGRADE' ? 'Loading ad…' : `Upgrade +${UPGRADE_COINS_PER_LEVEL}/mo · ${cost} WP + ad`}
+                      {adBusy === 'UPGRADE' ? 'Loading ad…' : `Upgrade · ${cost} WP`}
                     </Text>
                     <View style={{ flex: 1 }} />
                     <Text style={[styles.upgradeLvl, !canAfford && { color: colors.ink3 }]}>
-                      {item.upgradeLevel}/{item.maxUpgradeLevel}
+                      +{UPGRADE_COINS_PER_LEVEL}/mo
                     </Text>
                   </Pressable>
                 )
@@ -207,19 +219,33 @@ function Separator() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: space.xl, paddingBottom: space.xxl },
+  body: { padding: space.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   title: type.display,
+  titleCount: { fontFamily: fonts.heavy, fontSize: 13, color: colors.ink3, marginBottom: 6 },
   boostRow: {
     flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.boost,
     borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm + 2,
   },
   boostText: { fontFamily: fonts.heavy, fontSize: 13.5, color: '#FFFFFF', includeFontPadding: false },
-  summary: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, gap: 14, ...shadow.card },
-  summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summary: {
+    backgroundColor: colors.accent, borderRadius: radius.xl, padding: 18, gap: 14,
+    shadowColor: colors.accent, shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  },
+  summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroLabel: { fontFamily: fonts.heavy, fontSize: 12, letterSpacing: 1.2, color: 'rgba(255,255,255,0.7)' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+  heroCoins: { fontFamily: fonts.black, fontSize: 34, letterSpacing: -1, color: '#FFFFFF', flexShrink: 1 },
+  heroUsd: { fontFamily: fonts.heavy, fontSize: 15, color: 'rgba(255,255,255,0.78)', marginTop: -2 },
+  earnChip: { alignSelf: 'flex-start', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 },
+  earnChipText: { fontFamily: fonts.black, fontSize: 15, color: '#FFFFFF' },
+  earnChipUnit: { fontFamily: fonts.bold, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
+  earnChipSub: { fontFamily: fonts.bold, fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginTop: 1 },
   rate: { fontSize: 28, fontFamily: fonts.black, color: colors.ink, letterSpacing: -0.5 },
   rateUnit: { fontSize: 14, fontFamily: fonts.medium, color: colors.ink2 },
   usd: { fontSize: 12.5, color: colors.ink3, fontFamily: fonts.medium },
   balanceLine: { fontSize: 12.5, color: colors.ink2, fontFamily: fonts.bold, marginTop: 2 },
+  // The gem tray keeps its original look: the light tray, the same gems.
   collection: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.sunk, borderRadius: radius.md, padding: 10 },
   slot: { alignItems: 'center', gap: 4, flex: 1 },
   slotN: { fontSize: 14, fontFamily: fonts.heavy, color: colors.ink },
@@ -229,24 +255,28 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontFamily: fonts.heavy, color: colors.ink },
   emptyBody: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink2, textAlign: 'center' },
   row: {
-    backgroundColor: colors.card, borderRadius: radius.md, padding: space.md, gap: space.sm, ...shadow.card,
+    backgroundColor: colors.card, borderRadius: radius.lg, padding: space.md, gap: space.md, ...shadow.card,
+    borderLeftWidth: 5,
   },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  lvl: { backgroundColor: colors.accent, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 },
-  lvlText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 9.5, includeFontPadding: false },
+  lvl: { backgroundColor: colors.sunk, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  lvlText: { color: colors.ink2, fontFamily: fonts.black, fontSize: 10, includeFontPadding: false },
+  pips: { flexDirection: 'row', gap: 4, marginTop: 6 },
+  pip: { width: 16, height: 5, borderRadius: 3, backgroundColor: colors.sunk },
   upgrade: {
     flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 12,
-    borderRadius: radius.md, backgroundColor: colors.boost,
+    borderRadius: radius.md, backgroundColor: colors.boostSoft,
   },
   upgradeOff: { backgroundColor: colors.sunk },
-  upgradeText: { color: '#FFFFFF', fontFamily: fonts.heavy, fontSize: 13, includeFontPadding: false },
-  upgradeLvl: { color: 'rgba(255,255,255,0.8)', fontFamily: fonts.bold, fontSize: 12, includeFontPadding: false },
+  upgradeText: { color: colors.boostDeep, fontFamily: fonts.heavy, fontSize: 13.5, includeFontPadding: false },
+  upgradeLvl: { color: colors.boostDeep, fontFamily: fonts.bold, fontSize: 12, opacity: 0.8, includeFontPadding: false },
   maxed: { fontFamily: fonts.bold, fontSize: 12.5, color: colors.goodInk, textAlign: 'center', paddingVertical: 6 },
   note: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.goodInk },
   gemWell: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   rowName: { fontSize: 16, fontFamily: fonts.heavy },
   rowSub: { fontFamily: fonts.regular, fontSize: 12, color: colors.ink3, marginTop: 2 },
-  rowRate: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.sunk, borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 5 },
-  rowRateText: { fontSize: 13, fontFamily: fonts.heavy, color: colors.ink },
+  rowRate: { alignItems: 'flex-end' },
+  rowRateText: { fontSize: 15, fontFamily: fonts.black, color: colors.ink },
+  rowRateUnit: { fontSize: 11, fontFamily: fonts.bold, color: colors.ink3 },
 });

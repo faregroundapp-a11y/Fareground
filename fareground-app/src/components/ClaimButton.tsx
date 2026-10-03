@@ -48,32 +48,36 @@ export function ClaimButton({
   }, [ready, glow]);
 
   if (!ready) {
+    // Short of Walk Points: the button, faded, still says what a claim costs
+    // - and the ad that earns WP sits right beside it. The card above shows
+    // the progress bar, so it is not repeated here (2026-10-03 refresh).
+    if (state.kind === 'short') {
+      return (
+        <View style={styles.shortRow}>
+          <View style={[styles.btn, styles.btnOff]} accessibilityLabel={`${state.need - state.have} more Walk Points to claim`}>
+            <View style={styles.content}>
+              <FlagIcon size={20} color={colors.claimInk} />
+              <Text style={[styles.label, styles.labelOff]}>Claim · {price} WP</Text>
+            </View>
+          </View>
+          {adOffer && (
+            <Pressable
+              onPress={adOffer.onPress}
+              disabled={adOffer.busy}
+              style={({ pressed }) => [styles.adBtn, pressed && { opacity: 0.85 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Watch an ad for ${adOffer.label}`}
+            >
+              {adOffer.busy ? <ActivityIndicator color="#FFFFFF" size="small" /> : <PlayAdIcon size={18} />}
+              <Text style={styles.adBtnText}>{adOffer.label}</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
     return (
       <View style={styles.off}>
-        {state.kind === 'short' ? (
-          <>
-            <View style={styles.offRow}>
-              <Text style={styles.offText}>Walk to earn your next parcel</Text>
-              <Text style={[styles.offCount, mono]}>{state.have} / {state.need} WP</Text>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${Math.min(100, (state.have / state.need) * 100)}%` }]} />
-            </View>
-            {adOffer && (
-              <Pressable
-                onPress={adOffer.onPress}
-                disabled={adOffer.busy}
-                style={({ pressed }) => [styles.adPill, pressed && { opacity: 0.8 }]}
-                accessibilityRole="button"
-              >
-                {adOffer.busy ? <ActivityIndicator color="#FFFFFF" size="small" /> : <PlayAdIcon size={18} />}
-                <Text style={styles.adPillText}>{adOffer.label}</Text>
-              </Pressable>
-            )}
-          </>
-        ) : (
-          <Text style={styles.offText}>{state.reason}</Text>
-        )}
+        <Text style={styles.offText}>{state.reason}</Text>
       </View>
     );
   }
@@ -131,18 +135,19 @@ const styles = StyleSheet.create({
   cost: { backgroundColor: 'rgba(42,26,3,0.14)', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
   costText: { color: colors.claimInk, fontSize: 12, fontFamily: fonts.heavy, includeFontPadding: false },
 
+  shortRow: { flexDirection: 'row', gap: 8 },
+  btnOff: { flex: 1, height: 56, opacity: 0.5, borderBottomWidth: 3 },
+  labelOff: { fontSize: 16, letterSpacing: 0.4, textTransform: 'none' },
+  adBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 56, paddingHorizontal: 16,
+    borderRadius: radius.lg, backgroundColor: colors.accent, borderBottomWidth: 3, borderBottomColor: '#1F3F36',
+  },
+  adBtnText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15, includeFontPadding: false },
+
+  // Can't claim for another reason (GPS, owned, nothing in reach): say why.
   off: {
-    borderRadius: radius.lg, backgroundColor: colors.glassHi,
-    paddingHorizontal: 16, paddingVertical: 14, gap: 10, minHeight: 62, justifyContent: 'center',
+    borderRadius: radius.lg, backgroundColor: colors.sunk,
+    paddingHorizontal: 16, paddingVertical: 14, minHeight: 56, justifyContent: 'center',
   },
-  offRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  offText: { color: colors.glassInk, fontSize: 14, fontFamily: fonts.medium, lineHeight: 19, flexShrink: 1 },
-  offCount: { color: colors.steps, fontSize: 13, fontFamily: fonts.heavy },
-  track: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 3, backgroundColor: colors.steps },
-  adPill: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 40,
-    borderRadius: radius.md, backgroundColor: colors.boost,
-  },
-  adPillText: { color: '#FFFFFF', fontFamily: fonts.heavy, fontSize: 14, includeFontPadding: false },
+  offText: { color: colors.ink2, fontSize: 14, fontFamily: fonts.bold, lineHeight: 19, textAlign: 'center' },
 });

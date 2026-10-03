@@ -6,6 +6,7 @@ import { ApiError, api } from '@/api/client';
 import type { Leaderboard, LeaderboardScope } from '@/api/types';
 import { PlayerPicture } from '@/components/PlayerPicture';
 import { BoltIcon, TrophyIcon } from '@/components/icons';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { haptics } from '@/native/haptics';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
@@ -62,13 +63,14 @@ export default function RanksScreen() {
   useFocusEffect(useCallback(() => { load(scope); }, [load, scope]));
 
   const meInList = board?.entries.some((e) => e.you) ?? false;
+  const tabBarSpace = useTabBarSpace();
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <FlatList
         data={board?.scope === scope ? board.entries : []}
         keyExtractor={(e) => `${e.rank}-${e.username}`}
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace + 56 }]}
         refreshControl={<RefreshControl refreshing={loading && !!board} onRefresh={() => load(scope)} tintColor={colors.accent} />}
         ItemSeparatorComponent={Sep}
         ListHeaderComponent={
@@ -111,28 +113,7 @@ export default function RanksScreen() {
               </View>
             )}
 
-            {board && (
-              <View style={styles.card}>
-                <Text style={type.label}>Top 3 win a land boost</Text>
-                <View style={styles.prizes}>
-                  {board.prizes.map((p) => (
-                    <View key={p.rank} style={[styles.prize, { borderColor: MEDAL[p.rank - 1] }]}>
-                      <Text style={[styles.prizePlace, { color: MEDAL[p.rank - 1] }]}>{PLACE[p.rank - 1]}</Text>
-                      <View style={styles.prizeX}>
-                        <BoltIcon size={14} color={colors.boost} />
-                        <Text style={styles.prizeXText}>{p.multiplier}×</Text>
-                      </View>
-                      <Text style={type.caption}>{days(p.seconds)}</Text>
-                    </View>
-                  ))}
-                </View>
-                {!board.prizesActive && board.areaName && (
-                  <Text style={[type.caption, { marginTop: space.sm }]}>
-                    Prizes start once {board.minWalkers} people walk on this board ({board.walkers} so far). Invite friends!
-                  </Text>
-                )}
-              </View>
-            )}
+            {board && <PrizePodium board={board} />}
 
             {error && <Text style={styles.error}>{error}</Text>}
           </View>
@@ -173,12 +154,89 @@ export default function RanksScreen() {
       />
 
       {board?.scope === scope && board.me.rank && !meInList && (
-        <View style={styles.meBar}>
+        <View style={[styles.meBar, { bottom: tabBarSpace - 4 }]}>
           <Text style={styles.meText}>You · #{board.me.rank}</Text>
           <Text style={[styles.meText, mono]}>{board.me.steps.toLocaleString()} steps</Text>
         </View>
       )}
     </SafeAreaView>
+  );
+}
+
+/** Podium order: 2nd on the left, 1st in the middle (tallest), 3rd on the right. */
+const PODIUM_ORDER = [2, 1, 3];
+const STEP_HEIGHT: Record<number, number> = { 1: 62, 2: 46, 3: 34 };
+
+/**
+ * THE PRIZES, REWORKED (2026-10-03). They were three outlined boxes in a row
+ * that looked like buttons and said nothing about who was winning. Now it is
+ * a podium: the boost each place wins stands on its step, the player in that
+ * place right now stands on top, and a line underneath tells you how far you
+ * are from a prize - the thing that makes anyone walk a bit further.
+ */
+function PrizePodium({ board }: { board: Leaderboard }) {
+  const byRank = (r: number) => board.entries.find((e) => e.rank === r);
+  const third = byRank(3);
+  const myRank = board.me.rank;
+  const gap = third && myRank && myRank > 3 ? third.steps - board.me.steps + 1 : null;
+
+  return (
+    <View style={styles.podiumCard}>
+      <View style={styles.podiumHead}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.podiumTitle}>Weekly prizes</Text>
+          <Text style={styles.podiumSub}>{'Top 3 boost their land\'s coins'}</Text>
+        </View>
+        <View style={styles.endsChip}>
+          <Text style={[styles.endsText, mono]}>Ends in {timeLeft(board.week.endsAt)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.podium}>
+        {PODIUM_ORDER.map((rank) => {
+          const prize = board.prizes.find((p) => p.rank === rank);
+          const holder = byRank(rank);
+          const medal = MEDAL[rank - 1];
+          return (
+            <View key={rank} style={styles.podiumCol}>
+              {/* Who is there right now. */}
+              <View style={styles.holder}>
+                {holder ? (
+                  <PlayerPicture photoUrl={holder.photoUrl} username={holder.username} size={rank === 1 ? 46 : 38} ring={medal} />
+                ) : (
+                  <View style={[styles.emptySeat, { width: rank === 1 ? 46 : 38, height: rank === 1 ? 46 : 38, borderColor: medal }]}>
+                    <Text style={styles.emptySeatText}>?</Text>
+                  </View>
+                )}
+                <Text style={styles.holderName} numberOfLines={1}>{holder ? (holder.you ? 'You' : holder.username) : 'Free spot'}</Text>
+              </View>
+              {/* The prize. */}
+              {prize && (
+                <View style={styles.prizeTag}>
+                  <BoltIcon size={rank === 1 ? 16 : 14} color={colors.boostHi} />
+                  <Text style={[styles.prizeX, rank === 1 && styles.prizeXBig]}>{prize.multiplier}×</Text>
+                </View>
+              )}
+              {prize && <Text style={styles.prizeFor}>{days(prize.seconds)}</Text>}
+              {/* The step. */}
+              <View style={[styles.step, { height: STEP_HEIGHT[rank], backgroundColor: medal }]}>
+                <Text style={styles.stepText}>{PLACE[rank - 1]}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={styles.podiumFoot}>
+        {!board.prizesActive && board.areaName
+          ? `Prizes start once ${board.minWalkers} people walk on this board (${board.walkers} so far). Invite friends!`
+          : myRank && myRank <= 3
+            ? `You're in ${PLACE[myRank - 1]} place - hold on to it!`
+            : gap !== null
+              ? `${gap.toLocaleString()} more steps puts you in the top 3`
+              : 'Walk this week to get on the podium'}
+      </Text>
+    </View>
   );
 }
 
@@ -188,7 +246,7 @@ function Sep() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: space.xl, paddingBottom: space.xxl },
+  body: { padding: space.lg },
   segment: { flexDirection: 'row', backgroundColor: colors.sunk, borderRadius: radius.md, padding: 4, gap: 4 },
   segItem: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   segOn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
@@ -201,12 +259,31 @@ const styles = StyleSheet.create({
   },
   wonTitle: { fontFamily: fonts.black, fontSize: 16, color: '#FFFFFF', includeFontPadding: false },
   wonSub: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, ...shadow.card },
-  prizes: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
-  prize: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: space.md, borderRadius: radius.md, borderWidth: 1.5 },
-  prizePlace: { fontFamily: fonts.black, fontSize: 15, includeFontPadding: false },
-  prizeX: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  prizeXText: { fontFamily: fonts.black, fontSize: 20, color: colors.boost, includeFontPadding: false },
+  podiumCard: {
+    backgroundColor: '#1B2622', borderRadius: radius.xl, padding: space.lg, paddingBottom: space.md, gap: space.md,
+    ...shadow.float,
+  },
+  podiumHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  podiumTitle: { fontFamily: fonts.black, fontSize: 18, color: '#FFFFFF', includeFontPadding: false },
+  podiumSub: { fontFamily: fonts.bold, fontSize: 12.5, color: 'rgba(255,255,255,0.65)', marginTop: 2, includeFontPadding: false },
+  endsChip: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
+  endsText: { fontFamily: fonts.heavy, fontSize: 12, color: colors.claimHi, includeFontPadding: false },
+  podium: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: space.xs },
+  podiumCol: { flex: 1, alignItems: 'center' },
+  holder: { alignItems: 'center', gap: 4, marginBottom: 6, maxWidth: '100%' },
+  holderName: { fontFamily: fonts.heavy, fontSize: 12, color: '#FFFFFF', maxWidth: 96, includeFontPadding: false },
+  emptySeat: { borderRadius: 999, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  emptySeatText: { fontFamily: fonts.black, fontSize: 16, color: 'rgba(255,255,255,0.5)', includeFontPadding: false },
+  prizeTag: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  prizeX: { fontFamily: fonts.black, fontSize: 20, color: '#FFFFFF', includeFontPadding: false },
+  prizeXBig: { fontSize: 26 },
+  prizeFor: { fontFamily: fonts.bold, fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginBottom: 6, includeFontPadding: false },
+  step: {
+    alignSelf: 'stretch', borderTopLeftRadius: 12, borderTopRightRadius: 12, borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
+    alignItems: 'center', paddingTop: 8,
+  },
+  stepText: { fontFamily: fonts.black, fontSize: 15, color: 'rgba(20,32,26,0.75)', includeFontPadding: false },
+  podiumFoot: { fontFamily: fonts.bold, fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center', includeFontPadding: false },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.card,
     borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: space.md, minHeight: 60, ...shadow.card,
@@ -221,7 +298,7 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl },
   error: { ...type.body, color: colors.danger },
   meBar: {
-    position: 'absolute', left: space.md, right: space.md, bottom: space.md,
+    position: 'absolute', left: space.md, right: space.md,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: space.lg,
   },

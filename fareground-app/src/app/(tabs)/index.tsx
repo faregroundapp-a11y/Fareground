@@ -15,7 +15,7 @@ import { PlayerPicture } from '@/components/PlayerPicture';
 import { CountUp } from '@/components/CountUp';
 import { DailySheet } from '@/components/DailySheet';
 import { DoorbellSheet } from '@/components/DoorbellSheet';
-import { BoltIcon, ChestIcon, ChevronIcon, CoinIcon, CompassIcon, PlayAdIcon, PointerIcon, StepsIcon, StreetSignIcon } from '@/components/icons';
+import { BoltIcon, ChestIcon, ChevronIcon, CoinIcon, CompassIcon, FlagIcon, PeopleIcon, PlayAdIcon, PointerIcon, StepsIcon, StreetSignIcon } from '@/components/icons';
 import { PlayerMarker } from '@/components/PlayerMarker';
 import { TreasureMarkers } from '@/components/TreasureMarkers';
 import { RevealSheet } from '@/components/RevealSheet';
@@ -25,12 +25,13 @@ import { DEFAULT_PARCEL_PRICE, MAX_CLAIM_ACCURACY_M } from '@/config';
 import { useMapStyle } from '@/game/mapStyle';
 import { CLAIM_REACH_M, bearingBetween, cellKey, claimableAround, distanceToCell, metresBetween, sameCell } from '@/game/geo';
 import { cellForLatLng, type Cell } from '@/game/grid';
-import { MINERALS, MINERAL_ORDER, formatMultiplier } from '@/game/minerals';
+import { MINERALS, MINERAL_ORDER, formatMultiplier, formatRate } from '@/game/minerals';
 import { useAreaReporter } from '@/hooks/useAreaReporter';
 import { useGameCamera } from '@/hooks/useGameCamera';
 import { useLocation, type Fix } from '@/hooks/useLocation';
 import { useNearby } from '@/hooks/useNearby';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useTreasure } from '@/hooks/useTreasure';
 import { adsAvailable } from '@/native/ads';
 import { haptics } from '@/native/haptics';
@@ -326,6 +327,7 @@ function GameView({ fix }: { fix: Fix }) {
   // shed something rather than compress. 400 is the line because a 390pt
   // iPhone and a 360pt Android are both below it and a 412pt Pixel is not.
   const compactHud = width < 400;
+  const tabBarSpace = useTabBarSpace();
 
   const { cellX, cellY } = cellForLatLng(fix.lat, fix.lng);
   const playerCell = useMemo<Cell>(() => ({ cellX, cellY }), [cellX, cellY]);
@@ -506,56 +508,57 @@ function GameView({ fix }: { fix: Fix }) {
 
       <CommunitySheet visible={community} onClose={() => setCommunity(false)} />
 
-      {/* HUD */}
+      {/* HUD (2026-10-03 refresh): your picture, ONE wallet capsule for coins
+          and Walk Points, and Boost on the right; the map tools in a single
+          slim rail underneath instead of six loose buttons. */}
       <View style={[styles.hud, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
-        <View style={styles.pills}>
+        <View style={styles.hudTop} pointerEvents="box-none">
           {/* Your profile and badges. */}
           <Pressable
             onPress={() => { haptics.tap(); router.push('/profile'); }}
             accessibilityLabel="Your profile"
             hitSlop={6}
+            style={styles.me}
           >
-            <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={compactHud ? 36 : 42} />
+            <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={compactHud ? 36 : 40} />
             {!!balance?.unseenBadges && (
               <View style={styles.avatarDot}>
                 <Text style={styles.badgeText}>{balance.unseenBadges}</Text>
               </View>
             )}
           </Pressable>
-          <View style={[styles.pill, compactHud && styles.pillTight]}>
+          <View style={[styles.wallet, compactHud && styles.walletTight]}>
             <CoinIcon size={compactHud ? 18 : 22} />
             <CountUp value={balance?.coins ?? 0} style={[styles.pillValue, compactHud && styles.pillValueSm, mono]} short />
-          </View>
-          <View style={[styles.pill, compactHud && styles.pillTight]}>
+            <View style={styles.walletDivider} />
             <StepsIcon size={compactHud ? 17 : 20} />
             <CountUp value={wp} style={[styles.pillValue, compactHud && styles.pillValueSm, mono]} short />
-            {/* The unit label is the first thing to go: the icon already
-                says what it is, and it buys ~18pt on a narrow phone. */}
+            {/* The unit label is the first thing to go on a narrow phone. */}
             {!compactHud && <Text style={styles.pillUnit}>WP</Text>}
           </View>
-        </View>
-        <View style={styles.hudRight}>
+          <View style={{ flex: 1 }} />
           <Pressable
             onPress={() => { haptics.tap(); setBoostOpen(true); }}
-            style={[styles.boostChip, boosted && styles.boostChipOn]}
+            style={[styles.boostBtn, boosted && chipEndsAt ? styles.boostBtnOn : null]}
             accessibilityLabel={boosted ? 'Boost active. Open power-ups' : 'Open power-ups'}
             hitSlop={6}
           >
-            <BoltIcon size={18} color={boosted ? '#FFFFFF' : colors.boostHi} />
-            {boosted && chipEndsAt ? (
+            <BoltIcon size={boosted && chipEndsAt ? 18 : 22} color="#FFFFFF" />
+            {boosted && chipEndsAt && (
               <>
                 <Text style={styles.boostX}>{formatMultiplier(multiplier)}×</Text>
                 <Countdown endsAt={chipEndsAt} onDone={refreshBalance} style={[styles.boostTime, mono]} short />
               </>
-            ) : (
-              <Text style={styles.boostLabel}>Boost</Text>
             )}
           </Pressable>
+        </View>
+
+        <View style={styles.rail}>
           <Pressable
             onPress={() => { haptics.tap(); setDailyOpen(true); }}
-            style={styles.compass}
+            style={styles.railBtn}
             accessibilityLabel={`Daily rewards${daily?.claimable ? `, ${daily.claimable} ready` : ''}`}
-            hitSlop={6}
+            hitSlop={2}
           >
             <ChestIcon size={26} open={!chestReady} />
             {!!daily?.claimable && (
@@ -566,39 +569,40 @@ function GameView({ fix }: { fix: Fix }) {
           </Pressable>
           <Pressable
             onPress={() => { haptics.tap(); setCommunity(true); }}
-            style={styles.communityBtn}
+            style={styles.railBtn}
             accessibilityLabel="Community"
-            hitSlop={6}
+            hitSlop={2}
           >
-            <Text style={styles.communityGlyph}>🤗</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { haptics.tap(); toggleLabels(); }}
-            style={[styles.compass, !labelsOn && styles.hudBtnOn]}
-            accessibilityLabel={labelsOn ? 'Hide map labels' : 'Show map labels'}
-            hitSlop={6}
-          >
-            <StreetSignIcon size={26} off={!labelsOn} />
+            <PeopleIcon size={24} />
           </Pressable>
           <Pressable
             onPress={toggleFinder}
-            style={[styles.compass, finderOn && styles.hudBtnOn]}
+            style={[styles.railBtn, finderOn && styles.railBtnOn]}
             accessibilityLabel={finderOn ? 'Hide the treasure pointer' : 'Find the nearest treasure box'}
-            hitSlop={6}
+            hitSlop={2}
           >
-            <ChestIcon size={24} />
+            <ChestIcon size={22} />
             <View style={styles.finderArrow}>
-              <PointerIcon size={14} />
+              <PointerIcon size={13} />
             </View>
           </Pressable>
-          <Pressable onPress={() => { haptics.tap(); faceNorth(); }} style={styles.compass} accessibilityLabel="Face north" hitSlop={6}>
-            <CompassIcon size={28} rotation={-bearing} />
+          <Pressable
+            onPress={() => { haptics.tap(); toggleLabels(); }}
+            style={[styles.railBtn, !labelsOn && styles.railBtnOn]}
+            accessibilityLabel={labelsOn ? 'Hide map labels' : 'Show map labels'}
+            hitSlop={2}
+          >
+            <StreetSignIcon size={24} off={!labelsOn} />
+          </Pressable>
+          <View style={styles.railDivider} />
+          <Pressable onPress={() => { haptics.tap(); faceNorth(); }} style={styles.railBtn} accessibilityLabel="Face north" hitSlop={2}>
+            <CompassIcon size={26} rotation={-bearing} />
           </Pressable>
         </View>
       </View>
 
       {!revealed && !celebrating && (
-        <View style={styles.bottom} pointerEvents="box-none">
+        <View style={[styles.bottom, { bottom: tabBarSpace }]} pointerEvents="box-none">
           {finderOn && nearestBox && (
             <Pressable onPress={toggleFinder} style={styles.finderPill} accessibilityLabel="Treasure pointer. Tap to hide">
               <PointerIcon size={26} rotation={pointerRotation} />
@@ -664,23 +668,38 @@ function GameView({ fix }: { fix: Fix }) {
               </Pressable>
             </View>
           )}
-          <View style={styles.dock}>
-            {/* Minimise / maximise (2026-09-27): the panel covers a good part
-                of the map, so it folds down to the earnings line alone. */}
+          {/* THE CLAIM CARD (2026-10-03 refresh): white, so it reads as the
+              thing to act on over the busy map. Which square, how close you
+              are to affording it, then the button - with the +1 WP ad right
+              beside it when you are short. */}
+          <View style={[styles.dock, dockMin && styles.dockMin]}>
+            {/* Minimise / maximise (2026-09-27): the card folds down to the
+                earnings line alone. */}
             {!dockMin && (
             <>
-            {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M && (
-              <View style={styles.hint}>
-                <View style={styles.hintDot} />
-                <Text style={styles.hintText} numberOfLines={1}>
-                  {sameCell(selected, playerCell)
-                    ? 'The square you are standing on'
-                    : `${pickedInReach ? 'Your pick' : 'Nearest free square'} · ${selectedDistance} m`}
-                </Text>
-                <Text style={styles.hintSub}>tap a lit square</Text>
-                <DockToggle min={false} onPress={toggleDock} />
+            <View style={styles.dockHead}>
+              <View style={styles.dockWell}>
+                <FlagIcon size={20} color={colors.claimDeep} />
               </View>
-            )}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.dockTitle} numberOfLines={1}>
+                  {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M
+                    ? sameCell(selected, playerCell)
+                      ? 'The square you are standing on'
+                      : `${pickedInReach ? 'Your pick' : 'Free square'} · ${selectedDistance} m`
+                    : 'Claim land'}
+                </Text>
+                <Text style={styles.dockSub} numberOfLines={1}>Tap any lit square to pick another</Text>
+              </View>
+              <DockToggle min={false} onPress={toggleDock} />
+            </View>
+            <View style={styles.progressHead}>
+              <Text style={styles.progressLabel}>Next parcel</Text>
+              <Text style={[styles.progressValue, mono]}>{Math.min(wp, price)} / {price} WP</Text>
+            </View>
+            <View style={styles.track}>
+              <View style={[styles.trackFill, { width: `${Math.min(100, (wp / Math.max(1, price)) * 100)}%` }, wp >= price && styles.trackFillReady]} />
+            </View>
             <ClaimButton
               state={claimState}
               price={price}
@@ -690,7 +709,7 @@ function GameView({ fix }: { fix: Fix }) {
                 claimState.kind === 'short' && adsAvailable() && (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0 &&
                 (balance?.rewards.walkPoints.nextInSeconds ?? 0) === 0
                   ? {
-                      label: `Watch an ad · +${balance?.rewards.walkPoints.perAd ?? 1} WP`,
+                      label: `+${balance?.rewards.walkPoints.perAd ?? 1} WP`,
                       busy: adBusy === 'WALK_POINTS',
                       onPress: async () => {
                         const r = await watch('WALK_POINTS');
@@ -704,7 +723,7 @@ function GameView({ fix }: { fix: Fix }) {
             )}
             <View style={styles.earnings}>
               <CoinIcon size={16} />
-              <CountUp value={Math.round(perMonth)} style={[styles.earnValue, mono]} />
+              <Text style={[styles.earnValue, mono]}>{formatRate(perMonth)}</Text>
               <Text style={styles.earnUnit}>coins / month</Text>
               <View style={{ flex: 1 }} />
               {boosted && (
@@ -712,12 +731,8 @@ function GameView({ fix }: { fix: Fix }) {
                   <Text style={styles.xBadgeText}>{formatMultiplier(multiplier)}×</Text>
                 </View>
               )}
-              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostHi }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
-              {/* The toggle lives on the hint line when that shows; when the
-                  panel is minimised, or there is no hint, it sits here. */}
-              {(dockMin || !(selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M)) && (
-                <DockToggle min={dockMin} onPress={toggleDock} />
-              )}
+              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostDeep }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
+              {dockMin && <DockToggle min onPress={toggleDock} />}
             </View>
           </View>
         </View>
@@ -759,15 +774,15 @@ function DockToggle({ min, onPress }: { min: boolean; onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={min ? 'Show the claim panel' : 'Minimise the claim panel'}
     >
-      <ChevronIcon size={16} color={colors.glassInk} up={min} />
+      <ChevronIcon size={16} color={colors.ink2} up={min} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   dockToggle: {
-    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)', marginLeft: 6,
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.sunk, marginLeft: 6,
   },
   root: { flex: 1, backgroundColor: colors.bg },
 
@@ -778,17 +793,34 @@ const styles = StyleSheet.create({
   // flexShrink + minWidth:0 let the left group give way on a narrow phone
   // instead of pushing the boost chip off the right edge. Without minWidth a
   // flex row refuses to shrink below its content on React Native.
-  pills: { flexDirection: 'row', gap: space.sm, flexShrink: 1, minWidth: 0 },
-  communityBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassLine,
+  hudTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  me: { borderRadius: 24, borderWidth: 2, borderColor: colors.claim },
+  // Coins | WP in one capsule. flexShrink + minWidth:0 let it give way on a
+  // narrow phone instead of pushing Boost off the edge.
+  wallet: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, height: 44, flexShrink: 1, minWidth: 0,
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+    borderRadius: radius.pill, paddingLeft: 10, paddingRight: 14,
   },
-  // The hugging face: "come and meet everyone". An emoji, so no font.
-  communityGlyph: { fontSize: 21, includeFontPadding: false },
-  // A HUD button that is switched ON (labels hidden, finder showing).
-  hudBtnOn: { borderColor: colors.claim, borderWidth: 2 },
-  finderArrow: { position: 'absolute', top: 1, right: 1 },
+  walletTight: { height: 38, paddingLeft: 8, paddingRight: 10, gap: 5 },
+  walletDivider: { width: 1, height: 22, backgroundColor: colors.glassLine, marginHorizontal: 4 },
+  // Boost: violet, so the one paid-for-by-ads power-up is easy to find.
+  boostBtn: {
+    minWidth: 44, height: 44, borderRadius: 22, paddingHorizontal: 11, flexDirection: 'row', gap: 5,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.boost,
+    borderWidth: 1, borderColor: colors.boostHi,
+  },
+  boostBtnOn: { paddingHorizontal: 13, backgroundColor: colors.boostDeep },
+  // The map tools, stacked in one glass rail.
+  rail: {
+    alignSelf: 'flex-end', marginTop: space.sm, padding: 4, gap: 2, borderRadius: 26,
+    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
+  },
+  railBtn: { width: TOUCH - 2, height: TOUCH - 2, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  // A tool that is switched ON (labels hidden, finder showing).
+  railBtnOn: { backgroundColor: 'rgba(242,169,59,0.25)' },
+  railDivider: { height: 1, marginHorizontal: 8, marginVertical: 2, backgroundColor: colors.glassLine },
+  finderArrow: { position: 'absolute', top: 5, right: 5 },
   finderPill: {
     alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8,
     height: 44, paddingHorizontal: 16, borderRadius: radius.pill,
@@ -821,7 +853,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
   },
 
-  bottom: { position: 'absolute', left: space.md, right: space.md, bottom: space.md, gap: space.sm },
+  bottom: { position: 'absolute', left: space.md, right: space.md, gap: space.sm },
   badge: {
     position: 'absolute', top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
     backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.glass,
@@ -855,22 +887,29 @@ const styles = StyleSheet.create({
   },
   boxAdText: { color: colors.glassInk, fontFamily: fonts.bold, fontSize: 13.5, includeFontPadding: false },
   dock: {
-    backgroundColor: colors.glass, borderColor: colors.glassLine, borderWidth: 1,
-    borderRadius: radius.xl, padding: space.sm + 2, gap: space.sm + 2,
+    backgroundColor: colors.card, borderRadius: radius.xl, padding: space.md + 2, gap: space.sm + 2,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8,
   },
-  hint: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: 6, paddingTop: 2 },
-  hintDot: { width: 10, height: 10, borderRadius: 3, backgroundColor: colors.claim },
-  hintText: { fontFamily: fonts.heavy, fontSize: 13.5, color: colors.glassInk, flexShrink: 1, includeFontPadding: false },
-  hintSub: { fontFamily: fonts.medium, fontSize: 12, color: colors.glassInk2, marginLeft: 'auto', includeFontPadding: false },
+  dockMin: { paddingVertical: space.sm + 2 },
+  dockHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  dockWell: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#FFF3DC', alignItems: 'center', justifyContent: 'center' },
+  dockTitle: { fontFamily: fonts.black, fontSize: 16, color: colors.ink, includeFontPadding: false },
+  dockSub: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.ink3, marginTop: 2, includeFontPadding: false },
+  progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  progressLabel: { fontFamily: fonts.bold, fontSize: 12.5, color: colors.ink3, includeFontPadding: false },
+  progressValue: { fontFamily: fonts.black, fontSize: 13, color: colors.ink, includeFontPadding: false },
+  track: { height: 10, borderRadius: 5, backgroundColor: colors.sunk, overflow: 'hidden', marginTop: -4 },
+  trackFill: { height: '100%', borderRadius: 5, backgroundColor: colors.steps },
+  trackFillReady: { backgroundColor: colors.claim },
   toast: {
     backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 11, paddingHorizontal: space.lg,
     borderWidth: 1, borderColor: colors.glassLine,
   },
   toastText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFFFFF', lineHeight: 19 },
-  earnings: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, paddingBottom: 2 },
-  earnValue: { color: colors.glassInk, fontSize: 14, fontFamily: fonts.heavy, includeFontPadding: false },
-  earnUnit: { color: colors.glassInk2, fontSize: 12, fontFamily: fonts.medium, includeFontPadding: false },
-  earnRate: { color: colors.good, fontSize: 13.5, fontFamily: fonts.heavy, includeFontPadding: false },
+  earnings: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  earnValue: { color: colors.ink, fontSize: 14, fontFamily: fonts.heavy, includeFontPadding: false },
+  earnUnit: { color: colors.ink3, fontSize: 12, fontFamily: fonts.medium, includeFontPadding: false },
+  earnRate: { color: colors.goodInk, fontSize: 13.5, fontFamily: fonts.heavy, includeFontPadding: false },
   xBadge: { backgroundColor: colors.boost, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
   xBadgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, includeFontPadding: false },
 

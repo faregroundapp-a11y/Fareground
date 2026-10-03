@@ -9,6 +9,7 @@ import { GearIcon } from '@/components/icons';
 import { InviteCard } from '@/components/InviteCard';
 import { ProfileView } from '@/components/ProfileView';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { haptics } from '@/native/haptics';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   // The two sheets opened from the top-right buttons.
   const [sheet, setSheet] = useState<'invite' | 'friends' | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
@@ -65,7 +67,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
         refreshControl={<RefreshControl refreshing={loading && !!profile} onRefresh={load} tintColor={colors.accent} />}
       >
         <ScreenHeader

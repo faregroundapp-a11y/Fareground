@@ -1,24 +1,28 @@
 import { router, useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { PlayerPicture } from '@/components/PlayerPicture';
 import { BoostSheet } from '@/components/BoostSheet';
 import { DailySheet } from '@/components/DailySheet';
 import { Button } from '@/components/Button';
 import { CountUp } from '@/components/CountUp';
-import { BoltIcon, ChestIcon, FlagIcon, PulseIcon, StepsIcon } from '@/components/icons';
+import { BoltIcon, ChestIcon, FlagIcon, PulseIcon } from '@/components/icons';
 import { Runner } from '@/components/Runner';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { useGame, useGameDaily } from '@/state/game';
 import { useStepHealth } from '@/hooks/useStepHealth';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
 
 /** A ring that fills as you close in on your next Walk Point. */
-function StepRing({ progress, children }: { progress: number; children: React.ReactNode }) {
-  const size = 224, stroke = 14, r = (size - stroke) / 2, circ = 2 * Math.PI * r;
+function StepRing({
+  progress, children, size = 224, stroke = 14,
+}: { progress: number; children: React.ReactNode; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
@@ -38,6 +42,8 @@ function StepRing({ progress, children }: { progress: number; children: React.Re
 
 export default function WalkScreen() {
   const { user } = useSession();
+  const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const { balance: { balance }, steps: sync } = useGame();
   const [boostOpen, setBoostOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
@@ -46,6 +52,11 @@ export default function WalkScreen() {
   // fixes happen on the setup screen or in another app.
   const { health: stepHealth, refresh: refreshStepHealth } = useStepHealth();
   useFocusEffect(useCallback(() => { void refreshStepHealth(); }, [refreshStepHealth]));
+  // The green header wants light status-bar icons; put them back on the way out.
+  useFocusEffect(useCallback(() => {
+    setStatusBarStyle('light');
+    return () => setStatusBarStyle('dark');
+  }, []));
   const stepIssues = stepHealth?.issues ?? 0;
   const questsDone = daily ? daily.quests.filter((q) => q.claim).length : 0;
 
@@ -64,96 +75,173 @@ export default function WalkScreen() {
   const bonusReady =
     (balance?.rewards.walkPoints.adsLeftToday ?? 0) > 0 && (balance?.rewards.walkPoints.nextInSeconds ?? 0) === 0;
 
+  const stepsToday = sync.stepsToday ?? 0;
+  const capped = stepsToday >= DAILY_STEP_CAP;
+
   return (
-    <SafeAreaView edges={['top']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={type.overline}>
-              {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
-            </Text>
-            <Text style={[type.display, { marginTop: 2 }]}>Today</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Pressable
-              onPress={sync.syncByHand}
-              style={({ pressed }) => [styles.syncChip, pressed && { opacity: 0.6 }]}
-              accessibilityLabel="Sync steps now"
-              hitSlop={8}
-            >
-              <View style={[styles.dot, { backgroundColor: sync.error ? colors.danger : colors.steps }]} />
-              <Text style={styles.syncChipText}>
-                {sync.lastSyncedAt ? sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sync'}
+    <View style={styles.safe}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+        {/* THE HEADER (2026-10-03 refresh): one green panel with today's steps
+            on a ring (towards the daily step cap) and your Walk Points
+            beside it, with the bar to the next one. */}
+        <View style={[styles.head, { paddingTop: insets.top + space.md }]}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.headDate}>
+                {new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
               </Text>
-            </Pressable>
-            {/* Your profile and badges. The dot means a badge you have not seen. */}
-            <Pressable onPress={() => router.push('/profile')} accessibilityLabel="Your profile" hitSlop={8}>
-              <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={44} />
-              {!!balance?.unseenBadges && (
-                <View style={styles.avatarDot}>
-                  <Text style={styles.avatarDotText}>{balance.unseenBadges}</Text>
-                </View>
-              )}
-            </Pressable>
+              <Text style={styles.headTitle}>Today</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Pressable
+                onPress={sync.syncByHand}
+                style={({ pressed }) => [styles.syncChip, pressed && { opacity: 0.6 }]}
+                accessibilityLabel="Sync steps now"
+                hitSlop={8}
+              >
+                <View style={[styles.dot, { backgroundColor: sync.error ? colors.danger : colors.good }]} />
+                <Text style={styles.syncChipText}>
+                  {sync.syncing
+                    ? 'Syncing'
+                    : sync.lastSyncedAt
+                      ? sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'Sync'}
+                </Text>
+              </Pressable>
+              {/* Your profile and badges. The dot means a badge you have not seen. */}
+              <Pressable onPress={() => router.push('/profile')} accessibilityLabel="Your profile" hitSlop={8} style={styles.me}>
+                <PlayerPicture photoUrl={balance?.photoUrl} username={user?.username} size={40} />
+                {!!balance?.unseenBadges && (
+                  <View style={styles.avatarDot}>
+                    <Text style={styles.avatarDotText}>{balance.unseenBadges}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.hero}>
-          <StepRing progress={wpProgress}>
-            <Runner gait={sync.stepsToday ? 'walk' : 'idle'} size={46} />
-            <CountUp value={sync.stepsToday ?? 0} style={[styles.steps, mono]} />
-            <Text style={type.caption}>steps today</Text>
-          </StepRing>
-          <Text style={styles.nextWp}>
-            {(sync.stepsToday ?? 0) >= DAILY_STEP_CAP
-              ? `You've hit today's ${DAILY_STEP_CAP.toLocaleString()} steps. More WP tomorrow!`
-              : result
-                ? `${result.stepsUntilNextWalkPoint.toLocaleString()} steps to your next Walk Point`
-                : `Every ${stepsPerWp} steps is a Walk Point`}
-          </Text>
-        </View>
-
-        {/* ONE card for step health (2026-09-27). It replaced three: a
-            "connect Health Connect" card, a "no app is sending steps" card
-            and a sources line - each right in its own case, together a wall
-            of warnings. Green when all is well; otherwise how many things to
-            fix and one button to the setup screen that fixes them. */}
-        <View style={[styles.card, stepIssues > 0 && styles.healthCard]}>
-          <View style={styles.row}>
-            <View style={[styles.well, { backgroundColor: stepIssues > 0 ? '#FFF3DC' : colors.accentSoft }]}>
-              <PulseIcon size={24} color={stepIssues > 0 ? colors.claimDeep : colors.accent} />
+          <View style={styles.heroRow}>
+            <View style={styles.ringWell}>
+              <StepRing progress={stepsToday / DAILY_STEP_CAP} size={148} stroke={12}>
+                <Runner gait={stepsToday ? 'walk' : 'idle'} size={30} avatar={balance?.avatar} />
+                <CountUp value={stepsToday} style={[styles.steps, mono]} />
+                <Text style={type.caption}>of {DAILY_STEP_CAP.toLocaleString()}</Text>
+              </StepRing>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={type.label}>
-                {stepIssues > 0
-                  ? 'Steps need setting up'
-                  : stepHealth?.sources?.length
-                    ? `Steps from ${stepHealth.sources.slice(0, 2).map((s) => s.name).join(' + ')} ✓`
-                    : Platform.OS === 'ios'
-                      ? 'Steps from your iPhone ✓'
-                      : sync.health === 'ready'
-                        ? 'Steps from Health Connect ✓'
-                        : 'Steps counted while the app is open'}
+              <Text style={styles.headLabel}>WALK POINTS</Text>
+              <CountUp value={wp} style={[styles.headWp, mono]} />
+              <Text style={styles.headNext}>
+                {capped
+                  ? 'Daily steps done. More WP tomorrow!'
+                  : result
+                    ? `${result.stepsUntilNextWalkPoint.toLocaleString()} steps to the next one`
+                    : `Every ${stepsPerWp} steps is one`}
               </Text>
-              <Text style={[type.caption, { marginTop: 2 }]}>
-                {stepIssues > 0
-                  ? `${stepIssues} thing${stepIssues === 1 ? '' : 's'} to fix so every step counts, even with the app closed.`
-                  : sync.lastSyncedAt
-                    ? `Last synced ${sync.lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : 'Not synced yet'}
-              </Text>
+              <View style={styles.headTrack}>
+                <View style={[styles.headFill, { width: `${Math.max(3, Math.min(100, wpProgress * 100))}%` }]} />
+              </View>
             </View>
           </View>
-          <View style={styles.row}>
-            <Button label="Sync steps" onPress={sync.syncByHand} variant="secondary" busy={sync.syncing} style={{ flex: 1 }} />
-            <Button
-              label={stepIssues > 0 ? 'Fix it' : 'Step setup'}
-              onPress={() => router.push('/step-setup')}
-              variant={stepIssues > 0 ? 'primary' : 'ghost'}
-              style={{ flex: 1 }}
-            />
-          </View>
         </View>
+
+        <View style={styles.content}>
+        {/* Next parcel: one row with its bar. */}
+        <View style={[styles.card, styles.row]}>
+          <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+            <FlagIcon size={22} color={colors.claimDeep} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={type.label}>
+              {toNextParcel === 0 ? 'A parcel is ready to claim!' : `Next parcel in ${stepsToNext.toLocaleString()} steps`}
+            </Text>
+            <View style={[styles.track, { marginTop: 7 }]}>
+              <View style={[styles.fill, { width: `${Math.min(100, (wp / Math.max(1, price)) * 100)}%` }]} />
+            </View>
+          </View>
+          <Text style={[styles.barValue, mono]}>{Math.min(wp, price)}/{price}</Text>
+        </View>
+
+        {/* Daily chest + Free rewards, side by side. */}
+        <View style={styles.pair}>
+          <Pressable
+            onPress={() => setDailyOpen(true)}
+            style={({ pressed }) => [styles.card, styles.tile, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open today's chest and quests"
+          >
+            <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+              <ChestIcon size={28} open={!daily?.daily.available} />
+            </View>
+            <Text style={[type.label, { marginTop: space.sm }]}>Daily chest</Text>
+            <Text style={type.caption} numberOfLines={2}>
+              {daily
+                ? `${daily.daily.available ? 'Ready' : `${daily.daily.streak}-day streak`} · ${questsDone}/${daily.quests.length} quests`
+                : 'Chest and quests'}
+            </Text>
+            {!!daily?.claimable && (
+              <View style={styles.tileBadge}>
+                <Text style={styles.pillText}>{daily.claimable}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => setBoostOpen(true)}
+            style={({ pressed }) => [styles.card, styles.tile, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open free rewards"
+          >
+            <View style={[styles.wellSm, { backgroundColor: colors.boostSoft }]}>
+              <BoltIcon size={24} />
+            </View>
+            <Text style={[type.label, { marginTop: space.sm }]}>Free rewards</Text>
+            <Text style={type.caption} numberOfLines={2}>{bonusReady ? 'Bonus WP ready' : 'Boosts, scouting, bonus WP'}</Text>
+          </Pressable>
+        </View>
+
+        {/* STEP HEALTH: one quiet line when all is well; the full card with
+            its two buttons only when something needs fixing. */}
+        {stepIssues > 0 ? (
+          <View style={[styles.card, styles.healthCard]}>
+            <View style={styles.row}>
+              <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+                <PulseIcon size={24} color={colors.claimDeep} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={type.label}>Steps need setting up</Text>
+                <Text style={[type.caption, { marginTop: 2 }]}>
+                  {`${stepIssues} thing${stepIssues === 1 ? '' : 's'} to fix so every step counts, even with the app closed.`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.row}>
+              <Button label="Sync steps" onPress={sync.syncByHand} variant="secondary" busy={sync.syncing} style={{ flex: 1 }} />
+              <Button label="Fix it" onPress={() => router.push('/step-setup')} variant="primary" style={{ flex: 1 }} />
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            onPress={() => router.push('/step-setup')}
+            style={({ pressed }) => [styles.card, styles.row, styles.healthLine, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Step setup"
+          >
+            <View style={[styles.dot, { backgroundColor: colors.steps, width: 10, height: 10, borderRadius: 5 }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.healthTitle} numberOfLines={1}>
+                {stepHealth?.sources?.length
+                  ? `Steps from ${stepHealth.sources.slice(0, 2).map((x) => x.name).join(' + ')}`
+                  : Platform.OS === 'ios'
+                    ? 'Steps from your iPhone'
+                    : sync.health === 'ready'
+                      ? 'Steps from Health Connect'
+                      : 'Steps counted while the app is open'}
+              </Text>
+              <Text style={type.caption}>All set · counting with the app closed</Text>
+            </View>
+            <Text style={styles.healthLink}>Setup ›</Text>
+          </Pressable>
+        )}
 
         {sync.available === false && (
           <Note tone="warn">{"Step counting isn't available, or motion access is off. Walk Points need it."}</Note>
@@ -163,7 +251,7 @@ export default function WalkScreen() {
           // double-counting, not cheats, and an accusation drives people off.
           <Note>
             {`${result.stepsRejected.toLocaleString()} steps weren't counted: `}
-            {result.limit === 'DAILY_LIMIT' ? "you've hit the 60,000-step daily limit." : 'more than can be walked since your last sync.'}
+            {result.limit === 'DAILY_LIMIT' ? `you've hit the ${DAILY_STEP_CAP.toLocaleString()}-step daily limit.` : 'more than can be walked since your last sync.'}
           </Note>
         )}
         {!!result?.referralBonusPaid && (
@@ -171,80 +259,11 @@ export default function WalkScreen() {
         )}
         {sync.error && <Note tone="warn">{sync.error}</Note>}
 
-        <View style={styles.pair}>
-          <View style={[styles.card, styles.half]}>
-            <StepsIcon size={24} />
-            <CountUp value={wp} style={[styles.cardValue, mono]} />
-            <Text style={type.caption}>Walk Points</Text>
-          </View>
-          <View style={[styles.card, styles.half]}>
-            <FlagIcon size={24} color={colors.claimDeep} />
-            <Text style={[styles.cardValue, mono]}>
-              {toNextParcel === 0 ? 'Ready!' : stepsToNext.toLocaleString()}
-            </Text>
-            <Text style={type.caption}>{toNextParcel === 0 ? 'claim on the map' : 'steps to next parcel'}</Text>
-          </View>
         </View>
-
-        <View style={styles.card}>
-          <View style={styles.barHead}>
-            <Text style={type.label}>Next parcel</Text>
-            <Text style={[styles.barValue, mono]}>{Math.min(wp, price)} / {price} WP</Text>
-          </View>
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${Math.min(100, (wp / price) * 100)}%` }]} />
-          </View>
-          <Text style={[type.caption, { marginTop: space.sm }]}>
-            This one is {(price * stepsPerWp).toLocaleString()} steps and an ad. Land costs 1 WP more for every 10
-            parcels you own.
-          </Text>
-        </View>
-
-        {/* Daily chest + quests. */}
-        <Pressable
-          onPress={() => setDailyOpen(true)}
-          style={({ pressed }) => [styles.card, styles.row, pressed && { opacity: 0.85 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Open today's chest and quests"
-        >
-          <View style={[styles.well, { backgroundColor: '#FFF3DC' }]}>
-            <ChestIcon size={28} open={!daily?.daily.available} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={type.headline}>Today</Text>
-            <Text style={[type.caption, { marginTop: 2 }]}>
-              {daily
-                ? `${daily.daily.available ? 'Chest ready' : `${daily.daily.streak}-day streak`} · ${questsDone}/${daily.quests.length} quests done`
-                : 'Daily chest and quests'}
-            </Text>
-          </View>
-          {!!daily?.claimable && (
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{daily.claimable} ready</Text>
-            </View>
-          )}
-        </Pressable>
-
-        {/* Rewarded ads: always the player's choice. */}
-        <View style={[styles.card, { gap: space.md }]}>
-          <View style={styles.row}>
-            <View style={[styles.well, { backgroundColor: colors.boostSoft }]}>
-              <BoltIcon size={24} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={type.headline}>Free rewards</Text>
-              <Text style={[type.caption, { marginTop: 2 }]}>
-                Double coins, bonus WP, collect early or scout further{bonusReady ? ' · a bonus WP is ready' : ''}.
-              </Text>
-            </View>
-          </View>
-          <Button label="See free rewards" variant="boost" onPress={() => setBoostOpen(true)} />
-        </View>
-
       </ScrollView>
       <BoostSheet visible={boostOpen} onClose={() => setBoostOpen(false)} />
       <DailySheet visible={dailyOpen} onClose={() => setDailyOpen(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -264,34 +283,51 @@ const DAILY_STEP_CAP = 15_000;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: space.xl, paddingBottom: space.xxl, gap: space.md },
+  body: { gap: space.md },
+  content: { paddingHorizontal: space.lg, gap: space.md },
+  head: {
+    backgroundColor: colors.accent, paddingHorizontal: space.lg, paddingBottom: space.xl,
+    borderBottomLeftRadius: 30, borderBottomRightRadius: 30, gap: space.lg,
+  },
   header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  headDate: { fontFamily: fonts.heavy, fontSize: 12, letterSpacing: 1.2, color: 'rgba(255,255,255,0.72)', includeFontPadding: false },
+  headTitle: { fontFamily: fonts.black, fontSize: 30, letterSpacing: -0.8, color: '#FFFFFF', marginTop: 2, includeFontPadding: false },
+  me: { borderRadius: 24, borderWidth: 2, borderColor: colors.claimHi },
   avatarDot: {
     position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
-    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent,
   },
   avatarDotText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, includeFontPadding: false },
   syncChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 7, height: 36, paddingHorizontal: 13,
-    borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line,
+    flexDirection: 'row', alignItems: 'center', gap: 7, height: 34, paddingHorizontal: 12,
+    borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.14)',
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  syncChipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink2, includeFontPadding: false },
-  hero: { alignItems: 'center', gap: space.md, paddingVertical: space.sm },
-  steps: { fontSize: 46, fontFamily: fonts.black, letterSpacing: -1.5, color: colors.ink, marginTop: 2, includeFontPadding: false },
-  nextWp: { ...type.body, fontFamily: fonts.medium, textAlign: 'center' },
+  syncChipText: { fontFamily: fonts.heavy, fontSize: 13, color: '#FFFFFF', includeFontPadding: false },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  ringWell: { backgroundColor: colors.card, borderRadius: 80, padding: 2 },
+  steps: { fontSize: 26, fontFamily: fonts.black, letterSpacing: -0.8, color: colors.ink, includeFontPadding: false },
+  headLabel: { fontFamily: fonts.heavy, fontSize: 12, letterSpacing: 1.2, color: 'rgba(255,255,255,0.72)', includeFontPadding: false },
+  headWp: { fontFamily: fonts.black, fontSize: 40, letterSpacing: -1, color: '#FFFFFF', includeFontPadding: false },
+  headNext: { fontFamily: fonts.bold, fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, includeFontPadding: false },
+  headTrack: { height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 8, overflow: 'hidden' },
+  headFill: { height: '100%', borderRadius: 4, backgroundColor: colors.claimHi },
   pair: { flexDirection: 'row', gap: space.md },
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: space.lg, ...shadow.card },
+  tile: { flex: 1, padding: space.md + 2 },
+  tileBadge: {
+    position: 'absolute', top: space.md, right: space.md, minWidth: 22, height: 22, borderRadius: 11,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
   healthCard: { gap: space.md, borderColor: colors.accentHi },
-  half: { flex: 1, gap: 4 },
+  healthLine: { paddingVertical: space.md },
+  healthTitle: { fontFamily: fonts.heavy, fontSize: 14, color: colors.ink, includeFontPadding: false },
+  healthLink: { fontFamily: fonts.heavy, fontSize: 13, color: colors.accent, includeFontPadding: false },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  well: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  pill: { backgroundColor: colors.danger, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  wellSm: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pillText: { color: '#FFFFFF', fontFamily: fonts.heavy, fontSize: 12, includeFontPadding: false },
-  cardValue: { fontSize: 26, fontFamily: fonts.black, color: colors.ink, marginTop: 6, letterSpacing: -0.5, includeFontPadding: false },
-  barHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: space.sm + 2 },
-  barValue: { fontSize: 14, fontFamily: fonts.heavy, color: colors.ink2, includeFontPadding: false },
+  barValue: { fontSize: 13, fontFamily: fonts.heavy, color: colors.ink2, includeFontPadding: false },
   track: { height: 10, borderRadius: 5, backgroundColor: colors.sunk, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 5, backgroundColor: colors.claim },
   note: {

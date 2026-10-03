@@ -6,6 +6,7 @@ import { ApiError, api } from '@/api/client';
 import type { Profile } from '@/api/types';
 import { ProfileView } from '@/components/ProfileView';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useSession } from '@/state/session';
 import { colors, space, type } from '@/theme';
 
@@ -15,6 +16,7 @@ export default function PlayerScreen() {
   const { token } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const tabBarSpace = useTabBarSpace();
 
   useEffect(() => {
     if (!token || !username) return;
@@ -28,7 +30,7 @@ export default function PlayerScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}>
         <ScreenHeader title={username ?? 'Player'} />
         {error && <Text style={styles.error}>{error}</Text>}
         {profile ? (

@@ -128,6 +128,22 @@ export function GearIcon({ size = 24, color = '#000' }: IconProps) {
   );
 }
 
+/**
+ * Two people, for Community. Replaced the hugging-face emoji (2026-10-03),
+ * which came out in each phone's own emoji style and matched nothing else on
+ * the map.
+ */
+export function PeopleIcon({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="9" cy="8" r="3.4" fill="#FFC968" />
+      <Circle cx="16.6" cy="9.6" r="2.8" fill="#4DBE94" />
+      <Path d="M2.6 20c.6-4 3.2-6 6.4-6s5.8 2 6.4 6z" fill="#FFC968" />
+      <Path d="M13.2 20c.4-3 2-4.6 3.9-4.6s3.5 1.6 3.9 4.6z" fill="#4DBE94" />
+    </Svg>
+  );
+}
+
 /* ---------- tab bar ---------- */
 
 export function MapTabIcon({ size = 24, color = '#000' }: IconProps) {
