@@ -7,8 +7,12 @@ const { AvatarPortrait } = load(APP + '/src/components/AvatarPortrait.tsx');
 const me = { skin: 'skin_2', hair: 'hair_short', hat: 'hat_cap', shirt: 'shirt_forest', shoes: 'shoes_trainers', face: 'face_shades' };
 const runner = (size, gait = 'idle') => renderToStaticMarkup(React.createElement(Runner, { gait, size, avatar: me }));
 const face = (size) => renderToStaticMarkup(React.createElement(AvatarPortrait, { avatar: me, size }));
+const I = load(APP + '/src/components/icons.tsx');
+const { BoostBubble } = load(APP + '/src/components/BoostBubble.tsx');
+const R = (C, props) => renderToStaticMarkup(React.createElement(C, props));
+const bubble = (usd) => R(BoostBubble, { usdPerYear: usd });
 
-const ic = {
+const ic0 = {
   coin: (s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 26 26"><circle cx="13" cy="13" r="12" fill="#F2B53B" stroke="#C4801E" stroke-width="2"/><circle cx="13" cy="13" r="7" fill="none" stroke="#FFE3A0" stroke-width="2"/></svg>`,
   steps: (s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#4DBE94"/><ellipse cx="10" cy="11" rx="3" ry="4.5" fill="#fff"/><ellipse cx="16.5" cy="15" rx="3" ry="4.5" fill="#fff"/></svg>`,
   bolt: (s = 18, c = '#A98BFF') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="${c}"/></svg>`,
@@ -25,6 +29,25 @@ const ic = {
   walk: (c) => `<svg width="22" height="22" viewBox="0 0 24 24"><circle cx="13" cy="4" r="2.4" fill="${c}"/><path d="M11 8l-3 5 3 2-1 6M13 9l2 4 4 1M11 15l3 3v4" stroke="${c}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   ranks: (c) => `<svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="12" width="5" height="9" rx="1" fill="${c}"/><rect x="9.5" y="6" width="5" height="15" rx="1" fill="${c}"/><rect x="16" y="9" width="5" height="12" rx="1" fill="${c}"/></svg>`,
   land: (c) => `<svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 13L2 9z" fill="none" stroke="${c}" stroke-width="2.2" stroke-linejoin="round"/></svg>`,
+};
+const ic = {
+  ...ic0,
+  coin: (s = 20) => R(I.CoinIcon, { size: s }),
+  steps: (s = 20) => R(I.StepsIcon, { size: s }),
+  bolt: (s = 18, c = '#A98BFF') => R(I.BoltIcon, { size: s, color: c }),
+  chest: (s = 24) => R(I.ChestIcon, { size: s }),
+  sign: (s = 22) => R(I.StreetSignIcon, { size: s }),
+  compass: (s = 24) => R(I.CompassIcon, { size: s }),
+  people: (s = 22) => R(I.PeopleIcon, { size: s }),
+  pointer: (s = 14) => R(I.PointerIcon, { size: s }),
+  ad: (s = 16, c = '#2A1A03') => R(I.PlayAdIcon, { size: s, color: c }),
+  pulse: (s = 22, c = '#2F5D50') => R(I.PulseIcon, { size: s, color: c }),
+  flag: (s = 22, c = '#C4801E') => R(I.FlagIcon, { size: s, color: c }),
+  gem: (s, c) => R(I.GemIcon, { size: s, color: c }),
+  map: (c) => R(I.MapTabIcon, { size: 22, color: c }),
+  walk: (c) => R(I.WalkTabIcon, { size: 22, color: c }),
+  ranks: (c) => R(I.RanksTabIcon, { size: 22, color: c }),
+  land: (c) => R(I.LandTabIcon, { size: 22, color: c }),
 };
 const MIN = { ROCKY: '#8A887B', COAL: '#3B4048', AMETHYST: '#7E56A6', SAPPHIRE: '#2A5FA8', RUBY: '#C0304A' };
 
@@ -148,10 +171,10 @@ const mapAfter = `<div class="phone">${mapBg()}
     <div style="margin:12px 0 4px" class="row"><span class="cap" style="flex:1">Next parcel</span><b class="mono" style="font-size:13px">38 / 50 WP</b></div>
     <div class="track"><div class="fill" style="width:76%;background:linear-gradient(90deg,#4DBE94,#7FD99A)"></div></div>
     <div class="row" style="gap:8px;margin-top:12px">
-      <div class="btn claim" style="flex:1;height:52px;font-size:16px;opacity:.55">Claim · 50 WP</div>
-      <div class="btn" style="height:52px;padding:0 14px;background:var(--accent);color:#fff;font-size:14px">${ic.ad(16, '#fff')} +1 WP</div>
+      <div class="btn claim" style="flex:1;height:54px;font-size:16px;opacity:.5">${ic.flag(20, '#2A1A03')} Claim · 50 WP</div>
+      <div class="btn" style="height:54px;padding:0 16px;background:var(--accent);color:#fff;font-size:15px;box-shadow:0 3px 0 #1F3F36">${ic.ad(18, '#fff')} +1 WP</div>
     </div>
-    <div class="row" style="gap:6px;margin-top:11px;font-size:12.5px;font-weight:800;color:var(--ink2)">${ic.coin(15)}<span class="mono">0.6 coins / month</span><span style="margin-left:auto;color:#1F7A4D" class="mono">+0.02 / day</span></div>
+    <div class="row" style="gap:6px;margin-top:11px;font-size:12.5px;font-weight:800;color:var(--ink2)">${ic.coin(15)}<span class="mono">10.25 coins / month</span><span style="margin-left:auto;color:#1F7A4D" class="mono">+0.34/day</span></div>
   </div>
   ${tabsNew('Map')}</div>`;
 
@@ -209,30 +232,63 @@ const landBefore = `<div class="phone"><div style="padding:40px 16px 0">
   </div>${tabsOld('Land')}</div>`;
 
 const landAfter = `<div class="phone"><div style="padding:40px 16px 0">
-  <div class="row" style="margin-bottom:12px"><div style="font-weight:900;font-size:28px">My land</div><span class="cap" style="margin-left:auto;font-size:13px">4 parcels</span></div>
-  <div style="border-radius:24px;padding:16px;color:#fff;background:linear-gradient(150deg,#2F5D50,#1F3F36);box-shadow:0 10px 26px rgba(47,93,80,.35)">
-    <div style="font-size:12px;font-weight:800;opacity:.7;letter-spacing:1px">YOUR COINS</div>
-    <div class="row" style="gap:8px;margin-top:2px">${ic.coin(28)}<span class="mono" style="font-weight:900;font-size:32px">12,431</span><span class="mono" style="font-weight:800;opacity:.75;margin-top:8px">$12.43</span></div>
-    <div class="row" style="gap:8px;margin-top:12px">
-      <div style="flex:1;background:rgba(255,255,255,.1);border-radius:14px;padding:9px 10px"><div style="font-size:11px;font-weight:800;opacity:.7">EARNING</div><div class="mono" style="font-weight:900;font-size:16px">10.25<span style="font-size:11px;opacity:.7"> /mo</span></div></div>
-      <div style="flex:1;background:linear-gradient(180deg,#9D74FF,#7A4BEA);border-radius:14px;padding:9px 10px"><div style="font-size:11px;font-weight:800;opacity:.85">BOOSTED 20×</div><div class="mono" style="font-weight:900;font-size:16px">$2.46<span style="font-size:11px;opacity:.85"> /yr</span></div></div>
+  <div class="row" style="margin-bottom:12px;align-items:flex-end"><div style="font-weight:900;font-size:28px">My land</div><span style="margin-left:auto;font-weight:800;font-size:13px;color:var(--ink3);margin-bottom:6px">4 parcels</span></div>
+  <div style="border-radius:26px;padding:18px 16px;color:#fff;background:var(--accent);box-shadow:0 10px 26px rgba(47,93,80,.35)">
+    <div class="row" style="align-items:center;gap:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:800;opacity:.7;letter-spacing:1.2px">YOUR COINS</div>
+        <div class="row" style="gap:8px;margin-top:2px">${ic.coin(28)}<span class="mono" style="font-weight:900;font-size:32px;letter-spacing:-1px">12,431</span></div>
+        <div class="mono" style="font-weight:800;font-size:15px;opacity:.78;margin-top:-2px">$12.43</div>
+        <div style="display:inline-block;margin-top:10px;background:rgba(255,255,255,.12);border-radius:14px;padding:7px 11px">
+          <div class="mono" style="font-weight:900;font-size:15px">+10.25 <span style="font-size:12px;font-weight:700;opacity:.75">coins / month</span></div>
+          <div class="mono" style="font-size:11.5px;font-weight:700;opacity:.65">$0.123 per year</div>
+        </div>
+      </div>
+      <div style="flex-shrink:0;margin-right:-6px">${bubble(2.46)}</div>
     </div>
-    <div class="row" style="gap:6px;margin-top:12px">${Object.entries(MIN).map(([k, c]) => `<div class="row" style="flex:1;justify-content:center;gap:4px;background:rgba(255,255,255,.1);border-radius:10px;padding:6px 0;${k === 'COAL' ? 'opacity:.4' : ''}">${ic.gem(17, c)}<b style="font-size:13px">${k === 'COAL' ? 0 : 1}</b></div>`).join('')}</div>
+    <div class="row" style="justify-content:space-between;background:var(--sunk);border-radius:14px;padding:10px;margin-top:14px">${Object.entries(MIN).map(([k, c]) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;${k === 'COAL' ? 'opacity:.35' : ''}">${ic.gem(24, c)}<b class="mono" style="font-size:14px;color:var(--ink)">${k === 'COAL' ? 0 : 1}</b></div>`).join('')}</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
-  ${parcels.slice(0, 3).map(([k, n, lv, r]) => `<div class="card" style="padding:12px;border-left:5px solid ${MIN[k]}"><div class="row"><div class="well" style="background:${MIN[k]}1F;width:40px;height:40px">${ic.gem(24, MIN[k])}</div><div style="flex:1"><div class="row" style="gap:6px"><b style="color:${MIN[k]};font-size:15px">${n}</b>${lv ? `<span style="background:var(--sunk);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:900">LV ${lv}</span>` : ''}</div>
-  <div class="row" style="gap:3px;margin-top:5px">${[0, 1, 2, 3, 4].map((i) => `<span style="width:14px;height:5px;border-radius:3px;background:${i < lv ? MIN[k] : 'var(--sunk)'}"></span>`).join('')}</div></div>
-  <div style="text-align:right"><div class="mono" style="font-size:14px;font-weight:900">+${r}</div><div class="cap">coins / mo</div></div></div>
-  <div class="row" style="margin-top:10px;gap:8px"><div class="btn" style="flex:1;height:38px;background:var(--accentSoft);color:var(--accent);font-size:13px">${ic.ad(14, '#2F5D50')} Upgrade · 20 WP</div><span class="cap">+0.15/mo</span></div></div>`).join('')}
+  ${parcels.slice(0, 3).map(([k, n, lv, r]) => `<div class="card" style="padding:12px;border-left:5px solid ${MIN[k]}"><div class="row" style="gap:12px"><div class="well" style="background:${MIN[k]}1F;width:46px;height:46px;border-radius:13px">${ic.gem(26, MIN[k])}</div><div style="flex:1"><div class="row" style="gap:6px"><b style="color:${MIN[k]};font-size:16px">${n}</b>${lv ? `<span style="background:var(--sunk);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:900;color:var(--ink2)">LV ${lv}</span>` : ''}</div>
+  <div class="row" style="gap:4px;margin-top:6px">${[0, 1, 2, 3, 4].map((i) => `<span style="width:16px;height:5px;border-radius:3px;background:${i < lv ? MIN[k] : 'var(--sunk)'}"></span>`).join('')}</div></div>
+  <div style="text-align:right"><div class="mono" style="font-size:15px;font-weight:900">+${r}</div><div style="font-size:11px;font-weight:700;color:var(--ink3)">coins / mo</div></div></div>
+  <div class="row" style="margin-top:12px;gap:7px;background:var(--boostSoft);border-radius:14px;padding:0 12px;height:40px;color:#6536D9;font-weight:900;font-size:13.5px">${ic.ad(16, '#6536D9')} Upgrade · 20 WP<span style="margin-left:auto;font-size:12px;opacity:.8;font-weight:700">+0.15/mo</span></div></div>`).join('')}
   </div></div>${tabsNew('Land')}</div>`;
+
+/* ---------------- RANKS ---------------- */
+const players = [['Jess2592', 81521, 'Walker', '#4A4F66'], ['x3arth', 71524, '', '#2F5D50'], ['Mascotte', 49546, 'Amethyst', '#8E1B33'], ['Deserkz', 41663, '', '#9A4A1E'], ['TimeCapsule', 39191, 'Week Streak', '#2F5D50']];
+const MEDAL = ['#F2B53B', '#AEB7C0', '#C98A5A'];
+const initial = (n, c, s, ring) => `<div style="width:${s}px;height:${s}px;border-radius:50%;background:${c};color:#fff;display:grid;place-items:center;font-weight:900;font-size:${s * 0.42}px;${ring ? `box-shadow:0 0 0 3px ${ring}` : ''}">${n[0].toUpperCase()}</div>`;
+const segment = `<div class="row" style="background:var(--sunk);border-radius:14px;padding:4px;gap:4px">${['City', 'Region', 'Country', 'World'].map((t) => `<div style="flex:1;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:14px;${t === 'World' ? 'background:#fff;border:1px solid var(--line);color:var(--ink)' : 'color:var(--ink3)'}">${t}</div>`).join('')}</div>`;
+const rows = (from) => players.slice(from).map(([n, st, t, c], i) => { const rk = from + i + 1; return `<div class="card row" style="padding:10px 12px;border-radius:14px;gap:12px"><div style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:14px;${rk <= 3 ? `background:${MEDAL[rk - 1]};color:#fff` : 'background:var(--sunk);color:var(--ink2)'}">${rk}</div>${initial(n, c, 40, rk <= 3 ? MEDAL[rk - 1] : null)}<div style="flex:1"><div style="font-weight:800;font-size:15px">${n}</div>${t ? `<div style="font-size:11.5px;font-weight:700;color:var(--ink3)">${t}</div>` : ''}</div><b class="mono" style="font-size:15px">${st.toLocaleString()}</b></div>`; }).join('');
+const ranksBefore = `<div class="phone"><div style="padding:40px 16px 0;display:flex;flex-direction:column;gap:12px">
+  <div><div class="cap" style="letter-spacing:1.2px">THIS WEEK · RESETS IN 1D 8H</div><div style="font-weight:900;font-size:30px">Leaderboard</div></div>
+  ${segment}<div class="cap" style="font-size:13px">World · 23 walkers</div>
+  <div class="card"><div class="lbl">Top 3 win a land boost</div><div class="row" style="gap:8px;margin-top:12px">${[['1st', '3×', '3 days'], ['2nd', '2×', '2 days'], ['3rd', '2×', '1 day']].map(([p, x, d], i) => `<div style="flex:1;border:1.5px solid ${MEDAL[i]};border-radius:14px;padding:12px 0;text-align:center"><div style="font-weight:900;color:${MEDAL[i]}">${p}</div><div class="row" style="justify-content:center;gap:3px;font-weight:900;font-size:20px;color:#8A5CF6">${ic.bolt(14, '#8A5CF6')}${x}</div><div class="cap">${d}</div></div>`).join('')}</div></div>
+  ${rows(0)}</div>${tabsOld('Ranks')}</div>`;
+const podium = () => { const order = [2, 1, 3], H = { 1: 62, 2: 46, 3: 34 }, prize = { 1: ['3×', '3 days'], 2: ['2×', '2 days'], 3: ['2×', '1 day'] };
+  return `<div class="row" style="align-items:flex-end;gap:6px;margin-top:4px">${order.map((rk) => { const [n, , , c] = players[rk - 1]; const s = rk === 1 ? 46 : 38; return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
+  ${initial(n, c, s, MEDAL[rk - 1])}<div style="font-weight:800;font-size:12px;color:#fff;margin:5px 0 4px">${n}</div>
+  <div class="row" style="gap:2px;color:#fff;font-weight:900;font-size:${rk === 1 ? 26 : 20}px">${ic.bolt(rk === 1 ? 16 : 14, '#A98BFF')}${prize[rk][0]}</div>
+  <div style="font-size:11.5px;font-weight:700;color:rgba(255,255,255,.65);margin-bottom:6px">${prize[rk][1]}</div>
+  <div style="align-self:stretch;height:${H[rk]}px;background:${MEDAL[rk - 1]};border-radius:12px 12px 4px 4px;text-align:center;padding-top:8px;font-weight:900;font-size:15px;color:rgba(20,32,26,.75)">${['1st', '2nd', '3rd'][rk - 1]}</div></div>`; }).join('')}</div>`; };
+const ranksAfter = `<div class="phone"><div style="padding:40px 16px 0;display:flex;flex-direction:column;gap:12px">
+  <div><div class="cap" style="letter-spacing:1.2px">THIS WEEK · RESETS IN 1D 8H</div><div style="font-weight:900;font-size:30px">Leaderboard</div></div>
+  ${segment}<div class="cap" style="font-size:13px">World · 23 walkers</div>
+  <div style="background:#1B2622;border-radius:26px;padding:16px 16px 12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 28px rgba(0,0,0,.25)">
+    <div class="row"><div style="flex:1"><div style="font-weight:900;font-size:18px;color:#fff">Weekly prizes</div><div style="font-weight:700;font-size:12.5px;color:rgba(255,255,255,.65)">Top 3 boost their land's coins</div></div><div class="mono" style="background:rgba(255,255,255,.1);border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;color:#FFC968">Ends in 1d 8h</div></div>
+    ${podium()}
+    <div style="text-align:center;font-weight:700;font-size:13px;color:rgba(255,255,255,.85)">8,212 more steps puts you in the top 3</div>
+  </div>
+  ${rows(3)}</div>${tabsNew('Ranks')}</div>`;
 
 const section = (title, sub, before, after, notesB, notesA) => `<section><h2>${title}</h2><div class="cap" style="font-size:14px;color:inherit;opacity:.7">${sub}</div>
 <div class="pairs"><div class="col"><span class="tag before">Now</span>${before}<ul class="notes">${notesB.map((n) => `<li>${n}</li>`).join('')}</ul></div>
-<div class="col"><span class="tag after">Proposed</span>${after}<ul class="notes">${notesA.map((n) => `<li>${n}</li>`).join('')}</ul></div></div></section>`;
+<div class="col"><span class="tag after">New</span>${after}<ul class="notes">${notesA.map((n) => `<li>${n}</li>`).join('')}</ul></div></div></section>`;
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fareground UI Preview</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet"><style>${css}</style></head><body>
-<h1>Fareground UI refresh</h1><p class="lede">Same colours, font, characters and dark-glass map style. Cleaner hierarchy, fewer floating buttons, bigger numbers where they matter.</p>
+<h1>Fareground UI refresh</h1><p class="lede">What is now built into the app. Same colours, font, characters, gems and boost bubble, with the leaderboard prizes reworked as a podium.</p>
 ${section('Map', 'The screen people spend most time on', mapBefore, mapAfter,
   ['Six round buttons stacked down the right edge', 'The 🤗 emoji does not match the other icons', 'Claim panel: the WP you have and the price are far apart'],
   ['Coins and WP share one capsule; Boost stands out in violet', 'Map tools grouped into one slim rail, with a proper Community icon', 'Claim card shows your progress to the parcel and the +1 WP ad right beside the button', 'Floating tab bar in the same dark glass as the map'])}
@@ -241,7 +297,10 @@ ${section('Walk', 'Steps and Walk Points', walkBefore, walkAfter,
   ['One green header: steps ring and WP side by side', 'Next parcel as one progress row', 'Daily chest and Free rewards as two tiles', 'Step health shrinks to one line when all is well'])}
 ${section('Land', 'Your parcels and earnings', landBefore, landAfter,
   ['Coin total is a small grey line', 'Every row has a full-width green upgrade bar'],
-  ['Coin total and dollar value up top, big', 'Earning and boosted earning side by side', 'Each parcel is a card with its mineral colour and upgrade pips', 'Softer upgrade button so the list reads calmly'])}
+  ['Coin total and dollar value up top, big', 'The "when boosted" bubble and the gem tray are kept as they were', 'Each parcel is a card with its mineral colour and upgrade pips', 'Softer upgrade button so the list reads calmly'])}
+${section('Ranks', 'Weekly leaderboard prizes', ranksBefore, ranksAfter,
+  ['Three outlined boxes that look like buttons', 'Nothing says who is winning or how far you are'],
+  ['A podium: 2nd, 1st, 3rd on medal-coloured steps', 'The boost each place wins, on its step', 'Whoever is in that place right now stands on top', 'How many steps you need for the top 3, and when it ends'])}
 </body></html>`;
 require('fs').writeFileSync(__dirname + '/ui-preview.html', html);
 console.log('ok', html.length);
