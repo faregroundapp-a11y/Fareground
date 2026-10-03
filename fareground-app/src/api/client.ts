@@ -56,6 +56,25 @@ export function onUpdateRequired(fn: () => void): () => void {
     updateListeners.delete(fn);
   };
 }
+/**
+ * SIGNED-IN STATE, told to the session (state/session.tsx):
+ *   - the server renewed the login token (header X-Fareground-Token): save it;
+ *   - the server refused the token (401 on a signed-in call): sign out and ask
+ *     the player to sign in again, instead of showing 0 coins and 0 WP forever
+ *     - which is what an expired token used to look like.
+ */
+type AuthEvent = { kind: 'renewed'; token: string } | { kind: 'expired' };
+const authListeners = new Set<(e: AuthEvent) => void>();
+export function onAuthEvent(fn: (e: AuthEvent) => void): () => void {
+  authListeners.add(fn);
+  return () => {
+    authListeners.delete(fn);
+  };
+}
+function emitAuth(e: AuthEvent) {
+  for (const fn of authListeners) fn(e);
+}
+
 function notifyUpdateRequired() {
   if (updateRequired) return;
   updateRequired = true;
@@ -86,6 +105,12 @@ async function request<T>(
 
   const text = await response.text();
   const json = text ? safeParse(text) : null;
+
+  const renewed = response.headers.get('X-Fareground-Token');
+  if (renewed && options.token) emitAuth({ kind: 'renewed', token: renewed });
+  // Only a call that SENT a token can mean "your login ran out" - a 401 from
+  // the sign-in form is just a wrong password.
+  if (response.status === 401 && options.token) emitAuth({ kind: 'expired' });
 
   if (!response.ok) {
     // This build is too old to play: the whole app switches to the update

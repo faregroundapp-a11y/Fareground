@@ -43,7 +43,7 @@ type Field = 'username' | 'email' | 'password' | 'invite';
 const INVITE_RE = /^[A-Za-z0-9]{4,12}$/;
 
 export default function SignIn() {
-  const { token, signIn, signUp, signInWithGoogle } = useSession();
+  const { token, signIn, signUp, signInWithGoogle, expired } = useSession();
   const [mode, setMode] = useState<Mode>('in');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -307,6 +307,13 @@ export default function SignIn() {
             />
           )}
 
+          {/* Sent back here because the login ran out: say so, and that
+              nothing was lost - it used to look like a wiped account. */}
+          {expired && !error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>Please sign in again. Your land, coins and Walk Points are all safe.</Text>
+            </View>
+          )}
           {error && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>

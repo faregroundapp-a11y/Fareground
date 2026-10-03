@@ -492,6 +492,20 @@ casual 4k steps/5 ads ~7.5 months; 8k steps/10 ads ~4 months, ~3 months if
 boosting and trading coins to WP; 12k steps boosted ~2.6 months. 10,000 steps
 is 100 WP = 2 parcels.
 
+## 34. "My progress is gone until I log out and in" - fixed (2026-10-03)
+
+Not lost progress: an EXPIRED LOGIN. Tokens lasted 7 days with no renewal,
+and the app ignored the 401s, so every call failed and the screens showed
+0 coins / 0 WP. Signing out and in issued a new token.
+
+- Server: tokens last 90 days (JWT_EXPIRES_IN default) and any token over a
+  day old comes back renewed in the `X-Fareground-Token` response header
+  (middleware/auth.ts). An active player is never signed out.
+- App: api/client.ts saves a renewed token (state/session.tsx) and, on a
+  401 to a signed-in call, signs out to the sign-in screen with "Please sign
+  in again. Your land, coins and Walk Points are all safe."
+- If Render has JWT_EXPIRES_IN=7d set, change it to 90d (or delete it).
+
 ## 33. Step replay after clearing app data - closed (2026-09-29)
 
 A player reported: clear Fareground's storage, log back in, sync, and the

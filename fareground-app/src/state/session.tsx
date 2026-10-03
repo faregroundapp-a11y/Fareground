@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api } from '@/api/client';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { api, onAuthEvent } from '@/api/client';
 import type { PublicUser } from '@/api/types';
 import { googleIdToken } from '@/native/googleSignIn';
 
@@ -29,6 +29,8 @@ interface Session {
   /** Google's account picker, then our server. Resolves true for a new account. */
   signInWithGoogle(): Promise<boolean>;
   signOut(): Promise<void>;
+  /** The last session ended because the login ran out: say so on sign-in. */
+  expired: boolean;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -37,6 +39,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [expired, setExpired] = useState(false);
+  /** Whether a token is held right now, for the auth-event handler below. */
+  const signedIn = useRef(false);
+  useEffect(() => {
+    signedIn.current = token !== null;
+  }, [token]);
 
   useEffect(() => {
     (async () => {
@@ -58,6 +66,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(u));
     setToken(t);
     setUser(u);
+    setExpired(false);
   }, []);
 
   const signIn = useCallback(
@@ -91,9 +100,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // The server renews the token on use and refuses an expired one; keep the
+  // stored token current, and on a refusal go back to sign-in with a reason.
+  useEffect(
+    () =>
+      onAuthEvent((e) => {
+        if (!signedIn.current) return;
+        if (e.kind === 'renewed') {
+          void SecureStore.setItemAsync(TOKEN_KEY, e.token);
+          setToken(e.token);
+        } else {
+          signedIn.current = false;
+          void SecureStore.deleteItemAsync(TOKEN_KEY);
+          setToken(null);
+          setExpired(true);
+        }
+      }),
+    [],
+  );
+
   const value = useMemo(
-    () => ({ ready, token, user, signIn, signUp, signInWithGoogle, signOut }),
-    [ready, token, user, signIn, signUp, signInWithGoogle, signOut],
+    () => ({ ready, token, user, signIn, signUp, signInWithGoogle, signOut, expired }),
+    [ready, token, user, signIn, signUp, signInWithGoogle, signOut, expired],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

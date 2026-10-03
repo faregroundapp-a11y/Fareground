@@ -58,7 +58,11 @@ export const config = {
   databaseUrl: requireEnv('DATABASE_URL'),
 
   jwtSecret: requireEnv('JWT_SECRET'),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+  // 90 days, and renewed on use (middleware/auth.ts), so a player who keeps
+  // playing is never signed out. It was 7 days with no renewal, and the app
+  // did not notice expiry: players saw 0 coins / 0 WP until they signed out
+  // and in again (2026-10-03).
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '90d',
 
   bcryptSaltRounds: numberEnv('BCRYPT_SALT_ROUNDS', 12),
 
