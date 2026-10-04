@@ -114,6 +114,9 @@ export default function Settings() {
           />
         </View>
 
+        {/* --- password (2026-10-04) ------------------------------------- */}
+        <ChangePassword />
+
         {/* --- account -------------------------------------------------- */}
         <View style={styles.card}>
           <Button
@@ -222,3 +225,77 @@ const styles = StyleSheet.create({
   cancel: { ...type.caption, textAlign: 'center', paddingVertical: space.sm },
   error: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
 });
+
+/**
+ * Change your password. A Google-only account has no current one, so the
+ * server lets it set a first password without - which is also how such a
+ * player gets an email + password sign-in.
+ */
+function ChangePassword() {
+  const { token } = useSession();
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; good: boolean } | null>(null);
+
+  async function save() {
+    if (!token || busy || next.length < 8) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.changePassword(token, current || undefined, next);
+      haptics.success();
+      setMsg({ text: 'Password changed.', good: true });
+      setCurrent('');
+      setNext('');
+      setOpen(false);
+    } catch (e) {
+      haptics.warn();
+      setMsg({ text: e instanceof ApiError ? e.message : 'Could not change your password.', good: false });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={type.label}>Password</Text>
+          <Text style={styles.sub}>Change the password you sign in with.</Text>
+        </View>
+        {!open && <Button variant="secondary" label="Change" onPress={() => { setOpen(true); setMsg(null); }} />}
+      </View>
+      {open && (
+        <View style={{ gap: space.sm, marginTop: space.md }}>
+          <TextInput
+            style={styles.input}
+            value={current}
+            onChangeText={setCurrent}
+            placeholder="Current password (leave empty if you use Google)"
+            placeholderTextColor={colors.ink3}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="current-password"
+          />
+          <TextInput
+            style={styles.input}
+            value={next}
+            onChangeText={setNext}
+            placeholder="New password (at least 8 characters)"
+            placeholderTextColor={colors.ink3}
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+          />
+          <Button label="Save new password" onPress={save} busy={busy} disabled={busy || next.length < 8} />
+          <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+            <Text style={styles.cancel}>Cancel</Text>
+          </Pressable>
+        </View>
+      )}
+      {msg && <Text style={[styles.sub, { marginTop: space.sm, color: msg.good ? colors.goodInk : colors.danger }]}>{msg.text}</Text>}
+    </View>
+  );
+}

@@ -143,6 +143,17 @@ export const api = {
   login: (email: string, password: string) =>
     request<AuthResult>('POST', '/auth/login', { body: { email, password } }),
 
+  /** Forgot password: email a 6-digit code. The answer is the same whether or not the email has an account. */
+  forgotPassword: (email: string) => request<{ sent: true }>('POST', '/auth/password/forgot', { body: { email } }),
+
+  /** Forgot password, step 2: the code and a new password. Signs you in. */
+  resetPassword: (email: string, code: string, password: string) =>
+    request<AuthResult>('POST', '/auth/password/reset', { body: { email, code, password } }),
+
+  /** Change your password while signed in. `current` is not needed for a Google-only account's first one. */
+  changePassword: (token: string, current: string | undefined, password: string) =>
+    request<{ changed: true }>('POST', '/user/password', { token, body: { current, password } }),
+
   /** Sign in (or up) with a Google ID token. The server verifies it. */
   google: (idToken: string) => request<AuthResult>('POST', '/auth/google', { body: { idToken } }),
 

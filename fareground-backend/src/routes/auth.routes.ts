@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { googleSignIn, loginUser, registerUser } from '../services/auth.service';
+import { requestPasswordReset, resetPassword } from '../services/password.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const authRouter = Router();
@@ -64,5 +65,29 @@ authRouter.post(
     const { idToken } = googleSchema.parse(req.body);
     const result = await googleSignIn(idToken);
     res.status(result.created ? 201 : 200).json(result);
+  }),
+);
+
+/** POST /auth/password/forgot { email } - email a reset code (same answer either way). */
+authRouter.post(
+  '/password/forgot',
+  asyncHandler(async (req, res) => {
+    const { email } = z.object({ email: z.string().trim().email('Please enter a valid email address.').max(255) }).parse(req.body);
+    res.json(await requestPasswordReset(email));
+  }),
+);
+
+/** POST /auth/password/reset { email, code, password } - set a new password and sign in. */
+authRouter.post(
+  '/password/reset',
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        email: z.string().trim().email().max(255),
+        code: z.string().trim().regex(/^\d{6}$/, 'The code is 6 digits.'),
+        password: z.string().min(8, 'Password must be at least 8 characters.').max(128),
+      })
+      .parse(req.body);
+    res.json(await resetPassword(body));
   }),
 );

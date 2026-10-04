@@ -29,6 +29,8 @@ interface Session {
   /** Google's account picker, then our server. Resolves true for a new account. */
   signInWithGoogle(): Promise<boolean>;
   signOut(): Promise<void>;
+  /** Forgot password, step 2: set a new password with the emailed code, and sign in. */
+  resetPassword(email: string, code: string, password: string): Promise<void>;
   /** The last session ended because the login ran out: say so on sign-in. */
   expired: boolean;
 }
@@ -93,6 +95,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return result.created === true;
   }, [persist]);
 
+  const resetPassword = useCallback(
+    async (email: string, code: string, password: string) => {
+      const result = await api.resetPassword(email, code, password);
+      await persist(result.token, result.user);
+    },
+    [persist],
+  );
+
   const signOut = useCallback(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
@@ -120,8 +130,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ready, token, user, signIn, signUp, signInWithGoogle, signOut, expired }),
-    [ready, token, user, signIn, signUp, signInWithGoogle, signOut, expired],
+    () => ({ ready, token, user, signIn, signUp, signInWithGoogle, signOut, resetPassword, expired }),
+    [ready, token, user, signIn, signUp, signInWithGoogle, signOut, resetPassword, expired],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

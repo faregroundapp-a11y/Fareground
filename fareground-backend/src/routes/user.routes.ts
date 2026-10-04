@@ -6,6 +6,7 @@ import { setTimeZone } from '../services/daily.service';
 import { setArea } from '../services/leaderboard.service';
 import { deleteAccount, deletionSummary } from '../services/account.service';
 import { disablePushToken, registerPushToken, setPushEnabled } from '../services/push.service';
+import { changePassword } from '../services/password.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const userRouter = Router();
@@ -140,5 +141,20 @@ userRouter.post(
     const { password } = deleteSchema.parse(req.body);
     await deleteAccount(getUserId(req), password);
     res.status(200).json({ deleted: true });
+  }),
+);
+
+/** POST /user/password { current?, password } - change your password while signed in. */
+userRouter.post(
+  '/password',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        current: z.string().max(128).optional(),
+        password: z.string().min(8, 'Password must be at least 8 characters.').max(128),
+      })
+      .parse(req.body);
+    res.json(await changePassword(getUserId(req), body.current, body.password));
   }),
 );

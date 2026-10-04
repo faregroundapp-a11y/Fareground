@@ -44,6 +44,7 @@ const INVITE_RE = /^[A-Za-z0-9]{4,12}$/;
 
 export default function SignIn() {
   const { token, signIn, signUp, signInWithGoogle, expired } = useSession();
+  const [forgot, setForgot] = useState(false);
   const [mode, setMode] = useState<Mode>('in');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -89,6 +90,7 @@ export default function SignIn() {
   const canSubmit = complete && Object.keys(problems).length === 0;
 
   if (token) return <Redirect href="/" />;
+  if (forgot) return <ForgotPassword initialEmail={email} onBack={() => setForgot(false)} />;
 
   function switchTo(next: Mode) {
     if (next === mode) return;
@@ -227,10 +229,10 @@ export default function SignIn() {
                   busy !== null && { opacity: 0.6 },
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Continue with Google"
+                accessibilityLabel="Sign in with Google"
               >
-                <GoogleIcon size={20} />
-                <Text style={styles.googleText}>{busy === 'google' ? 'Signing in…' : 'Continue with Google'}</Text>
+                <GoogleIcon size={22} />
+                <Text style={styles.googleText}>{busy === 'google' ? 'Signing in…' : 'Sign in with Google'}</Text>
               </Pressable>
               <View style={styles.or}>
                 <View style={styles.orLine} />
@@ -328,6 +330,17 @@ export default function SignIn() {
             style={{ marginTop: space.sm }}
           />
 
+          {!signingUp && (
+            <Pressable
+              onPress={() => { haptics.tap(); setForgot(true); }}
+              hitSlop={8}
+              style={styles.forgotLink}
+              accessibilityRole="button"
+            >
+              <Text style={styles.forgotLinkText}>Forgot password?</Text>
+            </Pressable>
+          )}
+
           {/* --- what we will ask for, before we ask -------------------- */}
           <View style={styles.perm}>
             <Text style={type.overline}>BEFORE YOU START</Text>
@@ -335,6 +348,144 @@ export default function SignIn() {
             <PermRow text="Your step count, which becomes Walk Points." />
             <PermRow text="Neither is ever shared, and your exact position is never stored." />
           </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/**
+ * FORGOT PASSWORD (2026-10-04): email -> 6-digit code -> new password, then
+ * you are signed in. The server answers "sent" whether or not the email has
+ * an account, so this cannot be used to find out who plays.
+ */
+function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const { resetPassword } = useSession();
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [reveal, setReveal] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  async function send() {
+    if (!emailOk || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.forgotPassword(email.trim());
+      setStep('code');
+      setNote(`If ${email.trim()} has an account, a 6-digit code is on its way. Check spam too.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not send the code.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reset() {
+    if (busy || code.trim().length !== 6 || password.length < MIN_PASSWORD) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await resetPassword(email.trim(), code.trim(), password);
+      haptics.success();
+    } catch (e) {
+      haptics.warn();
+      setError(e instanceof Error ? e.message : 'Could not reset your password.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={onBack} hitSlop={10} style={styles.back} accessibilityRole="button">
+            <Text style={styles.backText}>‹ Back to sign in</Text>
+          </Pressable>
+          <Text style={styles.forgotTitle}>Reset your password</Text>
+          <Text style={[type.body, { marginBottom: space.lg }]}>
+            {step === 'email'
+              ? "Enter your account's email and we'll send you a 6-digit code."
+              : 'Enter the code from the email and choose a new password.'}
+          </Text>
+
+          <LabelledInput
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            editable={step === 'email'}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            autoComplete="email"
+            returnKeyType="go"
+            onSubmitEditing={send}
+          />
+
+          {step === 'code' && (
+            <>
+              <LabelledInput
+                label="Code"
+                hint="6 digits"
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                maxLength={6}
+              />
+              <LabelledInput
+                label="New password"
+                hint={`At least ${MIN_PASSWORD} characters`}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!reveal}
+                autoComplete="new-password"
+                returnKeyType="go"
+                onSubmitEditing={reset}
+                accessory={
+                  <Pressable onPress={() => setReveal((r) => !r)} hitSlop={10} style={styles.reveal}>
+                    <Text style={styles.revealText}>{reveal ? 'Hide' : 'Show'}</Text>
+                  </Pressable>
+                }
+              />
+            </>
+          )}
+
+          {note && !error && (
+            <View style={styles.noteBox}>
+              <Text style={styles.noteText}>{note}</Text>
+            </View>
+          )}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {step === 'email' ? (
+            <Button label="Send code" onPress={send} busy={busy} disabled={!emailOk || busy} style={{ marginTop: space.sm }} />
+          ) : (
+            <>
+              <Button
+                label="Set new password"
+                onPress={reset}
+                busy={busy}
+                disabled={busy || code.length !== 6 || password.length < MIN_PASSWORD}
+                style={{ marginTop: space.sm }}
+              />
+              <Pressable onPress={() => { setStep('email'); setCode(''); setNote(null); }} hitSlop={8} style={styles.forgotLink}>
+                <Text style={styles.forgotLinkText}>{"Didn't get it? Send a new code"}</Text>
+              </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -427,18 +578,31 @@ const styles = StyleSheet.create({
   welcomeText: { flex: 1, fontFamily: fonts.regular, fontSize: 13.5, lineHeight: 19, color: colors.ink2 },
   welcomeStrong: { fontFamily: fonts.bold, color: colors.ink },
 
+  forgotLink: { alignSelf: 'center', paddingVertical: space.md, minHeight: TOUCH, justifyContent: 'center' },
+  forgotLinkText: { fontFamily: fonts.heavy, fontSize: 14, color: colors.accent, includeFontPadding: false },
+  back: { alignSelf: 'flex-start', minHeight: TOUCH, justifyContent: 'center', marginBottom: space.sm },
+  backText: { fontFamily: fonts.heavy, fontSize: 15, color: colors.accent, includeFontPadding: false },
+  forgotTitle: { fontFamily: fonts.black, fontSize: 28, letterSpacing: -0.6, color: colors.ink, marginBottom: space.sm },
+  noteBox: { backgroundColor: colors.accentSoft, borderRadius: radius.md, padding: space.md, marginBottom: space.md },
+  noteText: { fontFamily: fonts.bold, fontSize: 13.5, lineHeight: 19, color: colors.accent },
   google: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     minHeight: TOUCH + 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
+    borderRadius: radius.sm,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.lineStrong,
+    borderColor: '#DADCE0',
+    // The white Google button from every login page: a soft lift, no colour.
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  googleText: { fontFamily: fonts.heavy, fontSize: 16, color: colors.ink, includeFontPadding: false },
+  googleText: { fontFamily: fonts.bold, fontSize: 16, color: '#3C4043', includeFontPadding: false },
   or: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginVertical: space.lg },
   orLine: { flex: 1, height: 1, backgroundColor: colors.line },
   orText: { ...type.caption },

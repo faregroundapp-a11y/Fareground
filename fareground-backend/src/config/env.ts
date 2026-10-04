@@ -115,6 +115,11 @@ export const config = {
    */
   minAppBuild: numberEnv('MIN_APP_BUILD', 0),
 
+  /** Resend (resend.com) API key for password-reset emails. Empty = not set up. */
+  resendApiKey: process.env.RESEND_API_KEY ?? '',
+  /** Who reset emails come from. Must be a sender your Resend account may use. */
+  mailFrom: process.env.MAIL_FROM ?? 'Fareground <onboarding@resend.dev>',
+
   adRewardVerification: enumEnv(
     'AD_REWARD_VERIFICATION',
     ['client', 'ssv'] as const,
