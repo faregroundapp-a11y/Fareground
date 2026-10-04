@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="162 200 700 700">
+        <defs>
+          <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FB08F"/><stop offset="1" stop-color="#3E7F63"/></linearGradient>
+          <linearGradient id="gCell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD37A"/><stop offset="1" stop-color="#F2A93B"/></linearGradient>
+          <linearGradient id="gPin" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset="0.5" stop-color="#F6AE3E"/><stop offset="1" stop-color="#DC8C1F"/></linearGradient>
+        </defs>
+        <polygon points="212,700 512,850 512,894 212,744" fill="#1E4638"/>
+        <polygon points="512,850 812,700 812,744 512,894" fill="#173A2E"/>
+        <polygon points="512,550 812,700 512,850 212,700" fill="url(#gTile)"/>
+        <g stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="6" stroke-linecap="round">
+          <line x1="612" y1="600" x2="312" y2="750"/><line x1="412" y1="600" x2="712" y2="750"/>
+          <line x1="712" y1="650" x2="412" y2="800"/><line x1="312" y1="650" x2="612" y2="800"/>
+        </g>
+        <polygon points="512,650 612,700 512,750 412,700" fill="url(#gCell)"/>
+        <ellipse cx="512" cy="712" rx="64" ry="22" fill="#000" opacity="0.28"/>
+        <path d="M512 712 C 468 632 336 530 336 404 A 176 176 0 1 1 688 404 C 688 530 556 632 512 712 Z" fill="url(#gPin)"/>
+        <path d="M512 712 C 556 632 688 530 688 404 A 176 176 0 0 0 600 252 C 650 300 660 360 652 420 C 640 520 560 620 512 712 Z" fill="#B8741A" opacity="0.35"/>
+        <circle cx="512" cy="398" r="118" fill="#FFF6E2" stroke="#E7B25A" stroke-width="6"/>
+        <polygon points="447,352 577,352 612,388 512,478 412,388" fill="#C0304A"/>
+        <polygon points="447,352 482,388 412,388" fill="#E4566E"/>
+        <polygon points="482,388 542,388 512,352 447,352" fill="#EE7086"/>
+        <polygon points="512,352 542,388 577,352" fill="#D8435C"/>
+        <polygon points="542,388 612,388 577,352" fill="#A62540"/>
+        <polygon points="412,388 482,388 512,478" fill="#D23A55"/>
+        <polygon points="482,388 542,388 512,478" fill="#B0283F"/>
+        <polygon points="542,388 612,388 512,478" fill="#8C1C31"/>
+        <polygon points="462,360 490,360 478,378" fill="#FFFFFF" opacity="0.75"/>
+      </svg>
