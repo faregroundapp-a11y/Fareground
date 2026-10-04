@@ -6,6 +6,7 @@ import { haptics } from '@/native/haptics';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
 import { markTutorialClosed } from '@/state/tutorialGate';
+import { MINERALS } from '@/game/minerals';
 import { colors, fonts, radius, space, type } from '@/theme';
 import { Button } from './Button';
 import { CoinIcon, GemIcon, StepsIcon } from './icons';
@@ -26,7 +27,7 @@ const PAGES = [
   {
     title: 'Claim real land',
     body: 'Spend Walk Points on the glowing squares near you. Each one becomes a mine: Rocky, Coal, Amethyst, Sapphire or a rare Ruby.',
-    icon: <GemIcon size={34} color="#7E56A6" />,
+    icon: <GemIcon size={34} color={MINERALS.AMETHYST.color} />,
     well: colors.boostSoft,
   },
   {
@@ -118,7 +119,7 @@ export function Tutorial() {
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(8,12,10,0.6)', justifyContent: 'center', padding: space.lg },
+  scrim: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: space.lg },
   card: { backgroundColor: colors.card, borderRadius: radius.xl, padding: space.xl, gap: space.md, maxWidth: 440, width: '100%', alignSelf: 'center' },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   skip: { fontFamily: fonts.heavy, fontSize: 14, color: colors.ink3 },

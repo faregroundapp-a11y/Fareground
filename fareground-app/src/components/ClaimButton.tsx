@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   labelOff: { fontSize: 16, letterSpacing: 0.4, textTransform: 'none' },
   adBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 56, paddingHorizontal: 16,
-    borderRadius: radius.lg, backgroundColor: colors.accent, borderBottomWidth: 3, borderBottomColor: '#1F3F36',
+    borderRadius: radius.lg, backgroundColor: colors.accent, borderBottomWidth: 3, borderBottomColor: colors.accentDeep,
   },
   adBtnText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 15, includeFontPadding: false },
 

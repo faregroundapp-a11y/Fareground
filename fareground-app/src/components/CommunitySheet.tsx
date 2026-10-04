@@ -104,7 +104,7 @@ export function CommunitySheet({ visible, onClose }: { visible: boolean; onClose
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(8,14,11,0.55)' },
+  scrim: { flex: 1, backgroundColor: colors.scrim },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xl,

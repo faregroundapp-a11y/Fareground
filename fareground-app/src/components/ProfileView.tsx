@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { AvatarChoice, Badge, Profile } from '@/api/types';
 import { haptics } from '@/native/haptics';
+import { MINERALS } from '@/game/minerals';
 import { colors, fonts, mono, radius, shadow, space, TOUCH, type } from '@/theme';
 import { AvatarEditor } from './AvatarEditor';
 import { AvatarPortrait } from './AvatarPortrait';
@@ -168,7 +169,7 @@ export function ProfileView({
         <Stat label="Steps, all time" value={fmt(stats.lifetimeSteps)} />
         <Stat label="This week" value={fmt(stats.thisWeekSteps)} />
         <Stat label="Parcels" value={fmt(stats.parcels)} />
-        <Stat label="Rubies" value={fmt(stats.rubies)} accent="#C0304A" />
+        <Stat label="Rubies" value={fmt(stats.rubies)} accent={MINERALS.RUBY.color} />
         <Stat label="Places visited" value={fmt(stats.placesVisited)} />
         <Stat label="Podiums" value={`${stats.podiums}${stats.wins ? ` · ${stats.wins} win${stats.wins === 1 ? '' : 's'}` : ''}`} />
       </View>

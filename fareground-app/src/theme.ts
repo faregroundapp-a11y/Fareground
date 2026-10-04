@@ -32,8 +32,18 @@ const light = {
   accentInk: '#FFFFFF',
   /** The brand green as TEXT, icons, borders and tints - the same as accent on light surfaces. */
   accentText: '#2F5D50',
+  /** The darker green under a raised green button. */
+  accentDeep: '#1F3F36',
   /** A solid dark bar with white text on it (toasts, "you" row, small badges). */
   solid: '#121814',
+
+  // white text and chips ON a green or dark header card
+  onFill: 'rgba(255,255,255,0.86)',
+  onFill2: 'rgba(255,255,255,0.7)',
+  onFillChip: 'rgba(255,255,255,0.12)',
+
+  /** Dims the screen behind every sheet and popup. */
+  scrim: 'rgba(8,12,10,0.5)',
 
   // the HUD floats over the map: dark glass in every theme
   glass: 'rgba(14,19,26,0.84)',

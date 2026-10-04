@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   removeText: { fontFamily: fonts.bold, fontSize: 13, color: colors.danger, textAlign: 'center' },
-  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,12,10,0.45)' },
+  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.scrim },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '90%',
     backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,

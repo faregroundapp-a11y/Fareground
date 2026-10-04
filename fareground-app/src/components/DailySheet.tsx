@@ -303,7 +303,7 @@ function QuestRow({
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,12,10,0.45)' },
+  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.scrim },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%',
     backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,

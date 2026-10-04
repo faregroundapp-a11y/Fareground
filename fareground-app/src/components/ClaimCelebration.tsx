@@ -4,7 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import type { Mineral } from '@/api/types';
 import { MINERALS, MINERAL_ORDER, formatRate } from '@/game/minerals';
 import { GemIcon } from './icons';
-import { fonts } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 /**
  * The claim, as it happens ON THE GLASS - the part you feel.
@@ -175,11 +175,11 @@ const styles = StyleSheet.create({
   banner: {
     position: 'absolute', top: '22%', alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(16,22,30,0.86)', borderRadius: 18,
+    backgroundColor: colors.glass, borderRadius: 18,
     paddingVertical: 12, paddingLeft: 14, paddingRight: 22,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1, borderColor: colors.glassLine,
   },
   tier: { fontSize: 11, fontFamily: fonts.heavy, letterSpacing: 1.4, textTransform: 'uppercase' },
   name: { fontSize: 28, fontFamily: fonts.black, color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 32 },
-  rate: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontFamily: fonts.medium },
+  rate: { fontSize: 13, color: colors.glassInk2, fontFamily: fonts.medium },
 });

@@ -13,6 +13,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { colors } from '@/theme';
 
 /**
  * A bottom sheet you can drag down to close - from ANYWHERE on it.
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
   // Tall enough to grab without aiming; the grip's own margin sits inside it.
   // Fills the Modal and stands the sheet on the bottom edge.
   host: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { backgroundColor: 'rgba(8,12,10,0.5)' },
+  scrim: { backgroundColor: colors.scrim },
   // Tall enough to grab without aiming; the grip's own margin sits inside it.
   dragZone: { alignSelf: 'stretch', alignItems: 'center', paddingTop: 6, paddingBottom: 10, marginTop: -6 },
 });

@@ -69,12 +69,12 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       </Text>
       <Pressable
         onPress={() => void retry()}
-        style={{ backgroundColor: '#2F5D50', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 }}
+        style={{ backgroundColor: colors.accent, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 }}
         accessibilityRole="button"
       >
-        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>Try again</Text>
+        <Text style={{ color: colors.accentInk, fontSize: 16, fontWeight: '800' }}>Try again</Text>
       </Pressable>
-      <Text style={{ fontSize: 11, color: '#8A9386', textAlign: 'center' }} numberOfLines={3}>
+      <Text style={{ fontSize: 11, color: colors.ink3, textAlign: 'center' }} numberOfLines={3}>
         {error.message}
       </Text>
     </View>

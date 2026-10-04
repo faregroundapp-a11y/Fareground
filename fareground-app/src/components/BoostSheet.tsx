@@ -159,7 +159,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
               {/* coins into land - no ad, just a trade */}
               <Offer
                 icon={<CoinIcon size={26} />}
-                wellColor="#FFF3DC"
+                wellColor={colors.claimSoft}
                 title={`Turn coins into land`}
                 subtitle={`${(balance.parcelPrice * balance.coinsPerWalkPoint).toLocaleString()} coins buys ${balance.parcelPrice} WP - a whole parcel`}
                 button={{
@@ -239,7 +239,7 @@ function Offer({
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(8,12,10,0.45)' },
+  scrim: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.scrim },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '90%',
     backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,

@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line,
   },
   pillText: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, includeFontPadding: false },
-  scrim: { flex: 1, backgroundColor: 'rgba(8,14,11,0.55)' },
+  scrim: { flex: 1, backgroundColor: colors.scrim },
   sheet: {
     backgroundColor: colors.bg,
     borderTopLeftRadius: radius.xl,
