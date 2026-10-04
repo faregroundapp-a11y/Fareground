@@ -1,10 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
-import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LandTabIcon, MapTabIcon, RanksTabIcon, WalkTabIcon } from '@/components/icons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { StepSetupPrompt } from '@/components/StepSetupPrompt';
 import { haptics } from '@/native/haptics';
-import { TAB_BAR_HEIGHT, useTabBarBottom } from '@/hooks/useTabBarSpace';
 import { GameProvider } from '@/state/game';
 import { useSession } from '@/state/session';
 import { colors, fonts } from '@/theme';
@@ -12,10 +11,7 @@ import { colors, fonts } from '@/theme';
 /** Everything behind sign-in. No token, no tabs. */
 export default function TabsLayout() {
   const { ready, token } = useSession();
-  const tabBarBottom = useTabBarBottom();
-  // On a tablet the bar stops at a phone's width, centred.
-  const { width } = useWindowDimensions();
-  const barInset = Math.max(12, (width - 560) / 2);
+  const insets = useSafeAreaInsets();
 
   if (!ready) return <LoadingScreen message="Finding your ground…" />;
   if (!token) return <Redirect href="/sign-in" />;
@@ -31,33 +27,20 @@ export default function TabsLayout() {
           // keeps its state, but its runner, GPS updates and balance ticks
           // cost nothing while you are on Walk or Land.
           freezeOnBlur: true,
-          // The floating dark-glass bar (2026-10-03): the same glass as the
-          // map's HUD, lifted off the bottom edge with rounded ends. The active
-          // tab sits in a lighter capsule with amber ink.
-          tabBarActiveTintColor: colors.claimHi,
-          tabBarInactiveTintColor: colors.glassInk2,
-          tabBarActiveBackgroundColor: 'rgba(255,255,255,0.12)',
+          // The white bar fixed at the bottom, above the phone's own
+          // navigation bar (back to this on 2026-10-04, by request, after a
+          // floating dark-glass version).
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.ink3,
           tabBarStyle: {
-            position: 'absolute',
-            marginHorizontal: barInset,
-            bottom: tabBarBottom,
-            height: TAB_BAR_HEIGHT,
-            paddingTop: 7,
-            paddingBottom: 7,
-            paddingHorizontal: 6,
-            borderRadius: 24,
-            backgroundColor: colors.glass,
+            backgroundColor: colors.card,
             borderTopWidth: 1,
-            borderWidth: 1,
-            borderColor: colors.glassLine,
-            borderTopColor: colors.glassLine,
+            borderTopColor: colors.line,
+            height: 62 + insets.bottom,
+            paddingTop: 7,
+            paddingBottom: Math.max(insets.bottom, 8),
             elevation: 0,
-            shadowColor: '#000',
-            shadowOpacity: 0.25,
-            shadowRadius: 14,
-            shadowOffset: { width: 0, height: 6 },
           },
-          tabBarItemStyle: { borderRadius: 18, marginHorizontal: 3, overflow: 'hidden' },
           tabBarLabelStyle: { fontSize: 11.5, fontFamily: fonts.bold, letterSpacing: 0.2, includeFontPadding: false },
         }}
       >

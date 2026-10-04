@@ -1,22 +1,11 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 /**
- * THE FLOATING TAB BAR (2026-10-03 UI refresh) sits over the bottom of every
- * screen instead of taking its own strip, so the map runs edge to edge. That
- * means each screen has to leave room for it itself: scroll lists pad their
- * bottom by this much, and the map lifts its claim card above it.
+ * Space to leave at the bottom of a tab screen's content.
+ *
+ * The tab bar is the fixed white bar again (2026-10-04), which takes its own
+ * strip above the phone's navigation bar, so screens only need a little
+ * breathing room - not the extra the floating bar needed. Kept as one helper
+ * so the bar's style can change again without touching every screen.
  */
-export const TAB_BAR_HEIGHT = 64;
-/** Gap between the bar and the bottom edge (on top of the system inset). */
-export const TAB_BAR_GAP = 10;
-
-/** Where the bar's bottom edge sits, measured up from the screen's bottom. */
-export function useTabBarBottom() {
-  const insets = useSafeAreaInsets();
-  return insets.bottom + TAB_BAR_GAP;
-}
-
-/** How much of the screen's bottom the bar covers, plus breathing room. */
 export function useTabBarSpace() {
-  return useTabBarBottom() + TAB_BAR_HEIGHT + 12;
+  return 16;
 }
