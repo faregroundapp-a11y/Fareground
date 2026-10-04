@@ -9,6 +9,7 @@ import { adsAvailable } from '@/native/ads';
 import { haptics } from '@/native/haptics';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, type } from '@/theme';
+import { useDistance } from '@/state/prefs';
 import { Button } from './Button';
 import { PinIcon, PlayAdIcon } from './icons';
 
@@ -34,6 +35,7 @@ export function AreasCard({
   position?: { lat: number; lng: number; accuracyM: number; mocked?: boolean } | null;
   onCollected?: () => void;
 }) {
+  const dist = useDistance();
   const { token } = useSession();
   const [status, setStatus] = useState<AreasStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -194,7 +196,7 @@ export function AreasCard({
             <Text style={styles.sub}>
               {t.here
                 ? `You're here · check in to collect`
-                : `${t.distanceM} m away${t.visited ? '' : ' · somewhere new'}`}
+                : `${dist(t.distanceM)} away${t.visited ? '' : ' · somewhere new'}`}
             </Text>
           </View>
           <View style={styles.pay}>

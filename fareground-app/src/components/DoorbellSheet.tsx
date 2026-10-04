@@ -9,6 +9,7 @@ import { adsAvailable } from '@/native/ads';
 import { haptics } from '@/native/haptics';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, type } from '@/theme';
+import { useDistance } from '@/state/prefs';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { GemIcon, PlayAdIcon } from './icons';
@@ -47,6 +48,7 @@ export function DoorbellSheet({
   onClose: () => void;
   onCollected?: () => void;
 }) {
+  const dist = useDistance();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { token } = useSession();
@@ -176,7 +178,7 @@ export function DoorbellSheet({
           <View style={styles.plot}>
             <GemIcon size={20} color={mineral.color} />
             <Text style={styles.plotLabel}>{mineral.label}</Text>
-            <Text style={[styles.plotDistance, mono]}>{target.distanceM} m away</Text>
+            <Text style={[styles.plotDistance, mono]}>{dist(target.distanceM)} away</Text>
             <View style={styles.pay}>
               <Text style={[styles.payValue, mono]}>+{target.wp}</Text>
               <Text style={styles.payUnit}>WP</Text>

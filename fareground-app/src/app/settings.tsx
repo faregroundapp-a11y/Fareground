@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { PRIVACY_URL, SUPPORT_EMAIL } from '@/config';
 import { haptics } from '@/native/haptics';
 import { pushAvailable } from '@/native/push';
+import { prefsAtLaunch, setPref, usePrefs, type ThemePref, type Units } from '@/state/prefs';
 import { useSession } from '@/state/session';
 import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
 
@@ -113,6 +114,9 @@ export default function Settings() {
             onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
           />
         </View>
+
+        {/* --- display (2026-10-04) -------------------------------------- */}
+        <DisplaySettings />
 
         {/* --- password (2026-10-04) ------------------------------------- */}
         <ChangePassword />
@@ -223,6 +227,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, paddingHorizontal: space.lg, minHeight: TOUCH, fontSize: 16, color: colors.ink,
   },
   cancel: { ...type.caption, textAlign: 'center', paddingVertical: space.sm },
+  choice: { flexDirection: 'row', gap: 4, backgroundColor: colors.sunk, borderRadius: radius.md, padding: 4, marginTop: space.sm },
+  choiceItem: { flex: 1, minHeight: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  choiceOn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  choiceText: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.ink3 },
+  choiceTextOn: { color: colors.ink },
   error: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
 });
 
@@ -296,6 +305,57 @@ function ChangePassword() {
         </View>
       )}
       {msg && <Text style={[styles.sub, { marginTop: space.sm, color: msg.good ? colors.goodInk : colors.danger }]}>{msg.text}</Text>}
+    </View>
+  );
+}
+
+/** Distance units and light / dark theme. */
+function DisplaySettings() {
+  const prefs = usePrefs();
+  const themeChanged = prefs.theme !== prefsAtLaunch.theme;
+  return (
+    <View style={styles.card}>
+      <Text style={type.label}>Distances</Text>
+      <Choice<Units>
+        value={prefs.units}
+        options={[{ value: 'metric', label: 'Metres & km' }, { value: 'imperial', label: 'Feet & miles' }]}
+        onChange={(v) => setPref('units', v)}
+      />
+      <Text style={[type.label, { marginTop: space.lg }]}>Theme</Text>
+      <Choice<ThemePref>
+        value={prefs.theme}
+        options={[{ value: 'system', label: 'Phone' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+        onChange={(v) => setPref('theme', v)}
+      />
+      <Text style={[styles.sub, { marginTop: space.sm }]}>
+        {themeChanged
+          ? 'Close and reopen Fareground to switch the theme.'
+          : '"Phone" follows your phone\'s light or dark setting.'}
+      </Text>
+    </View>
+  );
+}
+
+/** A row of pill buttons, one selected. */
+function Choice<T extends string>({
+  value, options, onChange,
+}: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <View style={styles.choice}>
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => { haptics.tap(); onChange(o.value); }}
+            style={[styles.choiceItem, on && styles.choiceOn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+          >
+            <Text style={[styles.choiceText, on && styles.choiceTextOn]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

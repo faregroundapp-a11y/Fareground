@@ -15,6 +15,7 @@ import { UpdateGate } from '@/components/UpdateRequired';
 // OS needs when it wakes the app headless to run it.
 import '@/native/backgroundSteps';
 import { SessionProvider } from '@/state/session';
+import { colors, isDark } from '@/theme';
 
 export default function RootLayout() {
   // Only the weights the app actually uses - each one is a file to load.
@@ -35,9 +36,16 @@ export default function RootLayout() {
 
   return (
     <SessionProvider>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <UpdateGate>
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            headerStyle: { backgroundColor: colors.card },
+            headerTintColor: colors.ink,
+          }}
+        />
       </UpdateGate>
     </SessionProvider>
   );
@@ -54,9 +62,9 @@ export default function RootLayout() {
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#F4F5F1', gap: 12 }}>
-      <Text style={{ fontSize: 22, fontWeight: '800', color: '#121814' }}>Something went wrong</Text>
-      <Text style={{ fontSize: 15, color: '#545E51', textAlign: 'center' }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: colors.bg, gap: 12 }}>
+      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.ink }}>Something went wrong</Text>
+      <Text style={{ fontSize: 15, color: colors.ink2, textAlign: 'center' }}>
         That screen hit a problem. Your land, steps and Walk Points are safe.
       </Text>
       <Pressable

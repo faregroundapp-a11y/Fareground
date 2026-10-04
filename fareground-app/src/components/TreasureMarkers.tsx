@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import type { TreasureBox } from '@/api/types';
 import { colors, fonts } from '@/theme';
+import { useDistance } from '@/state/prefs';
 
 /** A chest on a post, so it reads against buildings and parks alike. */
 function ChestPin({ size = 44 }: { size?: number }) {
@@ -41,6 +42,7 @@ export function TreasureMarkers({
    */
   onPressBox?: (box: TreasureBox, metresAway: number | undefined) => void;
 }) {
+  const dist = useDistance();
   return (
     <>
       {boxes.map((box) => {
@@ -62,7 +64,7 @@ export function TreasureMarkers({
               <ChestPin size={near ? 50 : 42} />
               <View style={[styles.tag, near && styles.tagNear]}>
                 <Text style={styles.tagText}>
-                  {near ? 'Open it!' : away !== undefined ? `${Math.round(away)} m` : `+${box.rewardWp} WP`}
+                  {near ? 'Open it!' : away !== undefined ? dist(away) : `+${box.rewardWp} WP`}
                 </Text>
               </View>
             </Pressable>

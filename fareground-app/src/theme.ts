@@ -1,4 +1,5 @@
-import { Platform, type TextStyle } from 'react-native';
+import { Appearance, Platform, type TextStyle } from 'react-native';
+import { prefsAtLaunch } from '@/state/prefs';
 
 /**
  * Design tokens.
@@ -11,7 +12,7 @@ import { Platform, type TextStyle } from 'react-native';
  * edges - hairline borders instead of heavy blurry shadows, and real font
  * weights (see `fonts`) instead of synthesised bold.
  */
-export const colors = {
+const light = {
   // surfaces
   bg: '#F4F5F1',
   card: '#FFFFFF',
@@ -41,6 +42,8 @@ export const colors = {
   claimHi: '#FFC968',
   claimDeep: '#C4801E',
   claimInk: '#2A1A03',
+  /** The pale amber behind chest and flag icons. */
+  claimSoft: '#FFF3DC',
 
   // boosts: electric violet, distinct from every mineral
   boost: '#8A5CF6',
@@ -55,7 +58,39 @@ export const colors = {
   goodInk: '#1F7A4D',
   danger: '#D24B5E',
   dangerSoft: '#FBE9EC',
-} as const;
+};
+
+/**
+ * DARK MODE (2026-10-04). Only the surfaces, lines and text change; the
+ * brand colours (claim amber, boost violet, minerals) stay as they are, and
+ * the map keeps its own colourful style. Chosen in Settings - System, Light
+ * or Dark - and applied when the app starts (theme.ts is read before any
+ * style sheet is built, so a change needs a restart; Settings says so).
+ */
+const dark: typeof light = {
+  ...light,
+  bg: '#0F1512',
+  card: '#18201C',
+  sunk: '#222B26',
+  line: '#2B3530',
+  lineStrong: '#3B4741',
+  ink: '#EEF2EC',
+  ink2: '#B6C0B3',
+  ink3: '#859081',
+  accent: '#4E9C83',
+  accentHi: '#5FAE94',
+  accentSoft: '#1D332C',
+  boostSoft: '#2A2142',
+  dangerSoft: '#3A1E24',
+  goodInk: '#7FD99A',
+  claimSoft: '#3A2E16',
+};
+
+const scheme = prefsAtLaunch.theme === 'system' ? Appearance.getColorScheme() ?? 'light' : prefsAtLaunch.theme;
+/** Whether this run of the app is in dark mode. */
+export const isDark = scheme === 'dark';
+export const colors = isDark ? dark : light;
+
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
 

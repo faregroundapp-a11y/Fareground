@@ -20,7 +20,7 @@ import { useStepHealth } from '@/hooks/useStepHealth';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { useSession } from '@/state/session';
-import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
+import { colors, fonts, isDark, mono, radius, shadow, space, type } from '@/theme';
 
 /** A ring that fills as you close in on your next Walk Point. */
 function StepRing({
@@ -78,7 +78,7 @@ export default function WalkScreen() {
   // The green header wants light status-bar icons; put them back on the way out.
   useFocusEffect(useCallback(() => {
     setStatusBarStyle('light');
-    return () => setStatusBarStyle('dark');
+    return () => setStatusBarStyle(isDark ? 'light' : 'dark');
   }, []));
   const stepIssues = stepHealth?.issues ?? 0;
   const questsDone = daily ? daily.quests.filter((q) => q.claim).length : 0;
@@ -177,7 +177,7 @@ export default function WalkScreen() {
         <View style={styles.content}>
         {/* Next parcel: one row with its bar. */}
         <View style={[styles.card, styles.row]}>
-          <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+          <View style={[styles.wellSm, { backgroundColor: colors.claimSoft }]}>
             <FlagIcon size={22} color={colors.claimDeep} />
           </View>
           <View style={{ flex: 1 }}>
@@ -199,7 +199,7 @@ export default function WalkScreen() {
             accessibilityRole="button"
             accessibilityLabel="Open today's chest and quests"
           >
-            <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+            <View style={[styles.wellSm, { backgroundColor: colors.claimSoft }]}>
               <ChestIcon size={28} open={!daily?.daily.available} />
             </View>
             <Text style={[type.label, { marginTop: space.sm }]}>Daily chest</Text>
@@ -235,7 +235,7 @@ export default function WalkScreen() {
         {stepIssues > 0 ? (
           <View style={[styles.card, styles.healthCard]}>
             <View style={styles.row}>
-              <View style={[styles.wellSm, { backgroundColor: '#FFF3DC' }]}>
+              <View style={[styles.wellSm, { backgroundColor: colors.claimSoft }]}>
                 <PulseIcon size={24} color={colors.claimDeep} />
               </View>
               <View style={{ flex: 1 }}>

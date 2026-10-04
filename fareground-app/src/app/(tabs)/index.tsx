@@ -40,6 +40,7 @@ import { router } from 'expo-router';
 import { useGameBalance, useGameDaily } from '@/state/game';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, TOUCH, type } from '@/theme';
+import { useDistance } from '@/state/prefs';
 
 /**
  * Below this much movement the lit squares and reach circle are left alone.
@@ -88,6 +89,7 @@ export default function MapScreen() {
 }
 
 function GameView({ fix }: { fix: Fix }) {
+  const dist = useDistance();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { token, user } = useSession();
@@ -258,7 +260,7 @@ function GameView({ fix }: { fix: Fix }) {
       const d = distanceToCell(fix.lat, fix.lng, cell);
       if (d > reach) {
         haptics.warn();
-        showToast(`That square is ${Math.round(d)} m away. Walk within ${reach} m to claim it.`);
+        showToast(`That square is ${dist(d)} away. Walk within ${dist(reach)} to claim it.`);
         return;
       }
       haptics.tap();
@@ -268,7 +270,7 @@ function GameView({ fix }: { fix: Fix }) {
       const owner = ownerRef.current.get(cellKey(cell));
       if (owner && !owner.mine) setDoorbell(owner.id);
     },
-    [fix.lat, fix.lng, reach, showToast],
+    [fix.lat, fix.lng, reach, showToast, dist],
   );
 
   const { cameraRef, viewRef, panHandlers, measure, faceNorth, swoop, peek, bearing, initialViewState } =
@@ -369,7 +371,7 @@ function GameView({ fix }: { fix: Fix }) {
   const price = balance?.parcelPrice ?? DEFAULT_PARCEL_PRICE;
   let claimState: ClaimState = { kind: 'ready' };
   if (fix.accuracyM > MAX_CLAIM_ACCURACY_M) {
-    claimState = { kind: 'blocked', reason: `GPS is fuzzy (±${Math.round(fix.accuracyM)} m). Step outside for a clearer fix.` };
+    claimState = { kind: 'blocked', reason: `GPS is fuzzy (±${dist(fix.accuracyM)}). Step outside for a clearer fix.` };
   } else if (!selected) {
     claimState = { kind: 'blocked', reason: 'Every square within reach is taken. Walk on a little.' };
   } else if (selectedOwner?.mine) {
@@ -494,7 +496,7 @@ function GameView({ fix }: { fix: Fix }) {
                 showToast(
                   away === undefined
                     ? `Treasure box · +${box.rewardWp} WP. Walk to it to open it.`
-                    : `${Math.round(away)} m away · +${box.rewardWp} WP. Get within ${withinM} m to open it.`,
+                    : `${dist(away)} away · +${box.rewardWp} WP. Get within ${dist(withinM)} to open it.`,
                 );
               }
             }}
@@ -612,7 +614,7 @@ function GameView({ fix }: { fix: Fix }) {
             <Pressable onPress={toggleFinder} style={styles.finderPill} accessibilityLabel="Treasure pointer. Tap to hide">
               <PointerIcon size={26} rotation={pointerRotation} />
               <Text style={[styles.finderText, mono]}>
-                {nearestBox.m < 1000 ? `${Math.round(nearestBox.m)} m` : `${(nearestBox.m / 1000).toFixed(1)} km`}
+                {dist(nearestBox.m)}
               </Text>
               <Text style={styles.finderLabel}>to treasure</Text>
             </Pressable>
@@ -691,7 +693,7 @@ function GameView({ fix }: { fix: Fix }) {
                   {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M
                     ? sameCell(selected, playerCell)
                       ? 'The square you are standing on'
-                      : `${pickedInReach ? 'Your pick' : 'Free square'} · ${selectedDistance} m`
+                      : `${pickedInReach ? 'Your pick' : 'Free square'} · ${dist(selectedDistance)}`
                     : 'Claim land'}
                 </Text>
                 <Text style={styles.dockSub} numberOfLines={1}>
@@ -905,7 +907,7 @@ const styles = StyleSheet.create({
   },
   dockMin: { paddingVertical: space.sm + 2 },
   dockHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  dockWell: { width: 40, height: 40, borderRadius: 13, backgroundColor: '#FFF3DC', alignItems: 'center', justifyContent: 'center' },
+  dockWell: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.claimSoft, alignItems: 'center', justifyContent: 'center' },
   dockTitle: { fontFamily: fonts.black, fontSize: 16, color: colors.ink, includeFontPadding: false },
   dockSub: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.ink3, marginTop: 2, includeFontPadding: false },
   progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },

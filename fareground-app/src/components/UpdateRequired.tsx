@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { onUpdateRequired } from '@/api/client';
+import { colors } from '@/theme';
 
 /**
  * "This version is out of date" - over the whole app.
@@ -18,10 +19,10 @@ export function UpdateGate({ children }: { children: ReactNode }) {
   useEffect(() => onUpdateRequired(() => setOutdated(true)), []);
   if (!outdated) return <>{children}</>;
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#F4F5F1', gap: 12 }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: colors.bg, gap: 12 }}>
       <Text style={{ fontSize: 48 }}>🚶</Text>
-      <Text style={{ fontSize: 22, fontWeight: '800', color: '#121814', textAlign: 'center' }}>Time to update</Text>
-      <Text style={{ fontSize: 15, color: '#545E51', textAlign: 'center', lineHeight: 21 }}>
+      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.ink, textAlign: 'center' }}>Time to update</Text>
+      <Text style={{ fontSize: 15, color: colors.ink2, textAlign: 'center', lineHeight: 21 }}>
         This version of Fareground is out of date. Install the latest version to keep playing - your land, steps
         and Walk Points are all waiting for you.
       </Text>

@@ -9,6 +9,7 @@ import { adsAvailable } from '@/native/ads';
 import { useGameBalance, useGameDaily } from '@/state/game';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, space, type } from '@/theme';
+import { useDistance } from '@/state/prefs';
 import { Button } from './Button';
 import { Countdown } from './Countdown';
 import { BoltIcon, CoinIcon, PinIcon, PlayAdIcon, StepsIcon } from './icons';
@@ -25,6 +26,7 @@ const WP_AD_EVERY_MIN = 20;
  * are the ones we lean on hardest.
  */
 export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const dist = useDistance();
   const insets = useSafeAreaInsets();
   const { balance, refresh, boostEndsAt } = useGameBalance();
   const { refresh: refreshDaily } = useGameDaily();
@@ -139,7 +141,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
                 icon={<PinIcon size={24} color={colors.accent} />}
                 wellColor={colors.accentSoft}
                 title="Scout further"
-                subtitle={`Claim up to ${r.scout.reachM} m away for ${Math.round(r.scout.secondsPerAd / 60)} minutes`}
+                subtitle={`Claim up to ${dist(r.scout.reachM)} away for ${Math.round(r.scout.secondsPerAd / 60)} minutes`}
                 right={r.scout.active && r.scout.endsAt ? <Live endsAt={new Date(r.scout.endsAt).getTime()} /> : null}
                 button={{
                   label: r.scout.canAdd

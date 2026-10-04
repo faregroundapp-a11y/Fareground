@@ -385,7 +385,7 @@ function Summary({ health }: { health: StepHealth | null }) {
   if (!health) return <Text style={type.caption}>Checking your phone…</Text>;
   const ok = health.issues === 0;
   return (
-    <View style={[styles.summary, { backgroundColor: ok ? colors.accentSoft : '#FFF3DC' }]}>
+    <View style={[styles.summary, { backgroundColor: ok ? colors.accentSoft : colors.claimSoft }]}>
       <Text style={styles.summaryTitle}>{ok ? 'All set ✓' : `${health.issues} thing${health.issues === 1 ? '' : 's'} to fix`}</Text>
       <Text style={type.caption}>
         {ok
