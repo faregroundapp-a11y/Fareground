@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · Fareground</title>
+<meta name="description" content="What Fareground collects, why, and how to delete it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400;12..96,75..100,700;12..96,75..100,800&family=Nunito:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ------------------------------------------------------------------
+   Fareground — one committed visual world: the map at night.
+   Deep forest ground, an isometric parcel grid, amber for anything
+   you can claim, mineral colour for what you find.
+   ------------------------------------------------------------------ */
+
+:root{
+  --night:      #0A1310;
+  --night-2:    #0F1E19;
+  --night-3:    #162C24;
+  --tile:       #2F5D50;
+  --tile-hi:    #6FB08F;
+  --moss:       #7FA894;
+
+  --bone:       #F1F5F0;
+  --bone-2:     #AFC0B6;
+  --bone-3:     #7A8D83;
+
+  --amber:      #F2A93B;
+  --amber-hi:   #FFD37A;
+  --amber-deep: #C4801E;
+  --amber-ink:  #2A1A03;
+
+  --rocky:      #98A69B;
+  --coal:       #5B6B66;
+  --amethyst:   #A98BFF;
+  --sapphire:   #4C93F5;
+  --ruby:       #D23A55;
+
+  --line:       rgba(255,255,255,0.10);
+  --line-2:     rgba(255,255,255,0.18);
+  --glass:      rgba(255,255,255,0.035);
+
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --gutter: clamp(18px, 5vw, 56px);
+  --measure: 62ch;
+  color-scheme: dark;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin:0;
+  background: var(--night);
+  color: var(--bone);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* The ground: a faint isometric survey grid, lit from where you stand. */
+.ground{
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1100px 680px at 50% -8%, rgba(111,176,143,0.22), transparent 62%),
+    radial-gradient(760px 520px at 88% 12%, rgba(242,169,59,0.10), transparent 60%),
+    linear-gradient(180deg, #0E211B 0%, var(--night) 46%, #080F0D 100%);
+}
+.ground::after{
+  content:""; position:absolute; inset:-20%;
+  background-image:
+    linear-gradient(60deg, var(--line) 1px, transparent 1px),
+    linear-gradient(-60deg, var(--line) 1px, transparent 1px);
+  background-size: 74px 128px, 74px 128px;
+  opacity:.5;
+  -webkit-mask-image: radial-gradient(900px 620px at 50% 8%, #000 0%, transparent 72%);
+          mask-image: radial-gradient(900px 620px at 50% 8%, #000 0%, transparent 72%);
+}
+
+.wrap{
+  position: relative; z-index:1;
+  max-width: 1120px; margin-inline:auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- type ---------- */
+h1,h2,h3{ font-family: var(--display); margin:0; text-wrap: balance; line-height:1.03; letter-spacing:-0.02em; }
+h1{ font-size: clamp(44px, 9.2vw, 92px); font-weight:800; font-stretch: 88%; }
+h2{ font-size: clamp(28px, 4.4vw, 42px); font-weight:800; font-stretch: 92%; }
+h3{ font-size: 19px; font-weight:700; letter-spacing:-0.01em; }
+p{ margin:0; }
+a{ color: var(--amber-hi); }
+
+.eyebrow{
+  font-family: var(--mono); font-size:11.5px; font-weight:500;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--moss);
+  display:flex; align-items:center; gap:10px;
+}
+.eyebrow::before{ content:""; width:26px; height:1px; background: var(--tile-hi); opacity:.7; }
+.lede{ font-size: clamp(16.5px, 2vw, 19px); color: var(--bone-2); max-width: var(--measure); }
+.num{ font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- header ---------- */
+header.bar{
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
+  backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(10,19,16,0.92), rgba(10,19,16,0.62));
+  border-bottom: 1px solid var(--line);
+}
+.bar-in{ display:flex; align-items:center; gap:14px; padding-block:12px; }
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--bone); }
+.brand b{ font-family: var(--display); font-size:21px; font-weight:800; letter-spacing:-0.03em; }
+.bar nav{ margin-left:auto; display:flex; gap:22px; }
+.bar nav a{
+  color: var(--bone-2); text-decoration:none; font-size:14px; font-weight:600;
+  padding-block:4px; border-bottom:1px solid transparent;
+}
+.bar nav a:hover{ color: var(--bone); border-bottom-color: var(--amber); }
+@media (max-width: 720px){ .bar nav{ display:none; } }
+
+
+.doc{ max-width: 760px; padding-block: clamp(40px, 7vw, 72px) 40px; }
+.doc h1{ font-size: clamp(38px, 7vw, 64px); margin-top:16px; }
+.doc .lede{ margin-top:18px; }
+.doc h2{ font-size: clamp(22px, 3vw, 28px); margin-top:44px; }
+.doc p, .doc li{ color: var(--bone-2); font-size:15.5px; }
+.doc p{ margin-top:12px; }
+.doc ul{ margin:12px 0 0; padding-left: 20px; display:flex; flex-direction:column; gap:8px; }
+.doc li b, .doc p b{ color: var(--bone); }
+.doc .note{ margin-top:22px; border-left:2px solid var(--amber); padding: 4px 0 4px 16px; }
+footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
+.foot-in{ display:flex; flex-wrap:wrap; gap:14px 26px; align-items:center; font-size:13px; color: var(--bone-3); }
+.foot-in a{ color: var(--bone-2); text-decoration:none; }
+.foot-in a:hover{ color: var(--amber-hi); }
+</style>
+</head>
+<body>
+<div class="ground" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="brand" href="./">
+      <svg width="30" height="33" viewBox="192 210 640 700" aria-hidden="true">
+        <defs>
+          <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FB08F"/><stop offset="1" stop-color="#3E7F63"/></linearGradient>
+          <linearGradient id="gCell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD37A"/><stop offset="1" stop-color="#F2A93B"/></linearGradient>
+          <linearGradient id="gPin" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset="0.5" stop-color="#F6AE3E"/><stop offset="1" stop-color="#DC8C1F"/></linearGradient>
+        </defs>
+        <polygon points="212,700 512,850 512,894 212,744" fill="#1E4638"/>
+        <polygon points="512,850 812,700 812,744 512,894" fill="#173A2E"/>
+        <polygon points="512,550 812,700 512,850 212,700" fill="url(#gTile)"/>
+        <g stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="6" stroke-linecap="round">
+          <line x1="612" y1="600" x2="312" y2="750"/><line x1="412" y1="600" x2="712" y2="750"/>
+          <line x1="712" y1="650" x2="412" y2="800"/><line x1="312" y1="650" x2="612" y2="800"/>
+        </g>
+        <polygon points="512,650 612,700 512,750 412,700" fill="url(#gCell)"/>
+        <ellipse cx="512" cy="712" rx="64" ry="22" fill="#000" opacity="0.28"/>
+        <path d="M512 712 C 468 632 336 530 336 404 A 176 176 0 1 1 688 404 C 688 530 556 632 512 712 Z" fill="url(#gPin)"/>
+        <path d="M512 712 C 556 632 688 530 688 404 A 176 176 0 0 0 600 252 C 650 300 660 360 652 420 C 640 520 560 620 512 712 Z" fill="#B8741A" opacity="0.35"/>
+        <circle cx="512" cy="398" r="118" fill="#FFF6E2" stroke="#E7B25A" stroke-width="6"/>
+        <polygon points="447,352 577,352 612,388 512,478 412,388" fill="#C0304A"/>
+        <polygon points="447,352 482,388 412,388" fill="#E4566E"/>
+        <polygon points="482,388 542,388 512,352 447,352" fill="#EE7086"/>
+        <polygon points="512,352 542,388 577,352" fill="#D8435C"/>
+        <polygon points="542,388 612,388 577,352" fill="#A62540"/>
+        <polygon points="412,388 482,388 512,478" fill="#D23A55"/>
+        <polygon points="482,388 542,388 512,478" fill="#B0283F"/>
+        <polygon points="542,388 612,388 512,478" fill="#8C1C31"/>
+        <polygon points="462,360 490,360 478,378" fill="#FFFFFF" opacity="0.75"/>
+      </svg>
+      <b>Fareground</b>
+    </a>
+    <nav><a href="./">Back to the site</a></nav>
+  </div>
+</header>
+
+<main class="wrap doc">
+  <span class="eyebrow">Last updated 4 October 2026</span>
+  <h1>Privacy policy</h1>
+  <p class="lede">Fareground is a walking game. To work, it needs to know roughly where you are and how many steps you have taken. This page lists what we collect, why we need it, who else handles it, and how to delete it.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><b>Your account.</b> Your email address, your username and a hashed password; we never store the password itself. If you sign in with Google, we also receive your Google account ID and email.</li>
+    <li><b>Location, while the app is open.</b> We use your position to show the map near you and to check that claims, doorbells and treasure boxes happen where you really are. We keep your most recent position so we can spot impossible jumps. Fareground does not track you in the background.</li>
+    <li><b>Step counts.</b> We read daily step totals from Health Connect (Android) or Apple Health (iPhone), and from your phone's motion sensor while you walk. We store one total per day and nothing else from your health data.</li>
+    <li><b>Where you play, roughly.</b> Your city, region and country, used for the weekly leaderboards and your time zone.</li>
+    <li><b>Game data.</b> The parcels you own, your Walk Points, coins, badges, quests, avatar and settings.</li>
+    <li><b>An optional profile photo</b>, if you upload one.</li>
+    <li><b>A push notification token</b>, if you allow notifications, so we can tell you when a boost ends or someone rings your doorbell.</li>
+    <li><b>Basic device information</b>, such as the app version and the platform, which we use to keep the game fair and fix bugs.</li>
+  </ul>
+
+  <h2>What other players can see</h2>
+  <p>Your username, avatar, badges, profile photo, the parcels you own and your place on the leaderboards are public within the game. Your email address, your exact position and your step history are never shown to other players.</p>
+
+  <h2>Ads</h2>
+  <p>Fareground shows rewarded ads from <b>Google AdMob</b>, but only when you choose to watch one: to claim a parcel, start a boost or earn bonus Walk Points. AdMob may use your device's advertising ID and collect information as set out in <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">Google's policy</a>. Where the law requires it, for example in the EU and the UK, you'll be asked for consent first, and you can choose non-personalised ads.</p>
+
+  <h2>Who handles your data</h2>
+  <p>We don't sell your data. We share it only with the services that run the game:</p>
+  <ul>
+    <li><b>Render</b> runs our servers, and <b>Neon</b> hosts the database.</li>
+    <li><b>Google</b> handles Google sign-in and ads.</li>
+    <li><b>Expo</b>, together with Google and Apple's push services, delivers notifications.</li>
+    <li><b>Resend</b> sends password reset emails.</li>
+  </ul>
+  <p>We may also disclose information if the law requires it, or to deal with cheating or abuse.</p>
+
+  <h2>Keeping it and deleting it</h2>
+  <p>We keep your data for as long as you have an account. You can delete your account at any time in the app under <b>Settings → Delete account</b>. That permanently removes your profile, steps, Walk Points, coins and photo, and frees your parcels. We may keep a small amount of records for a limited time where the law requires it or to prevent fraud.</p>
+  <p>You can also email us to ask for a copy of your data, to correct it, or to delete it.</p>
+
+  <h2>Children</h2>
+  <p>Fareground is not meant for children under 13, and we don't knowingly collect their data. If you think a child has made an account, email us and we will delete it.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, we'll update the date at the top. If the change is significant, we'll also let you know in the app.</p>
+
+  <p class="note">Questions? Email <a href="mailto:support@fareground.app">support@fareground.app</a>.</p>
+</main>
+
+<footer><div class="wrap foot-in">
+  <span>© 2026 Fareground</span>
+  <a href="./">Home</a>
+  <a href="https://discord.gg/ZEAtJzVDtM" rel="noopener">Discord</a>
+  <a href="mailto:support@fareground.app">support@fareground.app</a>
+</div></footer>
+</body>
+</html>

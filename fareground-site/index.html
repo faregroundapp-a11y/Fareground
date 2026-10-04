@@ -1,4 +1,6 @@
 <title>Fareground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Fareground turns your steps into real squares of the world. Walk, claim land near you, find minerals and earn coins.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400;12..96,75..100,700;12..96,75..100,800&family=Nunito:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -307,6 +309,40 @@ section{ padding-block: clamp(52px, 8vw, 96px); }
   border:1px solid var(--line); border-radius:999px; padding:7px 13px; background: rgba(255,255,255,.025);
 }
 
+/* hero facts */
+.hero-facts{ display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:22px; font-size:13.5px; color: var(--bone-3); }
+.hero-facts span{ display:flex; align-items:center; gap:8px; }
+.hero-facts span::before{ content:""; width:6px; height:6px; border-radius:2px; transform: rotate(45deg); background: var(--amber); }
+.hero-facts b{ color: var(--bone); font-weight:600; }
+
+/* podium */
+.podium{ display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; align-items:end; min-height: 300px; }
+.pod{
+  display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
+  border:1px solid var(--line-2); border-radius:18px 18px 6px 6px; padding: 18px 8px 0;
+  background: linear-gradient(180deg, rgba(47,93,80,.42), rgba(10,19,16,.6));
+}
+.pod i{ display:block; width:100%; margin-top:14px; }
+.pod.p1{ border-color: var(--amber-deep); background: linear-gradient(180deg, rgba(242,169,59,.26), rgba(10,19,16,.6)); }
+.pod.p1 i{ height:120px; } .pod.p2 i{ height:70px; } .pod.p3 i{ height:36px; }
+.pod .medal{
+  width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:600; font-size:14px; color: var(--amber-ink);
+  background: linear-gradient(180deg, #E4ECE7, #9FB1A7);
+}
+.pod.p1 .medal{ background: linear-gradient(180deg, var(--amber-hi), var(--amber)); }
+.pod.p3 .medal{ background: linear-gradient(180deg, #E7B08A, #B9764B); }
+.pod b{ font-family:var(--display); font-size: clamp(30px, 5vw, 42px); font-weight:800; line-height:1.1; }
+.pod.p1 b{ color: var(--amber-hi); }
+.pod small{ font-size:12.5px; color: var(--bone-2); }
+
+/* feature grid */
+.feats{ display:grid; grid-template-columns: repeat(3, 1fr); gap:1px; margin-top:40px; background: var(--line); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+@media (max-width: 860px){ .feats{ grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px){ .feats{ grid-template-columns: 1fr; } }
+.feat{ background: linear-gradient(180deg, rgba(22,44,36,.55), rgba(10,19,16,.6)); padding: 22px; display:flex; flex-direction:column; gap:8px; }
+.feat p{ font-size:14px; color: var(--bone-2); }
+
 /* closing */
 .close{ text-align:center; display:flex; flex-direction:column; align-items:center; gap:20px; padding-block: clamp(60px,9vw,110px); }
 .close h2{ font-size: clamp(32px, 6vw, 58px); }
@@ -316,6 +352,9 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
 .foot-in{ display:flex; flex-wrap:wrap; gap:14px 26px; align-items:center; font-size:13px; color: var(--bone-3); }
 .foot-in .brand b{ font-size:17px; }
 .foot-in .sp{ margin-left:auto; }
+.foot-links{ display:flex; flex-wrap:wrap; gap:18px; }
+.foot-links a{ color: var(--bone-2); text-decoration:none; }
+.foot-links a:hover{ color: var(--amber-hi); }
 
 @media (prefers-reduced-motion: reduce){
   *{ animation-duration: .001ms !important; animation-iteration-count:1 !important; transition-duration: .001ms !important; }
@@ -361,6 +400,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
       <a href="#how">How it works</a>
       <a href="#minerals">Minerals</a>
       <a href="#loop">Every day</a>
+      <a href="#ranks">Ranks</a>
       <a href="#coins">Coins</a>
     </nav>
   </div>
@@ -380,13 +420,18 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
         </h1>
         <p class="lede">
           Fareground turns the steps you already take into ground you own. Every
-          100 steps is a Walk Point. Spend Walk Points on a real 9-metre square
-          of the world near you, and it pays you coins every hour from then on —
-          whether the app is open or not.
+          100 steps is a Walk Point. Spend them on a real 9-metre square of the
+          world near you, find out what mineral is under it, and it earns you
+          coins every month from then on, whether the app is open or not.
         </p>
         <div class="hero-cta">
           <a class="btn btn-amber" href="#how">See how it works</a>
-          <a class="btn btn-ghost" href="#minerals">What's under the ground?</a>
+          <a class="btn btn-ghost" href="https://discord.gg/ZEAtJzVDtM" rel="noopener">Join the Discord</a>
+        </div>
+        <div class="hero-facts">
+          <span><b class="num">50 WP</b> to start: one free parcel</span>
+          <span>Works with your watch</span>
+          <span>Light &amp; dark mode</span>
         </div>
       </div>
 
@@ -405,7 +450,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
         </div>
 
         <div class="demo-foot">
-          <p class="msg" id="msg">Tap a lit square inside your reach to claim it. <b>Next parcel: 50 WP.</b></p>
+          <p class="msg" id="msg">Try it: tap a lit square inside your reach to claim it. <b>Next parcel: 50 WP.</b></p>
           <button class="btn-walk" id="walk" type="button">Walk 2,500 steps</button>
           <button class="btn-walk reset" id="reset" type="button">Reset</button>
         </div>
@@ -425,20 +470,20 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
       <div class="step">
         <span class="n">01</span>
         <h3>Your steps become Walk Points</h3>
-        <p>Fareground reads the step count your phone already keeps — Health Connect on Android, motion history on iOS — plus the live sensor while you walk. Nothing to start, nothing to stop.</p>
-        <div class="fact">100 steps = 1 WP</div>
+        <p>Fareground reads the steps your phone or watch already counts, through Health Connect on Android and Apple Health on iPhone. There's nothing to start and nothing to stop. Fitbit, Garmin, Samsung and Apple Watch all count.</p>
+        <div class="fact">100 steps = 1 WP · up to 15,000 steps a day</div>
       </div>
       <div class="step">
         <span class="n">02</span>
         <h3>Spend them on ground you're standing near</h3>
-        <p>The map lights up the squares within reach. Pick one, claim it, watch the block erupt. You can only claim where you actually are — and each square on Earth has exactly one owner, ever.</p>
-        <div class="fact">40 m reach · ~9 m squares</div>
+        <p>The map lights up the squares within reach. Pick one, watch a short ad, and the block is yours. You can only claim where you actually are, and each square on Earth has exactly one owner.</p>
+        <div class="fact">50 WP + 1 ad · ~9 m squares</div>
       </div>
       <div class="step">
         <span class="n">03</span>
-        <h3>It pays you, hour after hour</h3>
-        <p>Every parcel turns out to be a mineral. Rocky ground trickles. A ruby pours. The coins accumulate while the app is closed, and you collect them whenever you open it.</p>
-        <div class="fact">0.6–6 coins a month, forever</div>
+        <h3>It pays you, month after month</h3>
+        <p>Every parcel turns out to be a mineral. Rocky ground trickles and a ruby pours. Coins build up while the app is closed. Watch a boost ad and your land earns 20× for half an hour.</p>
+        <div class="fact">0.6–6 coins a month · 20× with a boost</div>
       </div>
     </div>
   </div></section>
@@ -448,7 +493,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
     <div class="sec-head">
       <span class="eyebrow">What's under the ground</span>
       <h2>You don't know what you've claimed until you claim it.</h2>
-      <p class="lede">Five minerals, one roll per parcel. A ruby is a one-in-a-hundred square that earns eight times what plain rock does — and the phone thumps harder the rarer the find.</p>
+      <p class="lede">Five minerals, one roll per parcel. A ruby is a one-in-a-hundred square that earns ten times what plain rock does, and the phone thumps harder the rarer the find.</p>
     </div>
 
     <div class="minerals">
@@ -480,7 +525,7 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
       </div>
     </div>
 
-    <p class="note">Rarer ground also builds higher on the map, so a good street is visible from a distance. Any parcel can be upgraded four times — 25, 50, 75 then 100 WP — for an extra coin a month each.</p>
+    <p class="note">Rarer ground also builds higher on the map, so a good street stands out from a distance. Any parcel can be upgraded four times, for 25, 50, 75 and then 100 WP plus an ad each time. Every level adds 0.15 coins a month, so a fully upgraded rocky parcel earns double.</p>
   </div></section>
 
   <!-- ============ DAILY LOOP ============ -->
@@ -493,35 +538,68 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
 
     <div class="loop">
       <div class="card">
-        <span class="tag">7-day streak</span>
+        <span class="tag">7-day streak · 3 → 20 WP</span>
         <h3>The daily chest</h3>
-        <p>3 WP on day one, 20 by day seven. Miss a day and a streak save can cover you — twice a week.</p>
+        <p>3 WP on day one, 20 by day seven. If you miss a day, a streak save can cover you, up to twice a week.</p>
       </div>
       <div class="card">
-        <span class="tag">4 a day</span>
+        <span class="tag">4 a day · 26 WP</span>
         <h3>Quests</h3>
-        <p>Walk a target, claim something, visit somewhere, open a box. Small asks, 26 WP if you finish them all.</p>
+        <p>Walk 3,000 steps, walk 8,000, claim a parcel, use a power-up. Small goals that add up if you finish them all.</p>
       </div>
       <div class="card">
-        <span class="tag">+4, or +6 new</span>
-        <h3>Visits</h3>
-        <p>Check in at a place you're standing in. Somewhere you've never been pays more than the café you always use.</p>
+        <span class="tag">You +5 · owner +3</span>
+        <h3>Ring the doorbell</h3>
+        <p>Walk past someone else's land and ring their doorbell. You both get Walk Points, and they get a notification that someone came by.</p>
       </div>
       <div class="card">
-        <span class="tag">6–14 WP</span>
+        <span class="tag">10–20 WP</span>
         <h3>Treasure boxes</h3>
-        <p>Boxes appear on the map nearby. They don't come to you — that's rather the idea.</p>
+        <p>Boxes appear a few hundred metres away. You have to walk to them, and an ad key opens them. They expire, so don't wait too long.</p>
       </div>
       <div class="card">
-        <span class="tag">City → world</span>
-        <h3>Weekly ranks</h3>
-        <p>Steps ranked against your city, region, country and the whole map. The top of each board takes a coin boost into next week.</p>
+        <span class="tag">+1 WP · every 20 min</span>
+        <h3>Bonus Walk Points</h3>
+        <p>Short on WP? Watch an ad for a bonus point every twenty minutes, plus an extra one after each claim.</p>
       </div>
       <div class="card">
         <span class="tag">21 badges</span>
         <h3>A character that's yours</h3>
-        <p>Build an avatar from parts you unlock, pick a title you've earned, and carry the badges to prove it.</p>
+        <p>Build an avatar from parts you unlock, pick a title you've earned, and show off your badges.</p>
       </div>
+    </div>
+  </div></section>
+
+  <!-- ============ RANKS ============ -->
+  <section id="ranks"><div class="wrap">
+    <div class="split">
+      <div class="sec-head">
+        <span class="eyebrow">Weekly ranks</span>
+        <h2>Out-walk your city.</h2>
+        <p class="lede">Every week your steps are ranked against your city, your region, your country and the whole world. The board resets on Monday, and the top three on each one win a coin boost for their land.</p>
+        <p class="note">A board needs at least five walkers before it pays out, so nobody can win a village of one. If you place on several boards, you keep your best prize.</p>
+      </div>
+      <div class="podium" aria-label="Weekly prizes">
+        <div class="pod p2"><span class="medal">2</span><b>2×</b><small>coins for 2 days</small><i></i></div>
+        <div class="pod p1"><span class="medal">1</span><b>3×</b><small>coins for 3 days</small><i></i></div>
+        <div class="pod p3"><span class="medal">3</span><b>2×</b><small>coins for 1 day</small><i></i></div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- ============ IN THE APP ============ -->
+  <section id="app"><div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">In the app</span>
+      <h2>The small things, done properly.</h2>
+    </div>
+    <div class="feats">
+      <div class="feat"><h3>Your watch counts</h3><p>Steps from Fitbit, Garmin, Samsung, Apple Watch and more come in through Health Connect or Apple Health.</p></div>
+      <div class="feat"><h3>Weekly summary</h3><p>The Walk tab shows your week at a glance: steps, Walk Points, and parcels claimed.</p></div>
+      <div class="feat"><h3>Light or dark</h3><p>Follows your phone, or pick one yourself. Distances in kilometres or miles.</p></div>
+      <div class="feat"><h3>Useful notifications</h3><p>When your boost runs out, or someone rings your doorbell. Never at night.</p></div>
+      <div class="feat"><h3>Share your finds</h3><p>Send a friend your ruby, or your spot on the podium.</p></div>
+      <div class="feat"><h3>Sign in your way</h3><p>Email or Google. If you forget your password, you can reset it with a code sent by email.</p></div>
     </div>
   </div></section>
 
@@ -548,17 +626,18 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
       <div>
         <div class="ledger">
           <div class="lrow"><span>Coin value</span><span>1,000 = $1.00</span></div>
-          <div class="lrow"><span>A rocky parcel, per year</span><span>36 coins</span></div>
-          <div class="lrow"><span>A ruby parcel, per year</span><span>304 coins</span></div>
-          <div class="lrow"><span>First parcel costs</span><span>50 WP · 5,000 steps</span></div>
-          <div class="lrow"><span>Every parcel after</span><span>+1 WP per 10 owned · plus an ad</span></div>
-          <div class="lrow"><span>Boosts</span><span>20× coins, 30 min per ad, all day</span></div>
+          <div class="lrow"><span>A rocky parcel</span><span>0.6 coins / month</span></div>
+          <div class="lrow"><span>A ruby parcel</span><span>6 coins / month</span></div>
+          <div class="lrow"><span>Each upgrade level</span><span>+0.15 coins / month</span></div>
+          <div class="lrow"><span>Signup bonus</span><span>50 WP · one parcel</span></div>
+          <div class="lrow"><span>Claiming a parcel</span><span>50 WP + 1 WP per 10 owned, plus an ad</span></div>
+          <div class="lrow"><span>Boosts</span><span>20× coins, 30 min per ad, bank a whole day</span></div>
         </div>
         <div class="hood">
           <span>Land is never taken from you</span>
           <span>One owner per square, ever</span>
           <span>No banner ads</span>
-          <span>Rewards you choose to watch</span>
+          <span>Every ad is one you choose to watch</span>
         </div>
       </div>
     </div>
@@ -568,8 +647,11 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
   <div class="wrap close">
     <span class="eyebrow" style="justify-content:center">Beta</span>
     <h2>It's a walk either way.</h2>
-    <p>Fareground is being built and tested on real streets right now, on Android first. Invites go out in small batches while the map fills in.</p>
-    <a class="btn btn-amber" href="#top">Back to the map</a>
+    <p>Fareground is being built and tested on real streets right now, on Android first. Invites go out in small batches while the map fills in. The Discord is where they're announced.</p>
+    <div class="hero-cta" style="justify-content:center;margin-top:0">
+      <a class="btn btn-amber" href="https://discord.gg/ZEAtJzVDtM" rel="noopener">Join the Discord</a>
+      <a class="btn btn-ghost" href="#top">Back to the map</a>
+    </div>
   </div>
 
 </main>
@@ -577,7 +659,12 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
 <footer><div class="wrap foot-in">
   <span class="brand"><b>Fareground</b></span>
   <span>Steps into ground. Ground into coins.</span>
-  <span class="sp">© 2026 Fareground · Private beta</span>
+  <span class="sp foot-links">
+    <a href="privacy.html">Privacy</a>
+    <a href="https://discord.gg/ZEAtJzVDtM" rel="noopener">Discord</a>
+    <a href="mailto:support@fareground.app">support@fareground.app</a>
+  </span>
+  <span>© 2026 Fareground · Private beta</span>
 </div></footer>
 
 <script>
@@ -676,7 +763,8 @@ footer{ border-top:1px solid var(--line); padding-block: 30px 40px; }
 
     paint();
     say('<b>' + m.key + '.</b> ' + m.rate + ' coin' + (m.rate === 1 ? '' : 's') +
-        ' a month, forever. Next parcel: <b>' + price() + ' WP</b>.');
+        ' a month.' + (m.key === 'Ruby' ? ' A one-in-a-hundred find!' : '') +
+        ' Next parcel: <b>' + price() + ' WP</b>. In the app, each claim plays a short ad.');
   }
 
   document.getElementById('walk').addEventListener('click', function () {
