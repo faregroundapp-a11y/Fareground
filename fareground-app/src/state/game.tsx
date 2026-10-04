@@ -3,6 +3,7 @@ import { useBalance } from '@/hooks/useBalance';
 import { useDaily } from '@/hooks/useDaily';
 import { useStepSync } from '@/hooks/useStepSync';
 import { initAds } from '@/native/ads';
+import { whenTutorialClosed } from '@/state/tutorialGate';
 import { getPushToken, initPushHandling } from '@/native/push';
 import { api } from '@/api/client';
 import { useSession } from './session';
@@ -57,6 +58,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!token) return;
     let cancelled = false;
     (async () => {
+      // A new player sees the tutorial first; the "allow notifications?"
+      // question waits until it is closed.
+      await whenTutorialClosed();
+      if (cancelled) return;
       const pushToken = await getPushToken();
       if (!pushToken || cancelled) return;
       try {

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { useStepHealth } from '@/hooks/useStepHealth';
+import { whenTutorialClosed } from '@/state/tutorialGate';
 
 const SHOWN_KEY = 'fareground.stepSetupShown';
 
@@ -23,7 +24,9 @@ export function StepSetupPrompt() {
   useEffect(() => {
     if (!health || health.issues === 0) return;
     let live = true;
-    AsyncStorage.getItem(SHOWN_KEY)
+    // After the first-time tutorial, never on top of it.
+    whenTutorialClosed()
+      .then(() => AsyncStorage.getItem(SHOWN_KEY))
       .then(async (shown) => {
         if (!live || shown === '1') return;
         await AsyncStorage.setItem(SHOWN_KEY, '1');

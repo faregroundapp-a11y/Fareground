@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { optional } from './optional';
 
@@ -93,5 +94,23 @@ export function initPushHandling(): void {
     });
   } catch {
     // An older expo-notifications with a different handler shape: ignore.
+  }
+  // TAPPING A NOTIFICATION opens the screen it is about (2026-10-04): the
+  // doorbell goes to Land, the chest and boost to the map.
+  try {
+    N.addNotificationResponseReceivedListener((response) => {
+      const screen = (response.notification.request.content.data as { screen?: string } | undefined)?.screen;
+      const path = screen === 'land' ? '/land' : screen === 'walk' ? '/walk' : '/';
+      // A beat, so the app has drawn its tabs when opened from cold.
+      setTimeout(() => {
+        try {
+          router.navigate(path);
+        } catch {
+          // Navigation not ready: the app simply opens where it was.
+        }
+      }, 400);
+    });
+  } catch {
+    // No response listener on this build: notifications still arrive.
   }
 }

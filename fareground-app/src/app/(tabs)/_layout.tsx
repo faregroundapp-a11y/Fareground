@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LandTabIcon, MapTabIcon, RanksTabIcon, WalkTabIcon } from '@/components/icons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { StepSetupPrompt } from '@/components/StepSetupPrompt';
+import { Tutorial } from '@/components/Tutorial';
 import { haptics } from '@/native/haptics';
 import { GameProvider } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -19,6 +20,7 @@ export default function TabsLayout() {
   return (
     <GameProvider>
       <StepSetupPrompt />
+      <Tutorial />
       <Tabs
         screenListeners={{ tabPress: () => haptics.tap() }}
         screenOptions={{

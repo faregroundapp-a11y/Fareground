@@ -144,6 +144,16 @@ export function PeopleIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+/** Share: a box with an arrow out of it. Same rounded stroke as the tab icons. */
+export function ShareIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
+      <Path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+    </Svg>
+  );
+}
+
 /* ---------- tab bar ---------- */
 
 export function MapTabIcon({ size = 24, color = '#000' }: IconProps) {

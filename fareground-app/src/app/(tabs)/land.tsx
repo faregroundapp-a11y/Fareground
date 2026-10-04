@@ -9,11 +9,12 @@ import { Countdown } from '@/components/Countdown';
 import { NeighboursCard } from '@/components/NeighboursCard';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { haptics } from '@/native/haptics';
-import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon } from '@/components/icons';
+import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon, ShareIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
 import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate } from '@/game/minerals';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
+import { shareParcel } from '@/native/share';
 import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
@@ -182,6 +183,15 @@ export default function LandScreen() {
                   <Text style={[styles.rowRateText, mono]}>+{formatRate(item.coinsPerMonth)}</Text>
                   <Text style={styles.rowRateUnit}>coins / mo</Text>
                 </View>
+                <Pressable
+                  onPress={() => void shareParcel(m.label, formatRate(item.coinsPerMonth), item.upgradeLevel)}
+                  hitSlop={8}
+                  style={styles.shareBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Share your ${m.label} parcel`}
+                >
+                  <ShareIcon size={18} color={colors.ink3} />
+                </Pressable>
               </View>
 
               {/* Upgrades: Walk Points plus one ad per level, +1 coin/hour each. */}
@@ -284,6 +294,7 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 16, fontFamily: fonts.heavy },
   rowSub: { fontFamily: fonts.regular, fontSize: 12, color: colors.ink3, marginTop: 2 },
   rowRate: { alignItems: 'flex-end' },
+  shareBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sunk, marginLeft: 4 },
   rowRateText: { fontSize: 15, fontFamily: fonts.black, color: colors.ink },
   rowRateUnit: { fontSize: 11, fontFamily: fonts.bold, color: colors.ink3 },
 });

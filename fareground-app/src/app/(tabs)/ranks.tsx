@@ -5,9 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, api } from '@/api/client';
 import type { Leaderboard, LeaderboardScope } from '@/api/types';
 import { PlayerPicture } from '@/components/PlayerPicture';
-import { BoltIcon, TrophyIcon } from '@/components/icons';
+import { BoltIcon, ShareIcon, TrophyIcon } from '@/components/icons';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { haptics } from '@/native/haptics';
+import { shareRank } from '@/native/share';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
 
@@ -227,6 +228,16 @@ function PrizePodium({ board }: { board: Leaderboard }) {
         })}
       </View>
 
+      {myRank ? (
+        <Pressable
+          onPress={() => void shareRank(myRank, board.areaName ?? 'the world', board.me.steps)}
+          style={({ pressed }) => [styles.shareRank, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+        >
+          <ShareIcon size={16} color="#FFFFFF" />
+          <Text style={styles.shareRankText}>Share my rank · #{myRank}</Text>
+        </Pressable>
+      ) : null}
       <Text style={styles.podiumFoot}>
         {!board.prizesActive && board.areaName
           ? `Prizes start once ${board.minWalkers} people walk on this board (${board.walkers} so far). Invite friends!`
@@ -283,6 +294,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingTop: 8,
   },
   stepText: { fontFamily: fonts.black, fontSize: 15, color: 'rgba(20,32,26,0.75)', includeFontPadding: false },
+  shareRank: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'center',
+    height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  shareRankText: { fontFamily: fonts.heavy, fontSize: 13, color: '#FFFFFF', includeFontPadding: false },
   podiumFoot: { fontFamily: fonts.bold, fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center', includeFontPadding: false },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.card,

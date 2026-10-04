@@ -69,6 +69,9 @@ export const GOOGLE_WEB_CLIENT_ID = env(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIEN
  * only from the store listing. This points at the marketing site; it must be
  * live before the first Play submission.
  */
+/** The public website, linked from shared posts. */
+export const SITE_URL = env(process.env.EXPO_PUBLIC_SITE_URL) ?? 'https://play.fareground.app';
+
 export const PRIVACY_URL = env(process.env.EXPO_PUBLIC_PRIVACY_URL) ?? 'https://play.fareground.app/privacy';
 
 /** Where "Contact support" writes to. */
