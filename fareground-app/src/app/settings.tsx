@@ -97,7 +97,7 @@ export default function Settings() {
               value={pushOn}
               onValueChange={togglePush}
               disabled={!pushAvailable()}
-              trackColor={{ true: colors.accent }}
+              trackColor={{ true: colors.accentText }}
             />
           </View>
           {!pushAvailable() ? (

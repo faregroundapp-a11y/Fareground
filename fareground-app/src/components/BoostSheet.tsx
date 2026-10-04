@@ -138,7 +138,7 @@ export function BoostSheet({ visible, onClose }: { visible: boolean; onClose: ()
 
               {/* scouting */}
               <Offer
-                icon={<PinIcon size={24} color={colors.accent} />}
+                icon={<PinIcon size={24} color={colors.accentText} />}
                 wellColor={colors.accentSoft}
                 title="Scout further"
                 subtitle={`Claim up to ${dist(r.scout.reachM)} away for ${Math.round(r.scout.secondsPerAd / 60)} minutes`}

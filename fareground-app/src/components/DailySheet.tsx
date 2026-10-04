@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   questHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   reward: { backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
-  rewardText: { fontFamily: fonts.heavy, fontSize: 12.5, color: colors.accent, includeFontPadding: false },
+  rewardText: { fontFamily: fonts.heavy, fontSize: 12.5, color: colors.accentText, includeFontPadding: false },
   track: { height: 8, borderRadius: 4, backgroundColor: colors.sunk, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4, backgroundColor: colors.steps },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 36 },

@@ -36,7 +36,7 @@ export default function PlayerScreen() {
         {profile ? (
           <ProfileView profile={profile} />
         ) : (
-          !error && <View style={styles.loading}><ActivityIndicator color={colors.accent} /></View>
+          !error && <View style={styles.loading}><ActivityIndicator color={colors.accentText} /></View>
         )}
       </ScrollView>
     </SafeAreaView>

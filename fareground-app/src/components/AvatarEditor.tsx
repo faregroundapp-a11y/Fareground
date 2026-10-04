@@ -166,7 +166,7 @@ export function AvatarEditor({
             <Button
               variant={profile.photoUrl ? 'secondary' : 'boost'}
               label={paidNonce ? 'Pick your picture' : profile.photoUrl ? 'Change picture' : 'Add a picture'}
-              icon={<PlayAdIcon size={18} color={profile.photoUrl ? colors.accent : undefined} />}
+              icon={<PlayAdIcon size={18} color={profile.photoUrl ? colors.accentText : undefined} />}
               onPress={changePhoto}
               busy={photoBusy || busy === 'PHOTO'}
               disabled={photoBusy || busy !== null || !photoPickerAvailable()}
@@ -232,7 +232,7 @@ export function AvatarEditor({
                   <AvatarPortrait
                     avatar={{ ...profile.avatar, [slot]: item.key }}
                     size={54}
-                    ring={worn ? colors.accent : undefined}
+                    ring={worn ? colors.accentText : undefined}
                   />
                 )}
                 {/* A rarity pip, so a collection reads as a ladder rather
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     width: '31.5%', alignItems: 'center', gap: 4, paddingVertical: space.md, borderRadius: radius.md,
     backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.line,
   },
-  itemOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  itemOn: { borderColor: colors.accentText, backgroundColor: colors.accentSoft },
   itemLocked: { backgroundColor: colors.sunk },
   itemName: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink, includeFontPadding: false },
   lockText: { fontFamily: fonts.medium, fontSize: 10.5, color: colors.ink3, includeFontPadding: false },

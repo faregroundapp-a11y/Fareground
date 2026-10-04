@@ -70,7 +70,7 @@ export default function LandScreen() {
       <FlatList
         data={parcels}
         keyExtractor={(p) => p.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accentText} />}
         contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
         ItemSeparatorComponent={Separator}
         ListHeaderComponent={

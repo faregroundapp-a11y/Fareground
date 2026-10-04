@@ -63,7 +63,7 @@ function Row({ gadget, open, onToggle }: { gadget: Gadget; open: boolean; onTogg
 const styles = StyleSheet.create({
   list: { gap: space.sm },
   row: { backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line },
-  rowOpen: { borderColor: colors.accent },
+  rowOpen: { borderColor: colors.accentText },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: 50 },
   tag: {
     fontFamily: fonts.bold, fontSize: 11, color: colors.ink3, backgroundColor: colors.sunk,

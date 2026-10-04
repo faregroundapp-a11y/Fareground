@@ -72,7 +72,7 @@ export default function RanksScreen() {
         data={board?.scope === scope ? board.entries : []}
         keyExtractor={(e) => `${e.rank}-${e.username}`}
         contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace + 56 }]}
-        refreshControl={<RefreshControl refreshing={loading && !!board} onRefresh={() => load(scope)} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading && !!board} onRefresh={() => load(scope)} tintColor={colors.accentText} />}
         ItemSeparatorComponent={Sep}
         ListHeaderComponent={
           <View style={{ gap: space.md, marginBottom: space.md }}>
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.card,
     borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: space.md, minHeight: 60, ...shadow.card,
   },
-  rowYou: { borderColor: colors.accent, borderWidth: 1.5 },
+  rowYou: { borderColor: colors.accentText, borderWidth: 1.5 },
   rank: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.sunk, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontFamily: fonts.black, fontSize: 14, color: colors.ink2, includeFontPadding: false },
   nameYou: { fontFamily: fonts.black },
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   meBar: {
     position: 'absolute', left: space.md, right: space.md,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: space.lg,
+    backgroundColor: colors.solid, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: space.lg,
   },
   meText: { fontFamily: fonts.heavy, fontSize: 15, color: '#FFFFFF', includeFontPadding: false },
 });

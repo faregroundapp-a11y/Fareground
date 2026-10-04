@@ -32,7 +32,7 @@ export default function TabsLayout() {
           // The white bar fixed at the bottom, above the phone's own
           // navigation bar (back to this on 2026-10-04, by request, after a
           // floating dark-glass version).
-          tabBarActiveTintColor: colors.accent,
+          tabBarActiveTintColor: colors.accentText,
           tabBarInactiveTintColor: colors.ink3,
           tabBarStyle: {
             backgroundColor: colors.card,

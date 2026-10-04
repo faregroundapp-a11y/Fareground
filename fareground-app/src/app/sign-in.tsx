@@ -168,7 +168,7 @@ export default function SignIn() {
           <View style={styles.hero}>
             <AppIcon size={72} />
             <Text style={styles.mark}>
-              Fare<Text style={{ color: colors.accent }}>ground</Text>
+              Fare<Text style={{ color: colors.accentText }}>ground</Text>
             </Text>
             <Text style={styles.lede}>
               Walk the real world. Claim the ground you cover. Every square you take pays you coins, every hour, forever.
@@ -209,7 +209,7 @@ export default function SignIn() {
                 </Text>
               </View>
               <View style={styles.welcomeRow}>
-                <CheckIcon size={18} color={colors.accent} />
+                <CheckIcon size={18} color={colors.accentText} />
                 <Text style={styles.welcomeText}>
                   Got an invite code from a friend? Put it in below for a{' '}
                   <Text style={styles.welcomeStrong}>head start</Text>.
@@ -495,7 +495,7 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
 function PermRow({ text }: { text: string }) {
   return (
     <View style={styles.permRow}>
-      <CheckIcon size={14} color={colors.accent} />
+      <CheckIcon size={14} color={colors.accentText} />
       <Text style={styles.permText}>{text}</Text>
     </View>
   );
@@ -579,12 +579,12 @@ const styles = StyleSheet.create({
   welcomeStrong: { fontFamily: fonts.bold, color: colors.ink },
 
   forgotLink: { alignSelf: 'center', paddingVertical: space.md, minHeight: TOUCH, justifyContent: 'center' },
-  forgotLinkText: { fontFamily: fonts.heavy, fontSize: 14, color: colors.accent, includeFontPadding: false },
+  forgotLinkText: { fontFamily: fonts.heavy, fontSize: 14, color: colors.accentText, includeFontPadding: false },
   back: { alignSelf: 'flex-start', minHeight: TOUCH, justifyContent: 'center', marginBottom: space.sm },
-  backText: { fontFamily: fonts.heavy, fontSize: 15, color: colors.accent, includeFontPadding: false },
+  backText: { fontFamily: fonts.heavy, fontSize: 15, color: colors.accentText, includeFontPadding: false },
   forgotTitle: { fontFamily: fonts.black, fontSize: 28, letterSpacing: -0.6, color: colors.ink, marginBottom: space.sm },
   noteBox: { backgroundColor: colors.accentSoft, borderRadius: radius.md, padding: space.md, marginBottom: space.md },
-  noteText: { fontFamily: fonts.bold, fontSize: 13.5, lineHeight: 19, color: colors.accent },
+  noteText: { fontFamily: fonts.bold, fontSize: 13.5, lineHeight: 19, color: colors.accentText },
   google: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -622,11 +622,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
   },
-  inputFocused: { borderColor: colors.accent, borderWidth: 1.5 },
+  inputFocused: { borderColor: colors.accentText, borderWidth: 1.5 },
   inputBad: { borderColor: colors.danger, borderWidth: 1.5 },
   accessory: { position: 'absolute', right: space.md, top: 0, bottom: 0, justifyContent: 'center' },
   reveal: { paddingHorizontal: space.sm, paddingVertical: 6 },
-  revealText: { fontFamily: fonts.bold, fontSize: 13, color: colors.accent, includeFontPadding: false },
+  revealText: { fontFamily: fonts.bold, fontSize: 13, color: colors.accentText, includeFontPadding: false },
   problem: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.danger, marginTop: 5 },
 
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: space.md, marginBottom: space.sm },

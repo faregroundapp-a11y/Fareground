@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   healthCard: { gap: space.md, borderColor: colors.accentHi },
   healthLine: { paddingVertical: space.md },
   healthTitle: { fontFamily: fonts.heavy, fontSize: 14, color: colors.ink, includeFontPadding: false },
-  healthLink: { fontFamily: fonts.heavy, fontSize: 13, color: colors.accent, includeFontPadding: false },
+  healthLink: { fontFamily: fonts.heavy, fontSize: 13, color: colors.accentText, includeFontPadding: false },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   wellSm: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pillText: { color: '#FFFFFF', fontFamily: fonts.heavy, fontSize: 12, includeFontPadding: false },
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   track: { height: 10, borderRadius: 5, backgroundColor: colors.sunk, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 5, backgroundColor: colors.claim },
   note: {
-    borderLeftWidth: 3, borderLeftColor: colors.accent, backgroundColor: colors.accentSoft,
+    borderLeftWidth: 3, borderLeftColor: colors.accentText, backgroundColor: colors.accentSoft,
     paddingHorizontal: space.md, paddingVertical: space.sm + 2, borderRadius: 8,
   },
   noteText: { fontFamily: fonts.medium, color: colors.ink2, fontSize: 13.5, lineHeight: 19 },

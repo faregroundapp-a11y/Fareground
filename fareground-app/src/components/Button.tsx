@@ -8,7 +8,7 @@ type Variant = 'primary' | 'secondary' | 'boost' | 'light' | 'ghost';
 
 const LOOK: Record<Variant, { bg: string; ink: string; border?: string }> = {
   primary: { bg: colors.accent, ink: colors.accentInk },
-  secondary: { bg: colors.accentSoft, ink: colors.accent },
+  secondary: { bg: colors.accentSoft, ink: colors.accentText },
   boost: { bg: colors.boost, ink: '#FFFFFF' },
   light: { bg: colors.card, ink: colors.ink, border: colors.lineStrong },
   ghost: { bg: 'transparent', ink: colors.ink2 },

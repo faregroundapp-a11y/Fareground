@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   // Bottom-LEFT, because the character badge now sits bottom-right and a
   // centred pill clipped the corner of it.
   editBadge: {
-    position: 'absolute', bottom: -2, left: -2, backgroundColor: colors.ink,
+    position: 'absolute', bottom: -2, left: -2, backgroundColor: colors.solid,
     borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3,
   },
   editBadgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 9.5, letterSpacing: 0.6, includeFontPadding: false },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   cancel: { alignItems: 'center', paddingTop: space.sm, minHeight: 36, justifyContent: 'center' },
   error: { ...type.body, color: colors.danger, fontFamily: fonts.bold },
   wear: { marginTop: space.sm, minHeight: 34, justifyContent: 'center' },
-  wearText: { fontFamily: fonts.heavy, fontSize: 13, color: colors.accent, includeFontPadding: false },
+  wearText: { fontFamily: fonts.heavy, fontSize: 13, color: colors.accentText, includeFontPadding: false },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   stat: {
     width: '31.8%', flexGrow: 1, backgroundColor: colors.card, borderRadius: radius.md,

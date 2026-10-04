@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   // A door with a bell on it, drawn in views - no new asset for one icon.
   door: {
     width: 44, height: 52, borderRadius: 6, backgroundColor: colors.accentSoft,
-    borderWidth: 2, borderColor: colors.accent, alignItems: 'flex-end', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.accentText, alignItems: 'flex-end', justifyContent: 'center',
     paddingRight: 5,
   },
   bell: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   plotLabel: { ...type.label, flex: 1 },
   plotDistance: { ...type.caption, fontSize: 12 },
   pay: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
-  payValue: { fontFamily: fonts.black, fontSize: 19, color: colors.accent },
+  payValue: { fontFamily: fonts.black, fontSize: 19, color: colors.accentText },
   payUnit: { ...type.caption, fontSize: 11 },
 
   body: { ...type.caption, lineHeight: 19 },
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   waitClock: { fontFamily: fonts.black, fontSize: 16, color: colors.ink },
 
   got: { alignItems: 'center', backgroundColor: colors.accentSoft, borderRadius: radius.md, paddingVertical: space.md },
-  gotValue: { fontFamily: fonts.black, fontSize: 24, color: colors.accent },
+  gotValue: { fontFamily: fonts.black, fontSize: 24, color: colors.accentText },
 
   note: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.goodInk, textAlign: 'center' },
   foot: { ...type.caption, textAlign: 'center' },

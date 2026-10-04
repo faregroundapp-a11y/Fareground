@@ -80,7 +80,7 @@ export default function MapScreen() {
       <Centered>
         <Runner gait="walk" size={80} />
         <Text style={styles.centeredBody}>Finding where you are…</Text>
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.accentText} />
       </Centered>
     );
   }
@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
   trackFill: { height: '100%', borderRadius: 5, backgroundColor: colors.steps },
   trackFillReady: { backgroundColor: colors.claim },
   toast: {
-    backgroundColor: colors.ink, borderRadius: radius.md, paddingVertical: 11, paddingHorizontal: space.lg,
+    backgroundColor: colors.solid, borderRadius: radius.md, paddingVertical: 11, paddingHorizontal: space.lg,
     borderWidth: 1, borderColor: colors.glassLine,
   },
   toastText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFFFFF', lineHeight: 19 },

@@ -188,7 +188,7 @@ export function AreasCard({
       {/* --- where you are being sent -------------------------------- */}
       {t ? (
         <View style={[styles.target, t.here && styles.targetHere]}>
-          <PinIcon size={22} color={t.here ? colors.accent : colors.ink2} />
+          <PinIcon size={22} color={t.here ? colors.accentText : colors.ink2} />
           <View style={{ flex: 1 }}>
             <Text style={type.label} numberOfLines={1}>
               {targetName ?? (t.here ? "You're here" : t.visited ? 'Somewhere you know' : 'Somewhere new')}
@@ -220,7 +220,7 @@ export function AreasCard({
         <Button
           variant="secondary"
           label={targetName ? `Show ${targetName} on the map` : 'Show me where'}
-          icon={<PinIcon size={18} color={colors.accent} />}
+          icon={<PinIcon size={18} color={colors.accentText} />}
           onPress={openInMaps}
         />
       )}
@@ -243,7 +243,7 @@ export function AreasCard({
             <Button
               variant="secondary"
               label="Send me somewhere else"
-              icon={<PlayAdIcon size={18} color={colors.accent} />}
+              icon={<PlayAdIcon size={18} color={colors.accentText} />}
               onPress={() => void nextArea()}
               busy={busy || adBusy === 'EXTRA_CHECKIN'}
             />
@@ -255,7 +255,7 @@ export function AreasCard({
         <Button
           variant="secondary"
           label={t ? 'Somewhere else instead' : 'Get an area'}
-          icon={<PlayAdIcon size={18} color={colors.accent} />}
+          icon={<PlayAdIcon size={18} color={colors.accentText} />}
           onPress={() => void nextArea()}
           busy={busy || adBusy === 'EXTRA_CHECKIN'}
         />
@@ -288,13 +288,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card, borderRadius: radius.md, padding: space.md,
     borderWidth: 1, borderColor: colors.line,
   },
-  targetHere: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  targetHere: { backgroundColor: colors.accentSoft, borderColor: colors.accentText },
   pay: { alignItems: 'center' },
-  payValue: { fontFamily: fonts.black, fontSize: 18, color: colors.accent },
+  payValue: { fontFamily: fonts.black, fontSize: 18, color: colors.accentText },
   payUnit: { ...type.caption, fontSize: 10, marginTop: -2 },
 
   got: { alignItems: 'center', backgroundColor: colors.accentSoft, borderRadius: radius.md, paddingVertical: space.md },
-  gotValue: { fontFamily: fonts.black, fontSize: 24, color: colors.accent },
+  gotValue: { fontFamily: fonts.black, fontSize: 24, color: colors.accentText },
 
   note: { ...type.caption, fontFamily: fonts.bold, color: colors.goodInk, textAlign: 'center' },
 });

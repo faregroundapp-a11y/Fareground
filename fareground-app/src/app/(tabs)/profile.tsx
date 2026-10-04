@@ -68,7 +68,7 @@ export default function ProfileScreen() {
     <SafeAreaView edges={['top']} style={styles.safe}>
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
-        refreshControl={<RefreshControl refreshing={loading && !!profile} onRefresh={load} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading && !!profile} onRefresh={load} tintColor={colors.accentText} />}
       >
         <ScreenHeader
           title="Your profile"
@@ -107,7 +107,7 @@ export default function ProfileScreen() {
         {profile ? (
           <ProfileView profile={profile} onEdit={save} onReload={load} />
         ) : (
-          <View style={styles.loading}><ActivityIndicator color={colors.accent} /></View>
+          <View style={styles.loading}><ActivityIndicator color={colors.accentText} /></View>
         )}
       </ScrollView>
 

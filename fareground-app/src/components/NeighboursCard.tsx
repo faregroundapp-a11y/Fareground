@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   },
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heading: { ...type.headline },
-  count: { fontFamily: fonts.black, fontSize: 20, color: colors.accent, ...mono },
+  count: { fontFamily: fonts.black, fontSize: 20, color: colors.accentText, ...mono },
   body: { ...type.body },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
   chip: {

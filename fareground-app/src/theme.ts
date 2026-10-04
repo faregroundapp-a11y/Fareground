@@ -30,6 +30,10 @@ const light = {
   accentHi: '#3C7564',
   accentSoft: '#E1EBE6',
   accentInk: '#FFFFFF',
+  /** The brand green as TEXT, icons, borders and tints - the same as accent on light surfaces. */
+  accentText: '#2F5D50',
+  /** A solid dark bar with white text on it (toasts, "you" row, small badges). */
+  solid: '#121814',
 
   // the HUD floats over the map: dark glass in every theme
   glass: 'rgba(14,19,26,0.84)',
@@ -62,7 +66,7 @@ const light = {
 
 /**
  * DARK MODE (2026-10-04). Only the surfaces, lines and text change; the
- * brand colours (claim amber, boost violet, minerals) stay as they are, and
+ * brand colours (the green, claim amber, boost violet, minerals) stay as they are, and
  * the map keeps its own colourful style. Chosen in Settings - System, Light
  * or Dark - and applied when the app starts (theme.ts is read before any
  * style sheet is built, so a change needs a restart; Settings says so).
@@ -77,9 +81,13 @@ const dark: typeof light = {
   ink: '#EEF2EC',
   ink2: '#B6C0B3',
   ink3: '#859081',
-  accent: '#4E9C83',
-  accentHi: '#5FAE94',
+  // The brand green FILLS stay exactly as in light mode (headers, buttons,
+  // badges); only green used as text or outline is lifted so it reads on a
+  // dark card.
+  accentHi: '#6FB08F',
   accentSoft: '#1D332C',
+  accentText: '#6FB08F',
+  solid: '#2C3832',
   boostSoft: '#2A2142',
   dangerSoft: '#3A1E24',
   goodInk: '#7FD99A',
