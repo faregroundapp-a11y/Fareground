@@ -253,6 +253,12 @@ export async function runStepSync(
     // 1. Decide the batch and WRITE IT DOWN before anything is sent.
     const { batch, total } = await withLedger((ledger) => {
       if (ledger.day !== today()) rollOver(ledger, yesterdayTotal);
+      // A batch left over from an older app version has no day totals, and
+      // the server now refuses those (it is the replayable kind) - which
+      // would show "Time to update" on the newest build. Drop it: its steps
+      // are inside today's total, which the next batch reports, and the
+      // server pays whatever it has not seen.
+      if (ledger.pending && !ledger.pending.days) ledger.pending = null;
       const dayTotal = Math.max(phoneTotal ?? 0, ledger.appToday);
       if (ledger.needsBaseline) {
         ledger.syncedToday = Math.max(ledger.syncedToday, dayTotal);

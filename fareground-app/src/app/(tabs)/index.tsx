@@ -694,7 +694,11 @@ function GameView({ fix }: { fix: Fix }) {
                       : `${pickedInReach ? 'Your pick' : 'Free square'} · ${selectedDistance} m`
                     : 'Claim land'}
                 </Text>
-                <Text style={styles.dockSub} numberOfLines={1}>Tap any lit square to pick another</Text>
+                <Text style={styles.dockSub} numberOfLines={1}>
+                  {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M
+                    ? 'Tap any lit square to pick another'
+                    : 'Lit squares near you are free to claim'}
+                </Text>
               </View>
               <DockToggle min={false} onPress={toggleDock} />
             </View>

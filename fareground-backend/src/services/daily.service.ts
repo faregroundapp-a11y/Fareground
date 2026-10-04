@@ -492,6 +492,14 @@ export async function setTimeZone(
         AND prev.old <> $2
         AND (u.time_zone_changed_at IS NULL
              OR u.time_zone_changed_at < NOW() - ($3 || ' days')::interval)
+        -- NEVER INTO TOMORROW (2026-10-04): a hop east past midnight made
+        -- "today" tomorrow and re-opened the chest, quests and daily ad caps.
+        -- A change may keep or move back the player's date, never advance it
+        -- - except on a new account's first launch, when the phone first says
+        -- where it is. A real traveller just waits for midnight; the next
+        -- launch after it makes the change.
+        AND ((NOW() AT TIME ZONE $2)::date <= (NOW() AT TIME ZONE prev.old)::date
+             OR (u.time_zone_changed_at IS NULL AND u.created_at > NOW() - INTERVAL '1 day'))
      RETURNING u.time_zone, to_char((NOW() AT TIME ZONE u.time_zone)::date, 'YYYY-MM-DD') AS today, TRUE AS changed`,
     [userId, timeZone, TIME_ZONE_CHANGE_COOLDOWN_DAYS],
   );
