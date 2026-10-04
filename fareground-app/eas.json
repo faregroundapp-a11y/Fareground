@@ -8,6 +8,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -16,7 +19,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.0.220:3000"
+        "EXPO_PUBLIC_API_URL": "http://192.168.0.220:3000",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -24,7 +28,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
       },
       "autoIncrement": true,
       "ios": {
@@ -37,7 +42,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
       }
     }
   },
