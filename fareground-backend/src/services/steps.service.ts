@@ -39,6 +39,7 @@ import {
   type TraceQuality,
 } from '../game/rules';
 import { applyShare, payoutShare, recordEvent } from './integrity.service';
+import { config } from '../config/env';
 import { HttpError } from '../utils/httpError';
 import { maybeQualifyReferral } from './referral.service';
 
@@ -209,6 +210,19 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // 2b. WHAT IS ACTUALLY NEW. The server's own record of each day, not the
     //     phone's memory of what it sent - that memory is wiped by clearing
     //     the app's data, and used to be paid again every time.
+    //     A sync WITHOUT day totals is the old, replayable path. It is refused
+    //     once the server requires build 5+ (MIN_APP_BUILD), and - before that
+    //     - for any account that has already synced the new way, so an old
+    //     APK or a hand-made request cannot be used to replay a day.
+    if (!days) {
+      if (config.minAppBuild >= 5) {
+        throw new HttpError(426, 'Please update Fareground to keep earning Walk Points.');
+      }
+      const upgraded = await client.query('SELECT 1 FROM step_day_totals WHERE user_id = $1 LIMIT 1', [userId]);
+      if ((upgraded.rowCount ?? 0) > 0) {
+        throw new HttpError(426, 'Please update Fareground to keep earning Walk Points.');
+      }
+    }
     const rawSteps = days ? await newStepsFromDayTotals(client, userId, days) : claimedSteps;
 
     // 3. PLAUSIBILITY. Gather the two facts the rule needs.
