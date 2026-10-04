@@ -1,0 +1,465 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Character Reworks</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"><style>
+:root{--page:#E9ECE6;--ink:#121814;--card:#fff;--line:#E0E3DB;--muted:#545E51;--accent:#2F5D50}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--page:#0F1512;--ink:#EEF2EC;--card:#18201C;--line:#26302B;--muted:#A9B3A6}}
+:root[data-theme=dark]{--page:#0F1512;--ink:#EEF2EC;--card:#18201C;--line:#26302B;--muted:#A9B3A6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font-family:Nunito,system-ui,sans-serif;padding:28px 16px 60px}
+h1{font-weight:900;font-size:30px;text-align:center;letter-spacing:-.5px}
+.lede{text-align:center;font-weight:700;color:var(--muted);margin:6px auto 24px;max-width:640px}
+.concept{max-width:1000px;margin:0 auto 22px;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:20px;display:grid;grid-template-columns:240px 1fr;gap:20px}
+@media (max-width:720px){.concept{grid-template-columns:1fr}}
+.hero{background:linear-gradient(180deg,#F4F5F1,#E1EBE6);border-radius:20px;display:grid;place-items:center;padding:10px}
+.hero svg{width:200px;height:260px}
+.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.letter{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:900}
+h2{font-weight:900;font-size:24px}
+.tag{font-size:12px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;background:#FFF3DC;color:#8A5A12;padding:4px 10px;border-radius:999px}
+.pitch{font-weight:700;margin:8px 0 12px;line-height:1.45}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.look{background:#F4F5F1;border-radius:16px;width:96px;height:120px;display:grid;place-items:center}
+.look svg{width:84px;height:110px}
+.tile{position:relative;width:160px;height:120px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.tbg{position:absolute;inset:0;width:100%;height:100%}
+.tchar{position:absolute;left:46px;top:40px;width:28px;height:38px}
+.tchar svg{width:28px;height:38px}
+.cap{font-size:12px;font-weight:800;color:var(--muted);margin-top:4px;text-align:center}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media (max-width:520px){.lists{grid-template-columns:1fr}}
+.lists h3{font-size:13px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px}
+.lists li{margin:0 0 4px 18px;font-weight:700;font-size:14px;line-height:1.4}
+.good h3{color:#1F7A4D}.bad h3{color:#C0304A}
+</style></head><body>
+<h1>Character rework drafts</h1>
+<p class="lede">Five completely different directions. Each is shown large, at the real size it appears on the map, and in three outfits.</p>
+<section class="concept">
+  <div class="hero"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="30" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="26" y="78" width="26" height="40" rx="10" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="30" y="86" width="18" height="10" rx="4" fill="#000" opacity=".12"/>
+  <rect x="44" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="63" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 146q0-8 10-8h8v10H42q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M61 146q0-8 10-8h8v10H63q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="40" y="78" width="40" height="42" rx="14" fill="#2F5D50" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M48 80v36" stroke="#14201A" stroke-width="3" opacity=".35"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#2F5D50" stroke-width="11" stroke-linecap="round"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0" />
+  <circle cx="82" cy="112" r="6" fill="#E7B48C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="60" cy="52" r="34" fill="#E7B48C" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M27 50a33 33 0 0 1 66 0q-8-12-22-12q-6 6-16 5q-14-2-20 9z" fill="#2B2018" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M24 40a36 30 0 0 1 72 0z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M86 38h18q4 0 3 4l-3 2H86z" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="48" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="72" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="49.5" cy="60" r="3.8" fill="#1B2330"/><circle cx="73.5" cy="60" r="3.8" fill="#1B2330"/>
+  <circle cx="51" cy="58" r="1.4" fill="#fff"/><circle cx="75" cy="58" r="1.4" fill="#fff"/>
+  <circle cx="40" cy="70" r="4.5" fill="#F0786A" opacity=".35"/><circle cx="80" cy="70" r="4.5" fill="#F0786A" opacity=".35"/>
+  <path d="M54 72q6 5 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div>
+  <div>
+    <div class="head"><span class="letter">A</span><h2>Trailblazer</h2><span class="tag">Closest to today</span></div>
+    <p class="pitch">Today’s runner, grown up: the same chunky outline and big head, but a proper face with shining eyes, a backpack for the explorer feel, and real boots.</p>
+    <div class="row">
+      <div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="30" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="26" y="78" width="26" height="40" rx="10" fill="#4DBE94" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="30" y="86" width="18" height="10" rx="4" fill="#000" opacity=".12"/>
+  <rect x="44" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="63" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 146q0-8 10-8h8v10H42q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M61 146q0-8 10-8h8v10H63q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="40" y="78" width="40" height="42" rx="14" fill="#7E56A6" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M48 80v36" stroke="#14201A" stroke-width="3" opacity=".35"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#7E56A6" stroke-width="11" stroke-linecap="round"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0" />
+  <circle cx="82" cy="112" r="6" fill="#E7B48C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="60" cy="52" r="34" fill="#E7B48C" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M27 50a33 33 0 0 1 66 0q-8-12-22-12q-6 6-16 5q-14-2-20 9z" fill="#C2551F" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <ellipse cx="48" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="72" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="49.5" cy="60" r="3.8" fill="#1B2330"/><circle cx="73.5" cy="60" r="3.8" fill="#1B2330"/>
+  <circle cx="51" cy="58" r="1.4" fill="#fff"/><circle cx="75" cy="58" r="1.4" fill="#fff"/>
+  <circle cx="40" cy="70" r="4.5" fill="#F0786A" opacity=".35"/><circle cx="80" cy="70" r="4.5" fill="#F0786A" opacity=".35"/>
+  <path d="M54 72q6 5 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="30" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="26" y="78" width="26" height="40" rx="10" fill="#2A5FA8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="30" y="86" width="18" height="10" rx="4" fill="#000" opacity=".12"/>
+  <rect x="44" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="63" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 146q0-8 10-8h8v10H42q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M61 146q0-8 10-8h8v10H63q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="40" y="78" width="40" height="42" rx="14" fill="#C0304A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M48 80v36" stroke="#14201A" stroke-width="3" opacity=".35"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#C0304A" stroke-width="11" stroke-linecap="round"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0" />
+  <circle cx="82" cy="112" r="6" fill="#8A5533" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="60" cy="52" r="34" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M27 50a33 33 0 0 1 66 0q-8-12-22-12q-6 6-16 5q-14-2-20 9z" fill="#2B2018" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M24 40a36 30 0 0 1 72 0z" fill="#141A2B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M86 38h18q4 0 3 4l-3 2H86z" fill="#141A2B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="48" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="72" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="49.5" cy="60" r="3.8" fill="#1B2330"/><circle cx="73.5" cy="60" r="3.8" fill="#1B2330"/>
+  <circle cx="51" cy="58" r="1.4" fill="#fff"/><circle cx="75" cy="58" r="1.4" fill="#fff"/>
+  <circle cx="40" cy="70" r="4.5" fill="#F0786A" opacity=".35"/><circle cx="80" cy="70" r="4.5" fill="#F0786A" opacity=".35"/>
+  <path d="M54 72q6 5 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="30" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="26" y="78" width="26" height="40" rx="10" fill="#E0559A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="30" y="86" width="18" height="10" rx="4" fill="#000" opacity=".12"/>
+  <rect x="44" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="63" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 146q0-8 10-8h8v10H42q-2 0-2-2z" fill="#E0B93C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M61 146q0-8 10-8h8v10H63q-2 0-2-2z" fill="#E0B93C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="40" y="78" width="40" height="42" rx="14" fill="#1F7A8C" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M48 80v36" stroke="#14201A" stroke-width="3" opacity=".35"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#1F7A8C" stroke-width="11" stroke-linecap="round"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0" />
+  <circle cx="82" cy="112" r="6" fill="#F4D3B8" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="60" cy="52" r="34" fill="#F4D3B8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M27 50a33 33 0 0 1 66 0q-8-12-22-12q-6 6-16 5q-14-2-20 9z" fill="#E0B93C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <ellipse cx="48" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="72" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="49.5" cy="60" r="3.8" fill="#1B2330"/><circle cx="73.5" cy="60" r="3.8" fill="#1B2330"/>
+  <circle cx="51" cy="58" r="1.4" fill="#fff"/><circle cx="75" cy="58" r="1.4" fill="#fff"/>
+  <circle cx="40" cy="70" r="4.5" fill="#F0786A" opacity=".35"/><circle cx="80" cy="70" r="4.5" fill="#F0786A" opacity=".35"/>
+  <path d="M54 72q6 5 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div>
+      <div><div class="tile"><svg class="tbg" viewBox="0 0 160 120"><rect width="160" height="120" fill="#F2EFE9"/>
+  <rect x="8" y="8" width="64" height="44" rx="4" fill="#E2DCD1"/><rect x="88" y="8" width="64" height="44" rx="4" fill="#CFE5B8"/>
+  <rect x="0" y="58" width="160" height="12" fill="#fff"/><rect x="74" y="0" width="12" height="120" fill="#FBE4A6"/>
+  <rect x="94" y="76" width="34" height="34" rx="5" fill="#7E56A6AA" stroke="#E39A2E"/><rect x="40" y="76" width="34" height="34" rx="5" fill="#F2A93B55" stroke="#F2A93B" stroke-width="2"/></svg>
+  <div class="tchar"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="30" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="26" y="78" width="26" height="40" rx="10" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="30" y="86" width="18" height="10" rx="4" fill="#000" opacity=".12"/>
+  <rect x="44" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="63" y="112" width="13" height="30" rx="6" fill="#3B4A68" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M40 146q0-8 10-8h8v10H42q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M61 146q0-8 10-8h8v10H63q-2 0-2-2z" fill="#5B3A22" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="40" y="78" width="40" height="42" rx="14" fill="#2F5D50" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M48 80v36" stroke="#14201A" stroke-width="3" opacity=".35"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#2F5D50" stroke-width="11" stroke-linecap="round"/>
+  <path d="M74 84q12 10 8 26" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="0" />
+  <circle cx="82" cy="112" r="6" fill="#E7B48C" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="60" cy="52" r="34" fill="#E7B48C" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M27 50a33 33 0 0 1 66 0q-8-12-22-12q-6 6-16 5q-14-2-20 9z" fill="#2B2018" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M24 40a36 30 0 0 1 72 0z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M86 38h18q4 0 3 4l-3 2H86z" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="48" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="72" cy="58" rx="6.5" ry="8" fill="#fff" stroke="#14201A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="49.5" cy="60" r="3.8" fill="#1B2330"/><circle cx="73.5" cy="60" r="3.8" fill="#1B2330"/>
+  <circle cx="51" cy="58" r="1.4" fill="#fff"/><circle cx="75" cy="58" r="1.4" fill="#fff"/>
+  <circle cx="40" cy="70" r="4.5" fill="#F0786A" opacity=".35"/><circle cx="80" cy="70" r="4.5" fill="#F0786A" opacity=".35"/>
+  <path d="M54 72q6 5 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div class="cap">On the map, real size</div></div>
+    </div>
+    <div class="lists"><div class="good"><h3>Good</h3><ul><li>Least work: the editor, items and shop all carry over</li><li>Players keep the character they made</li><li>Backpack is a new item slot to sell</li></ul></div>
+    <div class="bad"><h3>Watch out</h3><ul><li>Still “a person” – the least distinctive of the five</li></ul></div></div>
+  </div></section><section class="concept">
+  <div class="hero"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="34" ry="7" fill="#0B1410" opacity=".18"/>
+  <ellipse cx="44" cy="142" rx="12" ry="8" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="76" cy="142" rx="12" ry="8" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 30C92 30 104 62 104 96c0 30-20 46-44 46S16 126 16 96C16 62 28 30 60 30z" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="112" rx="26" ry="22" fill="#D8F5E1"/>
+  <path d="M16 100q-10 4-8 16" fill="none" stroke="#7FD99A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 100q10 4 8 16" fill="none" stroke="#7FD99A" stroke-width="10" stroke-linecap="round"/>
+  
+  <path d="M60 40l8 10-8 10-8-10z" fill="#7E56A6" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M56 46l4-4" stroke="#fff" stroke-width="2" opacity=".7"/>
+  <path d="M30 46q30-32 60 0z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="26" y="42" width="68" height="9" rx="4.5" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="46" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="74" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="79" r="4.5" fill="#1B2330"/><circle cx="76" cy="79" r="4.5" fill="#1B2330"/>
+  <circle cx="50" cy="76" r="1.7" fill="#fff"/><circle cx="78" cy="76" r="1.7" fill="#fff"/>
+  <path d="M54 92q6 6 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="90" r="5" fill="#F0786A" opacity=".35"/><circle cx="86" cy="90" r="5" fill="#F0786A" opacity=".35"/>
+</svg></div>
+  <div>
+    <div class="head"><span class="letter">B</span><h2>Pebble</h2><span class="tag">Mascot</span></div>
+    <p class="pitch">A round little creature that becomes the face of Fareground. The gem on its forehead takes the colour of your rarest mine, so your best land shows on you.</p>
+    <div class="row">
+      <div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="34" ry="7" fill="#0B1410" opacity=".18"/>
+  <ellipse cx="44" cy="142" rx="12" ry="8" fill="#A98BFF" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="76" cy="142" rx="12" ry="8" fill="#A98BFF" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 30C92 30 104 62 104 96c0 30-20 46-44 46S16 126 16 96C16 62 28 30 60 30z" fill="#A98BFF" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="112" rx="26" ry="22" fill="#EFE9FF"/>
+  <path d="M16 100q-10 4-8 16" fill="none" stroke="#A98BFF" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 100q10 4 8 16" fill="none" stroke="#A98BFF" stroke-width="10" stroke-linecap="round"/>
+  <path d="M24 92q36 14 72 0v10q-36 14-72 0z" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M80 98l8 22-12-2z" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 40l8 10-8 10-8-10z" fill="#C0304A" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M56 46l4-4" stroke="#fff" stroke-width="2" opacity=".7"/>
+  
+  <ellipse cx="46" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="74" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="79" r="4.5" fill="#1B2330"/><circle cx="76" cy="79" r="4.5" fill="#1B2330"/>
+  <circle cx="50" cy="76" r="1.7" fill="#fff"/><circle cx="78" cy="76" r="1.7" fill="#fff"/>
+  <path d="M54 92q6 6 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="90" r="5" fill="#F0786A" opacity=".35"/><circle cx="86" cy="90" r="5" fill="#F0786A" opacity=".35"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="34" ry="7" fill="#0B1410" opacity=".18"/>
+  <ellipse cx="44" cy="142" rx="12" ry="8" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="76" cy="142" rx="12" ry="8" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 30C92 30 104 62 104 96c0 30-20 46-44 46S16 126 16 96C16 62 28 30 60 30z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="112" rx="26" ry="22" fill="#FFF3DC"/>
+  <path d="M16 100q-10 4-8 16" fill="none" stroke="#F2A93B" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 100q10 4 8 16" fill="none" stroke="#F2A93B" stroke-width="10" stroke-linecap="round"/>
+  
+  <path d="M60 40l8 10-8 10-8-10z" fill="#2A5FA8" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M56 46l4-4" stroke="#fff" stroke-width="2" opacity=".7"/>
+  <path d="M30 46q30-32 60 0z" fill="#2F5D50" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="26" y="42" width="68" height="9" rx="4.5" fill="#2F5D50" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="46" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="74" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="79" r="4.5" fill="#1B2330"/><circle cx="76" cy="79" r="4.5" fill="#1B2330"/>
+  <circle cx="50" cy="76" r="1.7" fill="#fff"/><circle cx="78" cy="76" r="1.7" fill="#fff"/>
+  <path d="M54 92q6 6 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="90" r="5" fill="#F0786A" opacity=".35"/><circle cx="86" cy="90" r="5" fill="#F0786A" opacity=".35"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="34" ry="7" fill="#0B1410" opacity=".18"/>
+  <ellipse cx="44" cy="142" rx="12" ry="8" fill="#8AB4F8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="76" cy="142" rx="12" ry="8" fill="#8AB4F8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 30C92 30 104 62 104 96c0 30-20 46-44 46S16 126 16 96C16 62 28 30 60 30z" fill="#8AB4F8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="112" rx="26" ry="22" fill="#E6F0FF"/>
+  <path d="M16 100q-10 4-8 16" fill="none" stroke="#8AB4F8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 100q10 4 8 16" fill="none" stroke="#8AB4F8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M24 92q36 14 72 0v10q-36 14-72 0z" fill="#D24B5E" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M80 98l8 22-12-2z" fill="#D24B5E" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 40l8 10-8 10-8-10z" fill="#4DBE94" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M56 46l4-4" stroke="#fff" stroke-width="2" opacity=".7"/>
+  
+  <ellipse cx="46" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="74" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="79" r="4.5" fill="#1B2330"/><circle cx="76" cy="79" r="4.5" fill="#1B2330"/>
+  <circle cx="50" cy="76" r="1.7" fill="#fff"/><circle cx="78" cy="76" r="1.7" fill="#fff"/>
+  <path d="M54 92q6 6 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="90" r="5" fill="#F0786A" opacity=".35"/><circle cx="86" cy="90" r="5" fill="#F0786A" opacity=".35"/>
+</svg></div></div>
+      <div><div class="tile"><svg class="tbg" viewBox="0 0 160 120"><rect width="160" height="120" fill="#F2EFE9"/>
+  <rect x="8" y="8" width="64" height="44" rx="4" fill="#E2DCD1"/><rect x="88" y="8" width="64" height="44" rx="4" fill="#CFE5B8"/>
+  <rect x="0" y="58" width="160" height="12" fill="#fff"/><rect x="74" y="0" width="12" height="120" fill="#FBE4A6"/>
+  <rect x="94" y="76" width="34" height="34" rx="5" fill="#7E56A6AA" stroke="#E39A2E"/><rect x="40" y="76" width="34" height="34" rx="5" fill="#F2A93B55" stroke="#F2A93B" stroke-width="2"/></svg>
+  <div class="tchar"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="34" ry="7" fill="#0B1410" opacity=".18"/>
+  <ellipse cx="44" cy="142" rx="12" ry="8" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="76" cy="142" rx="12" ry="8" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 30C92 30 104 62 104 96c0 30-20 46-44 46S16 126 16 96C16 62 28 30 60 30z" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="112" rx="26" ry="22" fill="#D8F5E1"/>
+  <path d="M16 100q-10 4-8 16" fill="none" stroke="#7FD99A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 100q10 4 8 16" fill="none" stroke="#7FD99A" stroke-width="10" stroke-linecap="round"/>
+  
+  <path d="M60 40l8 10-8 10-8-10z" fill="#7E56A6" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M56 46l4-4" stroke="#fff" stroke-width="2" opacity=".7"/>
+  <path d="M30 46q30-32 60 0z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="26" y="42" width="68" height="9" rx="4.5" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="46" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="74" cy="76" rx="8" ry="10" fill="#fff" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="79" r="4.5" fill="#1B2330"/><circle cx="76" cy="79" r="4.5" fill="#1B2330"/>
+  <circle cx="50" cy="76" r="1.7" fill="#fff"/><circle cx="78" cy="76" r="1.7" fill="#fff"/>
+  <path d="M54 92q6 6 12 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="90" r="5" fill="#F0786A" opacity=".35"/><circle cx="86" cy="90" r="5" fill="#F0786A" opacity=".35"/>
+</svg></div></div><div class="cap">On the map, real size</div></div>
+    </div>
+    <div class="lists"><div class="good"><h3>Good</h3><ul><li>Reads instantly at map size – one simple shape</li><li>Great for the icon, promo videos and merch</li><li>Gem-on-forehead ties the character to the game</li></ul></div>
+    <div class="bad"><h3>Watch out</h3><ul><li>Fewer outfit slots (hat, scarf, colour, gem)</li><li>Players who like human avatars may miss them</li></ul></div></div>
+  </div></section><section class="concept">
+  <div class="hero"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <g fill="#B8A2FF" opacity=".8"><path d="M18 60l3-6 3 6-3 6z"/><path d="M98 40l2-4 2 4-2 4z"/><path d="M102 96l3-6 3 6-3 6z"/></g>
+  <path d="M46 128l-4 16h12l2-16zM64 128l2 16h12l-4-16z" fill="#6536D9" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="#8A5CF6" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 60 60 26 46z" fill="#B8A2FF"/>
+  <path d="M26 46L60 60 42 132 22 90z" fill="#8A5CF6"/>
+  <path d="M94 46L98 90 78 132 60 60z" fill="#6536D9"/>
+  <path d="M60 60L78 132H42z" fill="#8A5CF6" opacity=".9"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M34 44L60 26" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+  <path d="M40 22l4-14 8 8 8-12 8 12 8-8 4 14z" fill="#F2B53B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="48" cy="74" rx="6" ry="8" fill="#fff"/><ellipse cx="72" cy="74" rx="6" ry="8" fill="#fff"/>
+  <circle cx="49" cy="76" r="3.4" fill="#1B2330"/><circle cx="73" cy="76" r="3.4" fill="#1B2330"/>
+  <path d="M54 90q6 5 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg></div>
+  <div>
+    <div class="head"><span class="letter">C</span><h2>Gem Sprite</h2><span class="tag">Most unique</span></div>
+    <p class="pitch">A walking crystal cut from facets, matching the boost bubble. Choose the mineral it is made of; rare minerals unlock as you claim them, so the character itself is a trophy.</p>
+    <div class="row">
+      <div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <g fill="#8FB6EE" opacity=".8"><path d="M18 60l3-6 3 6-3 6z"/><path d="M98 40l2-4 2 4-2 4z"/><path d="M102 96l3-6 3 6-3 6z"/></g>
+  <path d="M46 128l-4 16h12l2-16zM64 128l2 16h12l-4-16z" fill="#1B3F73" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="#2A5FA8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 60 60 26 46z" fill="#8FB6EE"/>
+  <path d="M26 46L60 60 42 132 22 90z" fill="#2A5FA8"/>
+  <path d="M94 46L98 90 78 132 60 60z" fill="#1B3F73"/>
+  <path d="M60 60L78 132H42z" fill="#2A5FA8" opacity=".9"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M34 44L60 26" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+  
+  <ellipse cx="48" cy="74" rx="6" ry="8" fill="#fff"/><ellipse cx="72" cy="74" rx="6" ry="8" fill="#fff"/>
+  <circle cx="49" cy="76" r="3.4" fill="#1B2330"/><circle cx="73" cy="76" r="3.4" fill="#1B2330"/>
+  <path d="M54 90q6 5 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <g fill="#F08A9C" opacity=".8"><path d="M18 60l3-6 3 6-3 6z"/><path d="M98 40l2-4 2 4-2 4z"/><path d="M102 96l3-6 3 6-3 6z"/></g>
+  <path d="M46 128l-4 16h12l2-16zM64 128l2 16h12l-4-16z" fill="#8E1B33" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="#C0304A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 60 60 26 46z" fill="#F08A9C"/>
+  <path d="M26 46L60 60 42 132 22 90z" fill="#C0304A"/>
+  <path d="M94 46L98 90 78 132 60 60z" fill="#8E1B33"/>
+  <path d="M60 60L78 132H42z" fill="#C0304A" opacity=".9"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M34 44L60 26" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+  
+  <ellipse cx="48" cy="74" rx="6" ry="8" fill="#fff"/><ellipse cx="72" cy="74" rx="6" ry="8" fill="#fff"/>
+  <circle cx="49" cy="76" r="3.4" fill="#1B2330"/><circle cx="73" cy="76" r="3.4" fill="#1B2330"/>
+  <path d="M54 90q6 5 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  
+  <path d="M46 128l-4 16h12l2-16zM64 128l2 16h12l-4-16z" fill="#5E5C52" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="#8A887B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 60 60 26 46z" fill="#C9C7BC"/>
+  <path d="M26 46L60 60 42 132 22 90z" fill="#8A887B"/>
+  <path d="M94 46L98 90 78 132 60 60z" fill="#5E5C52"/>
+  <path d="M60 60L78 132H42z" fill="#8A887B" opacity=".9"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M34 44L60 26" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+  
+  <ellipse cx="48" cy="74" rx="6" ry="8" fill="#fff"/><ellipse cx="72" cy="74" rx="6" ry="8" fill="#fff"/>
+  <circle cx="49" cy="76" r="3.4" fill="#1B2330"/><circle cx="73" cy="76" r="3.4" fill="#1B2330"/>
+  <path d="M54 90q6 5 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg></div></div>
+      <div><div class="tile"><svg class="tbg" viewBox="0 0 160 120"><rect width="160" height="120" fill="#F2EFE9"/>
+  <rect x="8" y="8" width="64" height="44" rx="4" fill="#E2DCD1"/><rect x="88" y="8" width="64" height="44" rx="4" fill="#CFE5B8"/>
+  <rect x="0" y="58" width="160" height="12" fill="#fff"/><rect x="74" y="0" width="12" height="120" fill="#FBE4A6"/>
+  <rect x="94" y="76" width="34" height="34" rx="5" fill="#7E56A6AA" stroke="#E39A2E"/><rect x="40" y="76" width="34" height="34" rx="5" fill="#F2A93B55" stroke="#F2A93B" stroke-width="2"/></svg>
+  <div class="tchar"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="150" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <g fill="#B8A2FF" opacity=".8"><path d="M18 60l3-6 3 6-3 6z"/><path d="M98 40l2-4 2 4-2 4z"/><path d="M102 96l3-6 3 6-3 6z"/></g>
+  <path d="M46 128l-4 16h12l2-16zM64 128l2 16h12l-4-16z" fill="#6536D9" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="#8A5CF6" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M60 18L94 46 60 60 26 46z" fill="#B8A2FF"/>
+  <path d="M26 46L60 60 42 132 22 90z" fill="#8A5CF6"/>
+  <path d="M94 46L98 90 78 132 60 60z" fill="#6536D9"/>
+  <path d="M60 60L78 132H42z" fill="#8A5CF6" opacity=".9"/>
+  <path d="M60 18L94 46 98 90 78 132H42L22 90 26 46z" fill="none" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M34 44L60 26" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+  <path d="M40 22l4-14 8 8 8-12 8 12 8-8 4 14z" fill="#F2B53B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="48" cy="74" rx="6" ry="8" fill="#fff"/><ellipse cx="72" cy="74" rx="6" ry="8" fill="#fff"/>
+  <circle cx="49" cy="76" r="3.4" fill="#1B2330"/><circle cx="73" cy="76" r="3.4" fill="#1B2330"/>
+  <path d="M54 90q6 5 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg></div></div><div class="cap">On the map, real size</div></div>
+    </div>
+    <div class="lists"><div class="good"><h3>Good</h3><ul><li>Unlike anything in other walking games</li><li>Built-in progression: Ruby sprite = Ruby owner</li><li>Matches the faceted bubble and gem style</li></ul></div>
+    <div class="bad"><h3>Watch out</h3><ul><li>Less “cute”; harder to dress up with clothes</li><li>Needs a sparkle animation to feel alive</li></ul></div></div>
+  </div></section><section class="concept">
+  <div class="hero"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="45" y="118" width="12" height="26" rx="6" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="63" y="118" width="12" height="26" rx="6" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M80 120q30-4 26-30q-2 18-22 16z" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M100 96q4 6 1 12l-6-6z" fill="#FFF4E8"/>
+  <rect x="40" y="86" width="40" height="38" rx="15" fill="#2F5D50" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M30 30l8 24 14-10zM90 30l-8 24-14-10z" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M33 36l5 13 6-4zM87 36l-5 13-6-4z" fill="#2B2018"/>
+          <ellipse cx="60" cy="62" rx="32" ry="28" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M36 70q24 26 48 0q-6 18-24 18t-24-18z" fill="#FFF4E8"/>
+  
+  <circle cx="48" cy="60" r="5" fill="#1B2330"/><circle cx="72" cy="60" r="5" fill="#1B2330"/>
+  <circle cx="49.6" cy="58.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="58.4" r="1.7" fill="#fff"/>
+  <path d="M57 70l3 3 3-3z" fill="#14201A"/><path d="M54 76q6 4 12 0" fill="none" stroke="#14201A" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div>
+  <div>
+    <div class="head"><span class="letter">D</span><h2>Critters</h2><span class="tag">Most choice</span></div>
+    <p class="pitch">Pick an animal – fox, cat, frog or bear – then dress it with the same shirts and hats as now. New animals become rare unlocks and event prizes.</p>
+    <div class="row">
+      <div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="45" y="118" width="12" height="26" rx="6" fill="#9AA3AD" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="63" y="118" width="12" height="26" rx="6" fill="#9AA3AD" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <rect x="40" y="86" width="40" height="38" rx="15" fill="#7E56A6" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M32 34l4 22 16-8zM88 34l-4 22-16-8z" fill="#9AA3AD" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M36 41l2 10 7-4zM84 41l-2 10-7-4z" fill="#F0A0A8"/>
+          <ellipse cx="60" cy="62" rx="32" ry="28" fill="#9AA3AD" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M30 66h-12M30 72l-11 4M90 66h12M90 72l11 4" stroke="#14201A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M34 38a28 20 0 0 1 52 0z" fill="#F2A93B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="28" y="34" width="64" height="8" rx="4" fill="#F2A93B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="60" r="5" fill="#1B2330"/><circle cx="72" cy="60" r="5" fill="#1B2330"/>
+  <circle cx="49.6" cy="58.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="58.4" r="1.7" fill="#fff"/>
+  <path d="M57 70l3 3 3-3z" fill="#14201A"/><path d="M54 76q6 4 12 0" fill="none" stroke="#14201A" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="45" y="118" width="12" height="26" rx="6" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="63" y="118" width="12" height="26" rx="6" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <rect x="40" y="86" width="40" height="38" rx="15" fill="#2A5FA8" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="60" cy="66" rx="34" ry="24" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="42" cy="44" r="13" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="78" cy="44" r="13" fill="#7FD99A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <circle cx="42" cy="44" r="5" fill="#1B2330"/><circle cx="78" cy="44" r="5" fill="#1B2330"/>
+  <circle cx="43.6" cy="42.4" r="1.7" fill="#fff"/><circle cx="79.6" cy="42.4" r="1.7" fill="#fff"/>
+  <path d="M44 72q16 10 32 0" fill="none" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="45" y="118" width="12" height="26" rx="6" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="63" y="118" width="12" height="26" rx="6" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  
+  <rect x="40" y="86" width="40" height="38" rx="15" fill="#C0304A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="34" cy="40" r="11" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="86" cy="40" r="11" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="34" cy="40" r="5" fill="#000" opacity=".2"/><circle cx="86" cy="40" r="5" fill="#000" opacity=".2"/>
+          <ellipse cx="60" cy="62" rx="32" ry="28" fill="#8A5533" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="60" cy="74" rx="13" ry="10" fill="#F2DCC0"/>
+  <path d="M34 38a28 20 0 0 1 52 0z" fill="#141A2B" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="28" y="34" width="64" height="8" rx="4" fill="#141A2B" stroke="#14201A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="48" cy="60" r="5" fill="#1B2330"/><circle cx="72" cy="60" r="5" fill="#1B2330"/>
+  <circle cx="49.6" cy="58.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="58.4" r="1.7" fill="#fff"/>
+  <path d="M57 70l3 3 3-3z" fill="#14201A"/><path d="M54 76q6 4 12 0" fill="none" stroke="#14201A" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div>
+      <div><div class="tile"><svg class="tbg" viewBox="0 0 160 120"><rect width="160" height="120" fill="#F2EFE9"/>
+  <rect x="8" y="8" width="64" height="44" rx="4" fill="#E2DCD1"/><rect x="88" y="8" width="64" height="44" rx="4" fill="#CFE5B8"/>
+  <rect x="0" y="58" width="160" height="12" fill="#fff"/><rect x="74" y="0" width="12" height="120" fill="#FBE4A6"/>
+  <rect x="94" y="76" width="34" height="34" rx="5" fill="#7E56A6AA" stroke="#E39A2E"/><rect x="40" y="76" width="34" height="34" rx="5" fill="#F2A93B55" stroke="#F2A93B" stroke-width="2"/></svg>
+  <div class="tchar"><svg viewBox="0 0 120 160">
+  <ellipse cx="60" cy="152" rx="28" ry="6" fill="#0B1410" opacity=".18"/>
+  <rect x="45" y="118" width="12" height="26" rx="6" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><rect x="63" y="118" width="12" height="26" rx="6" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M80 120q30-4 26-30q-2 18-22 16z" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M100 96q4 6 1 12l-6-6z" fill="#FFF4E8"/>
+  <rect x="40" y="86" width="40" height="38" rx="15" fill="#2F5D50" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M30 30l8 24 14-10zM90 30l-8 24-14-10z" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M33 36l5 13 6-4zM87 36l-5 13-6-4z" fill="#2B2018"/>
+          <ellipse cx="60" cy="62" rx="32" ry="28" fill="#E8823A" stroke="#14201A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M36 70q24 26 48 0q-6 18-24 18t-24-18z" fill="#FFF4E8"/>
+  
+  <circle cx="48" cy="60" r="5" fill="#1B2330"/><circle cx="72" cy="60" r="5" fill="#1B2330"/>
+  <circle cx="49.6" cy="58.4" r="1.7" fill="#fff"/><circle cx="73.6" cy="58.4" r="1.7" fill="#fff"/>
+  <path d="M57 70l3 3 3-3z" fill="#14201A"/><path d="M54 76q6 4 12 0" fill="none" stroke="#14201A" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+</svg></div></div><div class="cap">On the map, real size</div></div>
+    </div>
+    <div class="lists"><div class="good"><h3>Good</h3><ul><li>Huge appeal; people love picking an animal</li><li>Animals are perfect limited-time rewards</li><li>Easy to tell friends apart on the map</li></ul></div>
+    <div class="bad"><h3>Watch out</h3><ul><li>Most drawing work: every hat must fit every head</li><li>A bigger change for current players</li></ul></div></div>
+  </div></section><section class="concept">
+  <div class="hero"><svg viewBox="0 0 120 160">
+  <path d="M40 150L96 128 104 134 52 156z" fill="#0B1410" opacity=".12"/>
+  <rect x="48" y="112" width="10" height="38" rx="5" fill="#2B3750"/><rect x="62" y="112" width="10" height="38" rx="5" fill="#2B3750"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#2F5D50"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#fff" opacity=".1" style="clip-path:inset(0 50% 0 0)"/>
+  <circle cx="60" cy="44" r="24" fill="#E7B48C"/>
+  <path d="M36 40a24 24 0 0 1 48 0z" fill="#F2A93B"/><rect x="74" y="36" width="18" height="6" rx="3" fill="#F2A93B"/>
+  <circle cx="68" cy="48" r="3" fill="#1B2330"/>
+  <rect x="40" y="96" width="40" height="5" fill="#F2A93B" opacity=".9"/>
+</svg></div>
+  <div>
+    <div class="head"><span class="letter">E</span><h2>Minimal</h2><span class="tag">Cleanest</span></div>
+    <p class="pitch">Flat geometric figures with no outlines and a long soft shadow. Calm, modern and premium – the map stays the hero.</p>
+    <div class="row">
+      <div><div class="look"><svg viewBox="0 0 120 160">
+  <path d="M40 150L96 128 104 134 52 156z" fill="#0B1410" opacity=".12"/>
+  <rect x="48" y="112" width="10" height="38" rx="5" fill="#2B3750"/><rect x="62" y="112" width="10" height="38" rx="5" fill="#2B3750"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#7E56A6"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#fff" opacity=".1" style="clip-path:inset(0 50% 0 0)"/>
+  <circle cx="60" cy="44" r="24" fill="#E7B48C"/>
+  <path d="M36 40a24 24 0 0 1 48 0z" fill="#4DBE94"/><rect x="74" y="36" width="18" height="6" rx="3" fill="#4DBE94"/>
+  <circle cx="68" cy="48" r="3" fill="#1B2330"/>
+  <rect x="40" y="96" width="40" height="5" fill="#4DBE94" opacity=".9"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <path d="M40 150L96 128 104 134 52 156z" fill="#0B1410" opacity=".12"/>
+  <rect x="48" y="112" width="10" height="38" rx="5" fill="#2B3750"/><rect x="62" y="112" width="10" height="38" rx="5" fill="#2B3750"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#C0304A"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#fff" opacity=".1" style="clip-path:inset(0 50% 0 0)"/>
+  <circle cx="60" cy="44" r="24" fill="#8A5533"/>
+  
+  <circle cx="68" cy="48" r="3" fill="#1B2330"/>
+  <rect x="40" y="96" width="40" height="5" fill="#141A2B" opacity=".9"/>
+</svg></div></div><div><div class="look"><svg viewBox="0 0 120 160">
+  <path d="M40 150L96 128 104 134 52 156z" fill="#0B1410" opacity=".12"/>
+  <rect x="48" y="112" width="10" height="38" rx="5" fill="#2B3750"/><rect x="62" y="112" width="10" height="38" rx="5" fill="#2B3750"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#1F7A8C"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#fff" opacity=".1" style="clip-path:inset(0 50% 0 0)"/>
+  <circle cx="60" cy="44" r="24" fill="#F4D3B8"/>
+  <path d="M36 40a24 24 0 0 1 48 0z" fill="#E0559A"/><rect x="74" y="36" width="18" height="6" rx="3" fill="#E0559A"/>
+  <circle cx="68" cy="48" r="3" fill="#1B2330"/>
+  <rect x="40" y="96" width="40" height="5" fill="#E0559A" opacity=".9"/>
+</svg></div></div>
+      <div><div class="tile"><svg class="tbg" viewBox="0 0 160 120"><rect width="160" height="120" fill="#F2EFE9"/>
+  <rect x="8" y="8" width="64" height="44" rx="4" fill="#E2DCD1"/><rect x="88" y="8" width="64" height="44" rx="4" fill="#CFE5B8"/>
+  <rect x="0" y="58" width="160" height="12" fill="#fff"/><rect x="74" y="0" width="12" height="120" fill="#FBE4A6"/>
+  <rect x="94" y="76" width="34" height="34" rx="5" fill="#7E56A6AA" stroke="#E39A2E"/><rect x="40" y="76" width="34" height="34" rx="5" fill="#F2A93B55" stroke="#F2A93B" stroke-width="2"/></svg>
+  <div class="tchar"><svg viewBox="0 0 120 160">
+  <path d="M40 150L96 128 104 134 52 156z" fill="#0B1410" opacity=".12"/>
+  <rect x="48" y="112" width="10" height="38" rx="5" fill="#2B3750"/><rect x="62" y="112" width="10" height="38" rx="5" fill="#2B3750"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#2F5D50"/>
+  <rect x="40" y="70" width="40" height="50" rx="20" fill="#fff" opacity=".1" style="clip-path:inset(0 50% 0 0)"/>
+  <circle cx="60" cy="44" r="24" fill="#E7B48C"/>
+  <path d="M36 40a24 24 0 0 1 48 0z" fill="#F2A93B"/><rect x="74" y="36" width="18" height="6" rx="3" fill="#F2A93B"/>
+  <circle cx="68" cy="48" r="3" fill="#1B2330"/>
+  <rect x="40" y="96" width="40" height="5" fill="#F2A93B" opacity=".9"/>
+</svg></div></div><div class="cap">On the map, real size</div></div>
+    </div>
+    <div class="lists"><div class="good"><h3>Good</h3><ul><li>Sharpest at tiny sizes; lightest to draw</li><li>Looks premium in screenshots and the store</li><li>Fast to add colours and caps</li></ul></div>
+    <div class="bad"><h3>Watch out</h3><ul><li>Less personality; harder to make items exciting</li><li>Clashes a little with the chunky outlined UI</li></ul></div></div>
+  </div></section>
+</body></html>
