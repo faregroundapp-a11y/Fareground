@@ -22,6 +22,7 @@ import {
   type PrizeTier,
 } from '../game/rules';
 import { photoUrl } from './photo.service';
+import { config } from '../config/env';
 import { HttpError } from '../utils/httpError';
 
 const DAY_MS = 86_400_000;
@@ -95,6 +96,16 @@ export async function setArea(userId: string, area: { city?: string; region?: st
 
 /* ------------------------------ the board ------------------------------ */
 
+/**
+ * Players still on an app older than MIN_APP_BUILD are left off the boards
+ * and out of the prizes until they update. Inlined as a number: it comes
+ * from our own config, never from a request.
+ */
+function upToDate(alias = 'u'): string {
+  const min = Math.floor(config.minAppBuild);
+  return min > 0 ? `COALESCE(${alias}.app_build, 0) >= ${min}` : 'TRUE';
+}
+
 export async function leaderboard(userId: string, scope: LeaderboardScope): Promise<LeaderboardResult> {
   await settleFinishedWeek();
 
@@ -151,7 +162,7 @@ export async function leaderboard(userId: string, scope: LeaderboardScope): Prom
          FROM totals t
          JOIN users u ON u.id = t.user_id
          CROSS JOIN me
-        WHERE ${sameArea[scope]}
+        WHERE ${sameArea[scope]} AND ${upToDate()}
      )
      SELECT * FROM ranked WHERE rn <= $4 OR user_id = $3
      ORDER BY rn`,
@@ -235,7 +246,7 @@ async function payPrizes(client: PoolClient, start: Date, end: Date): Promise<vo
                 ROW_NUMBER() OVER (PARTITION BY ${a.keys} ORDER BY t.steps DESC, t.last ASC)::int AS rn,
                 COUNT(*) OVER (PARTITION BY ${a.keys})::int AS walkers
            FROM totals t JOIN users u ON u.id = t.user_id
-          WHERE ${a.present}
+          WHERE ${a.present} AND ${upToDate()}
        )
        SELECT user_id, steps, rn, area_name FROM ranked WHERE rn <= 3 AND walkers >= $3`,
       [start, end, LEADERBOARD_MIN_WALKERS],
