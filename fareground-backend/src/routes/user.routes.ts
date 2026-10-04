@@ -7,6 +7,7 @@ import { setArea } from '../services/leaderboard.service';
 import { deleteAccount, deletionSummary } from '../services/account.service';
 import { disablePushToken, registerPushToken, setPushEnabled } from '../services/push.service';
 import { changePassword } from '../services/password.service';
+import { weekSummary } from '../services/week.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 export const userRouter = Router();
@@ -156,5 +157,14 @@ userRouter.post(
       })
       .parse(req.body);
     res.json(await changePassword(getUserId(req), body.current, body.password));
+  }),
+);
+
+/** GET /user/week - the last seven days, for the Walk tab's weekly summary. */
+userRouter.get(
+  '/week',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await weekSummary(getUserId(req)));
   }),
 );

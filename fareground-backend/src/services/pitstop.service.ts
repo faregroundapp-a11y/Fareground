@@ -37,6 +37,7 @@ import {
 import { cellCenter, cellForLatLng, cellRadius } from '../game/grid';
 import { metresBetween } from './parcels.service';
 import { spendPitStopAd } from './rewards.service';
+import { notifyDoorbell } from './notify.service';
 import { HttpError } from '../utils/httpError';
 import { applyShare, guardAction, payoutShare } from './integrity.service';
 import type { ClaimSummary } from './daily.service';
@@ -170,6 +171,8 @@ export async function pitStop(
   // Paying inside it would lock two players' rows in opposite orders when
   // they check in on each other at the same moment - a deadlock.
   const ownerWp = await payOwner(result.stopId).catch(() => 0);
+  // Tell the owner - in the background, so the visitor never waits on it.
+  if (ownerWp > 0) void notifyDoorbell(result.stopId);
   return { ...result.stop, ownerWp };
 }
 

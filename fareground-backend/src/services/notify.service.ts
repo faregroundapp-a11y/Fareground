@@ -23,7 +23,7 @@ import { pool } from '../db/pool';
 import { parcelRateSql } from '../game/rules';
 import { sendToUsers, type PushMessage } from './push.service';
 
-export type NotificationKind = 'STREAK_RISK' | 'CHEST_READY' | 'COMEBACK';
+export type NotificationKind = 'STREAK_RISK' | 'CHEST_READY' | 'COMEBACK' | 'BOOST_ENDED';
 
 /** Quiet hours, in the player's own clock. */
 const EARLIEST_HOUR = 9;
@@ -157,6 +157,57 @@ async function comeback(exclude: Set<string>): Promise<Candidate[]> {
 }
 
 /**
+ * A boost that ran out in the last hour, with nothing running now
+ * (2026-10-04). Once a day at most - boosts can be stacked and re-bought, and
+ * one nudge is plenty.
+ */
+async function boostEnded(exclude: Set<string>): Promise<Candidate[]> {
+  const r = await pool.query<Candidate>(
+    `SELECT u.id AS user_id, ${LOCAL_DAY} AS local_day, 0 AS n
+       FROM users u
+      WHERE ${CONTACTABLE}
+        AND EXISTS (SELECT 1 FROM boosts b WHERE b.user_id = u.id AND b.source = 'AD'
+                     AND b.ends_at BETWEEN NOW() - INTERVAL '1 hour' AND NOW())
+        AND NOT EXISTS (SELECT 1 FROM boosts b WHERE b.user_id = u.id AND b.ends_at > NOW())
+      LIMIT ${MAX_PER_KIND}`,
+  );
+  return r.rows.filter((c) => !exclude.has(c.user_id));
+}
+
+/**
+ * SOMEONE RANG YOUR DOORBELL (2026-10-04) - sent the moment it happens, not
+ * by the timer. One a day per owner (a busy parcel would otherwise buzz all
+ * day), inside the same quiet hours as everything else. Never throws.
+ */
+export async function notifyDoorbell(stopId: string): Promise<void> {
+  try {
+    const r = await pool.query<{ user_id: string; local_day: string; visitor: string }>(
+      `INSERT INTO notification_sends (user_id, kind, local_day)
+       SELECT u.id, 'DOORBELL', ${LOCAL_DAY}
+         FROM pit_stops ps
+         JOIN users u ON u.id = ps.owner_id
+        WHERE ps.id = $1 AND ps.owner_wp > 0 AND ${CONTACTABLE}
+       ON CONFLICT DO NOTHING
+       RETURNING user_id, local_day,
+         (SELECT v.username FROM pit_stops s2 JOIN users v ON v.id = s2.user_id WHERE s2.id = $1) AS visitor`,
+      [stopId],
+    );
+    if (r.rowCount === 0) return;
+    const { user_id, visitor } = r.rows[0];
+    await sendToUsers([{
+      userId: user_id,
+      message: {
+        title: 'Ding dong! 🔔',
+        body: `${visitor} rang your doorbell - you both earned Walk Points.`,
+        data: { screen: 'land' },
+      },
+    }]);
+  } catch (e) {
+    console.warn('[push] doorbell notification failed:', e instanceof Error ? e.message : e);
+  }
+}
+
+/**
  * One pass. Safe to call on a timer and safe to run twice at once.
  *
  * Highest-value kind first, and everyone reached is excluded from the rest of
@@ -164,7 +215,7 @@ async function comeback(exclude: Set<string>): Promise<Candidate[]> {
  * notifications off for good.
  */
 export async function dispatchDueNotifications(): Promise<Record<NotificationKind, number>> {
-  const sent: Record<NotificationKind, number> = { STREAK_RISK: 0, CHEST_READY: 0, COMEBACK: 0 };
+  const sent: Record<NotificationKind, number> = { STREAK_RISK: 0, CHEST_READY: 0, COMEBACK: 0, BOOST_ENDED: 0 };
   const reached = new Set<string>();
 
   const take = (rows: Candidate[]) => {
@@ -187,6 +238,12 @@ export async function dispatchDueNotifications(): Promise<Record<NotificationKin
   sent.COMEBACK = await claimAndSend('COMEBACK', take(await comeback(reached)), (c) => ({
     title: 'Your land has been busy',
     body: `About ${c.n.toLocaleString('en-GB')} coins have piled up while you were away.`,
+    data: { screen: 'map' },
+  }));
+
+  sent.BOOST_ENDED = await claimAndSend('BOOST_ENDED', take(await boostEnded(reached)), () => ({
+    title: 'Your boost has run out',
+    body: 'Your land is back to normal speed. Watch an ad to boost it again.',
     data: { screen: 'map' },
   }));
 
@@ -215,7 +272,7 @@ export function startNotificationLoop(everyMs = 5 * 60_000): { stop: () => void 
       if (!lock.rows[0].got) return;
       try {
         const sent = await dispatchDueNotifications();
-        const total = sent.STREAK_RISK + sent.CHEST_READY + sent.COMEBACK;
+        const total = sent.STREAK_RISK + sent.CHEST_READY + sent.COMEBACK + sent.BOOST_ENDED;
         if (total > 0) {
           console.log(
             `[push] sent ${total} (streak ${sent.STREAK_RISK}, chest ${sent.CHEST_READY}, comeback ${sent.COMEBACK})`,
