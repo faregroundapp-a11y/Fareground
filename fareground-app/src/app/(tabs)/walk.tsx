@@ -1,7 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { api } from '@/api/client';
+import type { WeekSummary } from '@/api/types';
+import { WeekCard } from '@/components/WeekCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { PlayerPicture } from '@/components/PlayerPicture';
@@ -42,15 +45,32 @@ function StepRing({
 }
 
 export default function WalkScreen() {
-  const { user } = useSession();
+  const { user, token } = useSession();
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
   const screen = useScreenSize();
   const ringSize = screen.s(148);
-  const { balance: { balance }, steps: sync } = useGame();
+  const { balance: { balance, refresh: refreshBalance }, steps: sync } = useGame();
   const [boostOpen, setBoostOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
-  const { daily } = useGameDaily();
+  const { daily, refresh: refreshDaily } = useGameDaily();
+  const [week, setWeek] = useState<WeekSummary | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadWeek = useCallback(() => {
+    if (!token) return Promise.resolve();
+    return api.week(token).then(setWeek, () => undefined);
+  }, [token]);
+  useFocusEffect(useCallback(() => { void loadWeek(); }, [loadWeek]));
+  /** Pull down: sync steps, then fetch everything the screen shows. */
+  const pullToRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await sync.syncByHand();
+      await Promise.all([refreshBalance(), refreshDaily(), loadWeek()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [sync, refreshBalance, refreshDaily, loadWeek]);
   // Step health, re-checked whenever this tab comes back into view - most
   // fixes happen on the setup screen or in another app.
   const { health: stepHealth, refresh: refreshStepHealth } = useStepHealth();
@@ -83,7 +103,13 @@ export default function WalkScreen() {
 
   return (
     <View style={styles.safe}>
-      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={pullToRefresh} tintColor="#FFFFFF" colors={[colors.accent]} progressViewOffset={insets.top} />
+        }
+      >
         {/* THE HEADER (2026-10-03 refresh): one green panel with today's steps
             on a ring (towards the daily step cap) and your Walk Points
             beside it, with the bar to the next one. */}
@@ -201,6 +227,8 @@ export default function WalkScreen() {
             <Text style={type.caption} numberOfLines={2}>{bonusReady ? 'Bonus WP ready' : 'Boosts, scouting, bonus WP'}</Text>
           </Pressable>
         </View>
+
+        {week && <WeekCard week={week} cap={DAILY_STEP_CAP} />}
 
         {/* STEP HEALTH: one quiet line when all is well; the full card with
             its two buttons only when something needs fixing. */}

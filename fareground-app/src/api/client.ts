@@ -3,28 +3,29 @@ import type {
   AdCompleteResult,
   AdRewardKind,
   AdTicket,
-  AuthResult,
-  Balance,
   AreasStatus,
+  AuthResult,
+  AvatarChoice,
+  Balance,
   CheckinResult,
+  ClaimResult,
   DailyStatus,
+  DeleteSummary,
   Leaderboard,
   LeaderboardScope,
-  AvatarChoice,
+  NearbyParcel,
+  NeighboursHere,
   OpenBoxResult,
+  Parcel,
+  PitStopResult,
+  PitStopStatus,
   Profile,
   RedeemResult,
   ReferralStatus,
   RewardClaimResult,
-  TreasureStatus,
-  ClaimResult,
-  DeleteSummary,
-  NearbyParcel,
-  NeighboursHere,
-  Parcel,
-  PitStopResult,
-  PitStopStatus,
   StepSyncResult,
+  TreasureStatus,
+  WeekSummary,
 } from './types';
 
 /**
@@ -226,6 +227,9 @@ export const api = {
     request<AdCompleteResult>('POST', '/rewards/complete', { token, body: { nonce, ...(at ?? {}) } }),
 
   balance: (token: string) => request<Balance>('GET', '/user/balance', { token }),
+
+  /** The last seven days, for the Walk tab's weekly summary. */
+  week: (token: string) => request<WeekSummary>('GET', '/user/week', { token }),
 
   /**
    * Send the SAME idempotency key when retrying a sync that failed in

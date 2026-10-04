@@ -111,6 +111,16 @@ export interface RewardStatus {
   };
 }
 
+/** GET /user/week: the last seven local days. */
+export interface WeekSummary {
+  days: { day: string; steps: number }[];
+  totalSteps: number;
+  walkPoints: number;
+  parcelsClaimed: number;
+  doorbells: number;
+  bestDay: { day: string; steps: number } | null;
+}
+
 export interface AdTicket {
   nonce: string;
   kind: AdRewardKind;
