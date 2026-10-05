@@ -29,7 +29,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com",
+        "ADMOB_ANDROID_APP_ID": "ca-app-pub-3555642696836001~2313481680",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID": "ca-app-pub-3555642696836001/6061155001"
       },
       "autoIncrement": true,
       "ios": {
@@ -43,7 +45,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://fareground-api.onrender.com",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "849638417124-0vnb8mmh24v0vqvna8ujbaa3ko0skajs.apps.googleusercontent.com",
+        "ADMOB_ANDROID_APP_ID": "ca-app-pub-3555642696836001~2313481680",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID": "ca-app-pub-3555642696836001/6061155001"
       }
     }
   },
