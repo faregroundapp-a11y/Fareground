@@ -271,9 +271,11 @@ export async function dailyStatus(userId: string): Promise<DailyStatus> {
       ready: !adStreakClaim && ads >= AD_STREAK_TARGET,
       claim: adStreakClaim ? summary(adStreakClaim) : null,
     },
+    // Only what can be collected RIGHT NOW. Today's check-in used to count
+    // from midnight, but it needs a walk to the area first - so the chest
+    // showed a "1" all day with nothing to open (tester report, 2026-10-05).
     claimable:
       (dailyAvailable ? 1 : 0) +
-      (checkin.available ? 1 : 0) +
       (!adStreakClaim && ads >= AD_STREAK_TARGET ? 1 : 0) +
       quests.filter((q) => q.ready).length,
   };

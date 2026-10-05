@@ -96,14 +96,25 @@ function somewhereNear(lat: number, lng: number): { lat: number; lng: number } {
  */
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const OVERPASS_TIMEOUT_MS = 5_000;
-const WALKABLE_HIGHWAYS = 'footway|path|pedestrian|living_street|residential|cycleway|track|bridleway';
+// 'track' was dropped (2026-10-05): in the countryside a track is usually a
+// farm lane or someone's long driveway, and testers there kept getting boxes
+// past a "No trespassing" sign.
+const WALKABLE_HIGHWAYS = 'footway|path|pedestrian|living_street|residential|cycleway|bridleway';
+/** Paths built for walking. Any NAMED street counts as public too; see outdoorPoints. */
+const PUBLIC_PATHS = new Set(['footway', 'path', 'pedestrian', 'cycleway', 'bridleway']);
+/** Points are spread along each path this far apart, not just at its corners. */
+const SAMPLE_EVERY_M = 20;
+/** A new box lands at least this far from any box this player had in the last day. */
+const NOT_AGAIN_WITHIN_M = 60;
+
+type Spot = { lat: number; lng: number; preferred?: boolean };
 
 /** Walkable points around a spot, cached ~100 m by ~100 m for six hours. */
-const outdoorCache = new Map<string, { at: number; points: { lat: number; lng: number }[] }>();
+const outdoorCache = new Map<string, { at: number; points: Spot[] }>();
 const OUTDOOR_CACHE_MS = 6 * 60 * 60 * 1000;
 const OUTDOOR_CACHE_MAX = 500;
 
-async function outdoorPoints(lat: number, lng: number): Promise<{ lat: number; lng: number }[]> {
+async function outdoorPoints(lat: number, lng: number): Promise<Spot[]> {
   const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
   const hit = outdoorCache.get(key);
   if (hit && Date.now() - hit.at < OUTDOOR_CACHE_MS) return hit.points;
@@ -111,8 +122,9 @@ async function outdoorPoints(lat: number, lng: number): Promise<{ lat: number; l
   const q =
     `[out:json][timeout:5];` +
     `way(around:${TREASURE_MAX_DISTANCE_M + 50},${lat.toFixed(6)},${lng.toFixed(6)})` +
-    `[highway~"^(${WALKABLE_HIGHWAYS})$"][access!~"^(private|no)$"];` +
-    `out geom 120;`;
+    `[highway~"^(${WALKABLE_HIGHWAYS})$"][access!~"^(private|no|destination|customers|agricultural|forestry)$"]` +
+    `[foot!~"^(private|no)$"][service!~"^(driveway|private)$"];` +
+    `out tags geom 120;`;
   try {
     const res = await fetch(OVERPASS_URL, {
       method: 'POST',
@@ -122,8 +134,29 @@ async function outdoorPoints(lat: number, lng: number): Promise<{ lat: number; l
       signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
     });
     if (!res.ok) return [];
-    const json = (await res.json()) as { elements?: { geometry?: { lat: number; lon: number }[] }[] };
-    const points = (json.elements ?? []).flatMap((w) => (w.geometry ?? []).map((g) => ({ lat: g.lat, lng: g.lon })));
+    const json = (await res.json()) as {
+      elements?: { tags?: Record<string, string>; geometry?: { lat: number; lon: number }[] }[];
+    };
+    const points: Spot[] = [];
+    for (const w of json.elements ?? []) {
+      // PREFERRED: a path built for walking, or a street with a name. In the
+      // country an unnamed "residential" way is very often a driveway.
+      const preferred = PUBLIC_PATHS.has(w.tags?.highway ?? '') || !!w.tags?.name;
+      const g = w.geometry ?? [];
+      // Every ~20 m ALONG the path, not only its corners: a long straight
+      // country road has two or three corners in the whole band, so every
+      // box used to land on the same one.
+      for (let i = 0; i < g.length; i++) {
+        points.push({ lat: g[i].lat, lng: g[i].lon, preferred });
+        if (i + 1 === g.length) break;
+        const len = metresBetween(g[i].lat, g[i].lon, g[i + 1].lat, g[i + 1].lon);
+        const steps = Math.min(50, Math.floor(len / SAMPLE_EVERY_M));
+        for (let k = 1; k < steps; k++) {
+          const f = k / steps;
+          points.push({ lat: g[i].lat + (g[i + 1].lat - g[i].lat) * f, lng: g[i].lon + (g[i + 1].lon - g[i].lon) * f, preferred });
+        }
+      }
+    }
     if (outdoorCache.size >= OUTDOOR_CACHE_MAX) outdoorCache.clear();
     outdoorCache.set(key, { at: Date.now(), points });
     return points;
@@ -133,20 +166,43 @@ async function outdoorPoints(lat: number, lng: number): Promise<{ lat: number; l
   }
 }
 
-/** A random candidate inside the spawn band, or null if none qualify. */
-function pickInBand(lat: number, lng: number, points: { lat: number; lng: number }[]): { lat: number; lng: number } | null {
+/**
+ * A random candidate inside the spawn band, or null if none qualify.
+ *
+ * Never where this player's recent boxes were: a new box used to land on the
+ * very spot the last one did (a tester's box kept going back to the same
+ * yard). If every candidate is near an old box, the one furthest from them wins.
+ */
+function pickInBand(lat: number, lng: number, points: Spot[], avoid: Spot[] = []): Spot | null {
   const inBand = points.filter((p) => {
     const d = metresBetween(lat, lng, p.lat, p.lng);
     return d >= TREASURE_MIN_DISTANCE_M && d <= TREASURE_MAX_DISTANCE_M;
   });
-  return inBand.length === 0 ? null : inBand[randomInt(0, inBand.length)];
+  if (inBand.length === 0) return null;
+  const gap = (p: Spot) => Math.min(Infinity, ...avoid.map((a) => metresBetween(p.lat, p.lng, a.lat, a.lng)));
+  const fresh = inBand.filter((p) => gap(p) >= NOT_AGAIN_WITHIN_M);
+  if (fresh.length === 0) return inBand.reduce((best, p) => (gap(p) > gap(best) ? p : best));
+  const preferred = fresh.filter((p) => p.preferred);
+  const pool = preferred.length > 0 ? preferred : fresh;
+  return pool[randomInt(0, pool.length)];
 }
 
-async function walkableSpot(lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+/** Where this player's boxes have been in the last day, so a new one goes somewhere else. */
+async function recentBoxSpots(userId: string): Promise<Spot[]> {
+  const r = await query<{ lat: number; lng: number }>(
+    `SELECT lat, lng FROM treasure_boxes WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'
+      ORDER BY created_at DESC LIMIT 20`,
+    [userId],
+  );
+  return r.rows;
+}
+
+async function walkableSpot(userId: string, lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+  const avoid = await recentBoxSpots(userId);
   // 1. A point on a real path or quiet street. Placed ON the line, not
   //    nudged off it: a nudge is how a box ends up in the hedge.
-  const onPath = pickInBand(lat, lng, await outdoorPoints(lat, lng));
-  if (onPath) return onPath;
+  const onPath = pickInBand(lat, lng, await outdoorPoints(lat, lng), avoid);
+  if (onPath) return { lat: onPath.lat, lng: onPath.lng };
 
   // 2. No map answer: beside a parcel somebody has stood near, which at least
   //    rules out lakes and motorways.
@@ -160,7 +216,7 @@ async function walkableSpot(lat: number, lng: number): Promise<{ lat: number; ln
       ORDER BY random() LIMIT 40`,
     [centre.cellX - span, centre.cellX + span, centre.cellY - span, centre.cellY + span],
   );
-  const pick = pickInBand(lat, lng, near.rows.map((r) => cellCenter(r.cell_x, r.cell_y)));
+  const pick = pickInBand(lat, lng, near.rows.map((r) => cellCenter(r.cell_x, r.cell_y)), avoid);
   if (pick) {
     // Nudge a few metres off the plot itself, so the box is beside the land
     // rather than sitting on it. Well inside the 30 m collect radius.
@@ -211,7 +267,7 @@ export async function treasureStatus(
   let c = await counts(userId);
 
   if (at && c.live === 0 && c.used_today < allowance(c)) {
-    const where = await walkableSpot(at.lat, at.lng);
+    const where = await walkableSpot(userId, at.lat, at.lng);
     await query(
       `INSERT INTO treasure_boxes (user_id, lat, lng, reward_wp, from_ad, local_day, expires_at)
        VALUES ($1, $2, $3, $4, $5, $6::date, NOW() + ($7 || ' minutes')::interval)`,
@@ -334,7 +390,7 @@ export async function spawnAdBox(
   // Without a position the ad still counts (see `counts.ad_boxes`), and the
   // box appears the next time the map asks.
   if (!at) return 1;
-  const where = await walkableSpot(at.lat, at.lng);
+  const where = await walkableSpot(userId, at.lat, at.lng);
   await client.query(
     `INSERT INTO treasure_boxes (user_id, lat, lng, reward_wp, from_ad, local_day, expires_at)
      SELECT $1, $2, $3, $4, TRUE, (NOW() AT TIME ZONE time_zone)::date, NOW() + ($5 || ' minutes')::interval

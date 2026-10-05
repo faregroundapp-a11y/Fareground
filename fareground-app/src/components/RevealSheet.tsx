@@ -87,7 +87,7 @@ export function RevealSheet({ parcel, onClose }: { parcel: Parcel | null; onClos
             }}
             accessibilityRole="button"
           >
-            <PlayAdIcon size={20} color={colors.boostDeep} />
+            <PlayAdIcon size={20} color={colors.boostInk} />
             <Text style={styles.bonusText}>
               {busy ? 'Loading ad…' : `Bonus: watch an ad for +${perAd} WP`}
             </Text>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, height: 50, marginBottom: 10,
     borderRadius: radius.md, backgroundColor: colors.boostSoft, borderWidth: 1, borderColor: colors.boostHi,
   },
-  bonusText: { fontFamily: fonts.heavy, fontSize: 15, color: colors.boostDeep, includeFontPadding: false },
+  bonusText: { fontFamily: fonts.heavy, fontSize: 15, color: colors.boostInk, includeFontPadding: false },
   bonusDone: { fontFamily: fonts.bold, fontSize: 14, color: colors.goodInk, textAlign: 'center', marginBottom: 12 },
   btnText: { color: colors.accentInk, fontFamily: fonts.heavy, fontSize: 16 },
 });

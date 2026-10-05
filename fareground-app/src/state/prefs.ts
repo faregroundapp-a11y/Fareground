@@ -10,13 +10,18 @@ import { useCallback, useSyncExternalStore } from 'react';
  */
 export type Units = 'metric' | 'imperial';
 export type ThemePref = 'system' | 'light' | 'dark';
+/** The map's colours: follow the app's theme, or always light / dark. */
+export type MapThemePref = 'app' | 'light' | 'dark';
 export interface Prefs {
   units: Units;
   theme: ThemePref;
+  mapTheme: MapThemePref;
+  /** Buildings standing up in 3D on the map, or flat (2026-10-05). */
+  buildings3d: boolean;
 }
 
 const KEY = 'fareground.prefs';
-const DEFAULTS: Prefs = { units: 'metric', theme: 'system' };
+const DEFAULTS: Prefs = { units: 'metric', theme: 'system', mapTheme: 'app', buildings3d: true };
 
 function readSaved(): Prefs {
   try {

@@ -3,15 +3,15 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/api/client';
-import type { Parcel } from '@/api/types';
+import type { Mineral, Parcel } from '@/api/types';
 import { BoostBubble } from '@/components/BoostBubble';
 import { Countdown } from '@/components/Countdown';
 import { NeighboursCard } from '@/components/NeighboursCard';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { haptics } from '@/native/haptics';
-import { BoltIcon, CoinIcon, GemIcon, PlayAdIcon, ShareIcon } from '@/components/icons';
+import { BoltIcon, ChevronIcon, CoinIcon, GemIcon, PlayAdIcon, ShareIcon } from '@/components/icons';
 import { DEFAULT_PARCEL_PRICE, DEFAULT_STEPS_PER_WP } from '@/config';
-import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate } from '@/game/minerals';
+import { COIN_USD, MINERALS, MINERAL_ORDER, MONTHS_PER_YEAR, UPGRADE_COINS_PER_LEVEL, formatMultiplier, formatRate, mineralInk } from '@/game/minerals';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { useTabBarSpace } from '@/hooks/useTabBarSpace';
 import { shareParcel } from '@/native/share';
@@ -19,6 +19,17 @@ import { adsAvailable } from '@/native/ads';
 import { useGameBalance } from '@/state/game';
 import { useSession } from '@/state/session';
 import { colors, fonts, mono, radius, shadow, space, type } from '@/theme';
+
+/** One line of the list: a mineral's header, or a parcel inside an open group. */
+type Item =
+  | { kind: 'group'; key: Mineral; count: number; rate: number; open: boolean }
+  | { kind: 'parcel'; parcel: Parcel; last: boolean };
+
+/** Rarest first: the parcels people care about most sit at the top. */
+const GROUP_ORDER: Mineral[] = [...MINERAL_ORDER].reverse();
+
+/** A holding this small opens every group, so a new player sees their land straight away. */
+const OPEN_ALL_UP_TO = 6;
 
 export default function LandScreen() {
   const { token } = useSession();
@@ -65,14 +76,31 @@ export default function LandScreen() {
   const screen = useScreenSize();
   const counts = MINERAL_ORDER.map((k) => ({ k, n: parcels.filter((p) => p.rarity === k).length }));
 
+  // GROUPED BY MINERAL (2026-10-05, tester feedback): "a wall of properties
+  // to scroll through will become annoying". Each mineral is one header with
+  // its count and earnings; tap it to open the parcels inside.
+  const [toggled, setToggled] = useState<Partial<Record<Mineral, boolean>>>({});
+  const isOpen = (k: Mineral) => toggled[k] ?? parcels.length <= OPEN_ALL_UP_TO;
+  const toggle = (k: Mineral) => {
+    haptics.press();
+    setToggled((t) => ({ ...t, [k]: !isOpen(k) }));
+  };
+  const items: Item[] = [];
+  for (const k of GROUP_ORDER) {
+    const mine = parcels.filter((p) => p.rarity === k);
+    if (mine.length === 0) continue;
+    const open = isOpen(k);
+    items.push({ kind: 'group', key: k, count: mine.length, rate: mine.reduce((sum, p) => sum + p.coinsPerMonth, 0), open });
+    if (open) mine.forEach((p, i) => items.push({ kind: 'parcel', parcel: p, last: i === mine.length - 1 }));
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <FlatList
-        data={parcels}
-        keyExtractor={(p) => p.id}
+        data={items}
+        keyExtractor={(it) => (it.kind === 'group' ? `g-${it.key}` : it.parcel.id)}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accentText} />}
         contentContainerStyle={[styles.body, { paddingBottom: tabBarSpace }]}
-        ItemSeparatorComponent={Separator}
         ListHeaderComponent={
           <View style={{ gap: 14, marginBottom: 14 }}>
             <View style={styles.titleRow}>
@@ -127,10 +155,16 @@ export default function LandScreen() {
               )}
               <View style={styles.collection}>
                 {counts.map(({ k, n }) => (
-                  <View key={k} style={[styles.slot, n === 0 && { opacity: 0.35 }]}>
-                    <GemIcon size={24} color={MINERALS[k].color} />
+                  <Pressable
+                    key={k}
+                    onPress={n > 0 ? () => toggle(k) : undefined}
+                    style={[styles.slot, n === 0 && { opacity: 0.35 }]}
+                    accessibilityRole={n > 0 ? 'button' : undefined}
+                    accessibilityLabel={`${n} ${MINERALS[k].label}`}
+                  >
+                    <GemIcon size={24} color={mineralInk(k)} />
                     <Text style={[styles.slotN, mono]}>{n}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -152,20 +186,50 @@ export default function LandScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => {
+        renderItem={({ item: it }) => {
+          if (it.kind === 'group') {
+            const ink = mineralInk(it.key);
+            return (
+              <Pressable
+                onPress={() => toggle(it.key)}
+                style={({ pressed }) => [styles.group, { borderLeftColor: ink }, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: it.open }}
+                accessibilityLabel={`${MINERALS[it.key].label}, ${it.count} parcels`}
+              >
+                <View style={[styles.gemWell, { backgroundColor: MINERALS[it.key].color + '1F' }]}>
+                  <GemIcon size={26} color={ink} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowName, { color: ink }]}>{MINERALS[it.key].label}</Text>
+                  <Text style={styles.groupSub}>
+                    {it.count} parcel{it.count === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <View style={styles.rowRate}>
+                  <Text style={[styles.rowRateText, mono]}>+{formatRate(it.rate)}</Text>
+                  <Text style={styles.rowRateUnit}>coins / mo</Text>
+                </View>
+                <View style={styles.chev}>
+                  <ChevronIcon size={18} color={colors.ink2} up={it.open} />
+                </View>
+              </Pressable>
+            );
+          }
+          const item = it.parcel;
           const m = MINERALS[item.rarity];
           const wp = balance?.walkPoints ?? 0;
           const cost = item.nextUpgradeCostWp;
           const canAfford = cost !== null && wp >= cost;
           return (
-            <View style={[styles.row, { borderLeftColor: m.color }]}>
+            <View style={[styles.row, { borderLeftColor: mineralInk(item.rarity) }, it.last && styles.rowLast]}>
               <View style={styles.rowTop}>
                 <View style={[styles.gemWell, { backgroundColor: m.color + '1F' }]}>
-                  <GemIcon size={26} color={m.color} />
+                  <GemIcon size={26} color={mineralInk(item.rarity)} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
-                    <Text style={[styles.rowName, { color: m.color }]}>{m.label}</Text>
+                    <Text style={[styles.rowName, { color: mineralInk(item.rarity) }]}>{m.label}</Text>
                     {item.upgradeLevel > 0 && (
                       <View style={styles.lvl}>
                         <Text style={styles.lvlText}>LV {item.upgradeLevel}</Text>
@@ -210,7 +274,7 @@ export default function LandScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Upgrade this parcel for ${cost} Walk Points and an ad`}
                   >
-                    <PlayAdIcon size={16} color={canAfford ? colors.boostDeep : colors.ink3} />
+                    <PlayAdIcon size={16} color={canAfford ? colors.boostInk : colors.ink3} />
                     <Text style={[styles.upgradeText, !canAfford && { color: colors.ink3 }]}>
                       {adBusy === 'UPGRADE' ? 'Loading ad…' : `Upgrade · ${cost} WP`}
                     </Text>
@@ -227,10 +291,6 @@ export default function LandScreen() {
       />
     </SafeAreaView>
   );
-}
-
-function Separator() {
-  return <View style={{ height: space.sm }} />;
 }
 
 const styles = StyleSheet.create({
@@ -271,10 +331,18 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 8, paddingVertical: 40 },
   emptyTitle: { fontSize: 18, fontFamily: fonts.heavy, color: colors.ink },
   emptyBody: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink2, textAlign: 'center' },
+  group: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: space.sm,
+    backgroundColor: colors.card, borderRadius: radius.lg, padding: space.md, ...shadow.card, borderLeftWidth: 5,
+  },
+  groupSub: { fontFamily: fonts.bold, fontSize: 12.5, color: colors.ink3, marginTop: 2 },
+  chev: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sunk },
+  // Parcels inside an open group sit indented under their header.
   row: {
     backgroundColor: colors.card, borderRadius: radius.lg, padding: space.md, gap: space.md, ...shadow.card,
-    borderLeftWidth: 5,
+    borderLeftWidth: 5, marginLeft: space.md, marginBottom: space.sm,
   },
+  rowLast: { marginBottom: space.lg },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   lvl: { backgroundColor: colors.sunk, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
@@ -286,8 +354,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, backgroundColor: colors.boostSoft,
   },
   upgradeOff: { backgroundColor: colors.sunk },
-  upgradeText: { color: colors.boostDeep, fontFamily: fonts.heavy, fontSize: 13.5, includeFontPadding: false },
-  upgradeLvl: { color: colors.boostDeep, fontFamily: fonts.bold, fontSize: 12, opacity: 0.8, includeFontPadding: false },
+  upgradeText: { color: colors.boostInk, fontFamily: fonts.heavy, fontSize: 13.5, includeFontPadding: false },
+  upgradeLvl: { color: colors.boostInk, fontFamily: fonts.bold, fontSize: 12, opacity: 0.8, includeFontPadding: false },
   maxed: { fontFamily: fonts.bold, fontSize: 12.5, color: colors.goodInk, textAlign: 'center', paddingVertical: 6 },
   note: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.goodInk },
   gemWell: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

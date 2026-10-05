@@ -23,7 +23,7 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000
  * that crashes, one that skips the claim ad) are retired. Builds before 3
  * sent no number at all, so any minimum of 1 or more locks them out.
  */
-export const APP_BUILD = 7;
+export const APP_BUILD = 8;
 
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 

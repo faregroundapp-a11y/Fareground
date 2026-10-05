@@ -1,4 +1,5 @@
 import type { Mineral } from '@/api/types';
+import { isDark } from '@/theme';
 
 /**
  * How each mineral looks and what it is worth. The rates and odds are
@@ -17,6 +18,22 @@ export const MINERALS: Record<
   SAPPHIRE: { label: 'Sapphire', color: '#2A5FA8', odds: 4,  coinsPerMonth: 2,   heightM: 2.8 },
   RUBY:     { label: 'Ruby',     color: '#C0304A', odds: 1,  coinsPerMonth: 6,   heightM: 4.0 },
 };
+
+/**
+ * A mineral's colour for TEXT and icons on a card. Coal and Sapphire are deep
+ * colours that vanish on a dark card, so dark mode lifts them; the map blocks
+ * and light mode keep MINERALS[k].color.
+ */
+const DARK_INK: Record<Mineral, string> = {
+  ROCKY: '#B4B2A6',
+  COAL: '#9AA3AE',
+  AMETHYST: '#B48FE0',
+  SAPPHIRE: '#6C9BE6',
+  RUBY: '#EB6079',
+};
+export function mineralInk(k: Mineral): string {
+  return isDark ? DARK_INK[k] : MINERALS[k].color;
+}
 
 export const MINERAL_ORDER: Mineral[] = ['ROCKY', 'COAL', 'AMETHYST', 'SAPPHIRE', 'RUBY'];
 

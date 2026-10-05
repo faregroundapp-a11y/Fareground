@@ -1,8 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { StyleSpecification } from '@maplibre/maplibre-react-native';
 import { MAP_STYLE_URL } from '@/config';
+import { usePrefs } from '@/state/prefs';
+import { isDark } from '@/theme';
+import { darkenStyle } from './darkMap';
 
 /**
  * Map labels on or off - ALL of them.
@@ -37,31 +40,45 @@ const PREF_KEY = 'fareground.streetNames';
  * itself, so the shape is the same either way.
  */
 type StyleSpec = StyleSpecification;
-type Cached = { withNames: StyleSpec; withoutNames: StyleSpec };
+type Cached = StyleSpec;
 
 /** Fetched once per app run; the map asks for it on every render. */
 let cached: Cached | null = null;
 let inFlight: Promise<Cached | null> | null = null;
+
+/** Each variant (names x buildings x dark) is built once and kept. */
+const variants = new Map<string, StyleSpec>();
+
+/**
+ * The style with the player's map settings applied. A deep-enough copy: only
+ * `layers` is touched, and only each layer's `layout` or `paint`, so cloning
+ * those levels is much cheaper than a structured clone of a 111-layer style.
+ */
+function variant(base: StyleSpec, names: boolean, buildings: boolean, dark: boolean): StyleSpec {
+  const key = `${names}|${buildings}|${dark}`;
+  const hit = variants.get(key);
+  if (hit) return hit;
+  const hide = (l: { type?: string; layout?: Record<string, unknown> }) =>
+    (!names && drawsText(l)) || (!buildings && l.type === 'fill-extrusion');
+  let style = {
+    ...base,
+    layers: (base.layers ?? []).map((l) =>
+      hide(l as { type?: string; layout?: Record<string, unknown> })
+        ? { ...l, layout: { ...((l as { layout?: object }).layout ?? {}), visibility: 'none' } }
+        : l,
+    ),
+  } as StyleSpec;
+  if (dark) style = darkenStyle(style);
+  variants.set(key, style);
+  return style;
+}
 
 async function loadStyles(): Promise<Cached | null> {
   if (cached) return cached;
   inFlight ??= (async () => {
     try {
       const res = await fetch(MAP_STYLE_URL);
-      const withNames = (await res.json()) as StyleSpec;
-
-      // A deep-enough copy: only `layers` is touched, and only each layer's
-      // `layout`, so cloning those two levels is sufficient and much cheaper
-      // than a full structured clone of a 111-layer style.
-      const withoutNames = {
-        ...withNames,
-        layers: (withNames.layers ?? []).map((l) =>
-          drawsText(l as { type?: string; layout?: Record<string, unknown> })
-            ? { ...l, layout: { ...((l as { layout?: object }).layout ?? {}), visibility: 'none' } }
-            : l,
-        ),
-      } as StyleSpec;
-      cached = { withNames, withoutNames };
+      cached = (await res.json()) as StyleSpec;
       return cached;
     } catch {
       // Offline, or the style host is down. Returning null makes the caller
@@ -115,6 +132,9 @@ export function useMapStyle(): {
 } {
   const [labelsOn, setLabelsOn] = useState(true);
   const [styles, setStyles] = useState<Cached | null>(null);
+  // 3D buildings and the map's colours come from Settings (2026-10-05).
+  const { buildings3d, mapTheme } = usePrefs();
+  const dark = mapTheme === 'app' ? isDark : mapTheme === 'dark';
 
   // ON FOCUS, not on mount: Settings can change the preference on another
   // screen, and the map must pick that up when it comes back into view. The
@@ -142,7 +162,10 @@ export function useMapStyle(): {
     });
   }, []);
 
-  const style = styles ? (labelsOn ? styles.withNames : styles.withoutNames) : MAP_STYLE_URL;
-  const styleKey = styles ? (labelsOn ? 'names' : 'plain') : 'url';
+  const style = useMemo(
+    () => (styles ? variant(styles, labelsOn, buildings3d, dark) : MAP_STYLE_URL),
+    [styles, labelsOn, buildings3d, dark],
+  );
+  const styleKey = styles ? `${labelsOn ? 'names' : 'plain'}-${buildings3d ? '3d' : 'flat'}-${dark ? 'dark' : 'light'}` : 'url';
   return { style, styleKey, labelsOn, toggleLabels };
 }

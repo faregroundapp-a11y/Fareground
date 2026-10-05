@@ -64,6 +64,8 @@ const light = {
   boostHi: '#A98BFF',
   boostDeep: '#6536D9',
   boostSoft: '#EFE9FF',
+  /** Violet as TEXT and icons on a card (boostDeep is too dark for that in dark mode). */
+  boostInk: '#6536D9',
 
   coin: '#F2B53B',
   steps: '#4DBE94',
@@ -99,6 +101,7 @@ const dark: typeof light = {
   accentText: '#6FB08F',
   solid: '#2C3832',
   boostSoft: '#2A2142',
+  boostInk: '#B9A1FF',
   dangerSoft: '#3A1E24',
   goodInk: '#7FD99A',
   claimSoft: '#3A2E16',

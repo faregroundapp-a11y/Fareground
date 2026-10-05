@@ -13,7 +13,16 @@ export interface Fix {
   /** Android reports when a fix came from a mock-location app. */
   mocked: boolean;
   timestamp: number;
+  /**
+   * The most recent fix that was sharp enough to claim with (see
+   * CLEAR_FIX_M). Underground or indoors the GPS goes fuzzy for a while;
+   * claims fall back to this rather than flickering on and off.
+   */
+  lastClear: { lat: number; lng: number; accuracyM: number; timestamp: number } | null;
 }
+
+/** A fix this sharp or better is remembered as the last clear one. Matches MAX_CLAIM_ACCURACY_M. */
+const CLEAR_FIX_M = 25;
 
 type State =
   | { status: 'asking' }
@@ -58,6 +67,7 @@ export function useLocation(): State {
     let sub: Location.LocationSubscription | null = null;
     let cancelled = false;
     let prev: Fix | null = null;
+    let lastClear: Fix['lastClear'] = null;
 
     (async () => {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -83,14 +93,17 @@ export function useLocation(): State {
             if (heading < 0 && d > 1.5) heading = bearingBetween(prev.lat, prev.lng, lat, lng);
           }
 
+          const accuracyM = loc.coords.accuracy ?? 999;
+          if (accuracyM <= CLEAR_FIX_M) lastClear = { lat, lng, accuracyM, timestamp: loc.timestamp };
           const fix: Fix = {
             lat,
             lng,
-            accuracyM: loc.coords.accuracy ?? 999,
+            accuracyM,
             speed: Math.max(0, speed),
             heading: heading >= 0 ? heading : prev?.heading ?? null,
             mocked: loc.mocked === true,
             timestamp: loc.timestamp,
+            lastClear,
           };
           prev = fix;
           setState({ status: 'ok', fix });

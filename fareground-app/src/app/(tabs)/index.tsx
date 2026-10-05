@@ -48,6 +48,10 @@ import { useDistance } from '@/state/prefs';
  * sources for that every second is wasted work (and visible as jitter).
  */
 const SETTLE_M = 2;
+/** How old the last clear GPS fix may be and still be claimed from. */
+const LAST_CLEAR_FIX_MS = 3 * 60 * 1000;
+/** How far a fuzzy fix may sit from the last clear one beyond its own error before it means you moved. */
+const LAST_CLEAR_DRIFT_M = 30;
 
 /** A position that only updates once you have really moved. */
 function useSettledPosition(lat: number, lng: number) {
@@ -349,10 +353,24 @@ function GameView({ fix }: { fix: Fix }) {
     [settled.lat, settled.lng, taken, reach],
   );
 
-  const pickedInReach = picked !== null && distanceToCell(fix.lat, fix.lng, picked) <= reach;
+  // FUZZY GPS (2026-10-05, a tester in a metro station): underground the fix
+  // swings between sharp and ±60 m, and the claim button flickered with it.
+  // When the live fix is fuzzy, claim from the last CLEAR fix instead - as
+  // long as it is recent and the fuzzy one has not wandered away from it
+  // (that would mean you have actually moved).
+  const clear = fix.lastClear;
+  const claimFix =
+    fix.accuracyM <= MAX_CLAIM_ACCURACY_M || !clear
+      ? fix
+      : fix.timestamp - clear.timestamp <= LAST_CLEAR_FIX_MS &&
+          metresBetween(clear.lat, clear.lng, fix.lat, fix.lng) <= fix.accuracyM + LAST_CLEAR_DRIFT_M
+        ? { ...fix, lat: clear.lat, lng: clear.lng, accuracyM: clear.accuracyM }
+        : fix;
+
+  const pickedInReach = picked !== null && distanceToCell(claimFix.lat, claimFix.lng, picked) <= reach;
   const selected: Cell | null = pickedInReach ? picked : nearest;
   const selectedOwner = selected ? ownerOf.get(cellKey(selected)) : undefined;
-  const selectedDistance = selected ? Math.round(distanceToCell(fix.lat, fix.lng, selected)) : 0;
+  const selectedDistance = selected ? Math.round(distanceToCell(claimFix.lat, claimFix.lng, selected)) : 0;
 
   // --- screen shake, for rare finds ---
   const [shake] = useState(() => new Animated.Value(0));
@@ -370,7 +388,7 @@ function GameView({ fix }: { fix: Fix }) {
   const wp = balance?.walkPoints ?? 0;
   const price = balance?.parcelPrice ?? DEFAULT_PARCEL_PRICE;
   let claimState: ClaimState = { kind: 'ready' };
-  if (fix.accuracyM > MAX_CLAIM_ACCURACY_M) {
+  if (claimFix.accuracyM > MAX_CLAIM_ACCURACY_M) {
     claimState = { kind: 'blocked', reason: `GPS is fuzzy (±${dist(fix.accuracyM)}). Step outside for a clearer fix.` };
   } else if (!selected) {
     claimState = { kind: 'blocked', reason: 'Every square within reach is taken. Walk on a little.' };
@@ -401,7 +419,7 @@ function GameView({ fix }: { fix: Fix }) {
       // Send where you ARE and the square you chose; the server checks reach.
       const result = await api.claim(
         token,
-        { lat: fix.lat, lng: fix.lng, accuracyM: fix.accuracyM, mocked: fix.mocked },
+        { lat: claimFix.lat, lng: claimFix.lng, accuracyM: claimFix.accuracyM, mocked: fix.mocked },
         { cellX: selected.cellX, cellY: selected.cellY },
         adNonce,
       );
@@ -690,14 +708,14 @@ function GameView({ fix }: { fix: Fix }) {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.dockTitle} numberOfLines={1}>
-                  {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M
+                  {selected && !selectedOwner && claimFix.accuracyM <= MAX_CLAIM_ACCURACY_M
                     ? sameCell(selected, playerCell)
                       ? 'The square you are standing on'
                       : `${pickedInReach ? 'Your pick' : 'Free square'} · ${dist(selectedDistance)}`
                     : 'Claim land'}
                 </Text>
                 <Text style={styles.dockSub} numberOfLines={1}>
-                  {selected && !selectedOwner && fix.accuracyM <= MAX_CLAIM_ACCURACY_M
+                  {selected && !selectedOwner && claimFix.accuracyM <= MAX_CLAIM_ACCURACY_M
                     ? 'Tap any lit square to pick another'
                     : 'Lit squares near you are free to claim'}
                 </Text>
@@ -742,7 +760,7 @@ function GameView({ fix }: { fix: Fix }) {
                   <Text style={styles.xBadgeText}>{formatMultiplier(multiplier)}×</Text>
                 </View>
               )}
-              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostDeep }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
+              <Text style={[styles.earnRate, mono, boosted && { color: colors.boostInk }]}>+{perDay < 1 ? perDay.toFixed(2) : perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day</Text>
               {dockMin && <DockToggle min onPress={toggleDock} />}
             </View>
           </View>

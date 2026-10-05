@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { PRIVACY_URL, SUPPORT_EMAIL } from '@/config';
 import { haptics } from '@/native/haptics';
 import { pushAvailable } from '@/native/push';
-import { prefsAtLaunch, setPref, usePrefs, type ThemePref, type Units } from '@/state/prefs';
+import { prefsAtLaunch, setPref, usePrefs, type MapThemePref, type ThemePref, type Units } from '@/state/prefs';
 import { useSession } from '@/state/session';
 import { colors, fonts, radius, space, TOUCH, type } from '@/theme';
 
@@ -332,6 +332,19 @@ function DisplaySettings() {
           ? 'Close and reopen Fareground to switch the theme.'
           : '"Phone" follows your phone\'s light or dark setting.'}
       </Text>
+      <Text style={[type.label, { marginTop: space.lg }]}>Map colours</Text>
+      <Choice<MapThemePref>
+        value={prefs.mapTheme}
+        options={[{ value: 'app', label: 'Match app' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+        onChange={(v) => setPref('mapTheme', v)}
+      />
+      <Text style={[type.label, { marginTop: space.lg }]}>3D buildings</Text>
+      <Choice<'on' | 'off'>
+        value={prefs.buildings3d ? 'on' : 'off'}
+        options={[{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]}
+        onChange={(v) => setPref('buildings3d', v === 'on')}
+      />
+      <Text style={[styles.sub, { marginTop: space.sm }]}>Flat buildings keep the map simpler and easier on older phones.</Text>
     </View>
   );
 }
