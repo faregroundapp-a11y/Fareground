@@ -24,6 +24,8 @@ export type UserRow = {
   coin_balance: number;
   last_coin_claim_at: Date;
   created_at: Date;
+  /** Set by a moderator (scripts/mod.ts). */
+  banned_at: Date | null;
 }
 
 /** What we are willing to send back to a client (camelCase, no password!). */
@@ -139,7 +141,13 @@ export async function loginUser(input: {
     throw new HttpError(401, 'Invalid email or password.');
   }
 
+  assertNotBanned(row);
   return { user: toPublicUser(row), token: createAuthToken(row.id) };
+}
+
+/** A banned account cannot sign in (see the mod console, scripts/mod.ts). */
+function assertNotBanned(row: UserRow): void {
+  if (row.banned_at) throw new HttpError(403, 'This account has been suspended. Contact support@fareground.app.');
 }
 
 /** Turn a name or email into a valid, probably-free username. */
@@ -163,6 +171,7 @@ export async function googleSignIn(idToken: string): Promise<AuthResult> {
 
   const bySub = await query<UserRow>('SELECT * FROM users WHERE google_sub = $1', [google.sub]);
   if (bySub.rows[0]) {
+    assertNotBanned(bySub.rows[0]);
     return { user: toPublicUser(bySub.rows[0]), token: createAuthToken(bySub.rows[0].id), created: false };
   }
 
@@ -171,6 +180,7 @@ export async function googleSignIn(idToken: string): Promise<AuthResult> {
     [google.email, google.sub],
   );
   if (linked.rows[0]) {
+    assertNotBanned(linked.rows[0]);
     return { user: toPublicUser(linked.rows[0]), token: createAuthToken(linked.rows[0].id), created: false };
   }
 

@@ -15,7 +15,8 @@
     "test": "tsx --test src/game/rules.test.ts src/game/grid.test.ts src/game/badges.test.ts src/game/avatar.test.ts",
     "test:api": "powershell -ExecutionPolicy Bypass -File tests/e2e.ps1",
     "db:migrate": "tsx src/scripts/migrate.ts",
-    "test:db": "tsx tests/leaderboard.settle.ts"
+    "test:db": "tsx tests/leaderboard.settle.ts",
+    "mod": "tsx src/scripts/mod.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -229,7 +229,7 @@ export async function publicProfile(viewerId: string, username: string): Promise
   return buildProfile(r.rows[0].id, r.rows[0].id === viewerId);
 }
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
+export const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
 /** PostgreSQL error code 23505 = "unique_violation". */
 const isTaken = (e: unknown) =>

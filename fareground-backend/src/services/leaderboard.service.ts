@@ -103,7 +103,8 @@ export async function setArea(userId: string, area: { city?: string; region?: st
  */
 function upToDate(alias = 'u'): string {
   const min = Math.floor(config.minAppBuild);
-  return min > 0 ? `COALESCE(${alias}.app_build, 0) >= ${min}` : 'TRUE';
+  const notBanned = `${alias}.banned_at IS NULL`;
+  return min > 0 ? `COALESCE(${alias}.app_build, 0) >= ${min} AND ${notBanned}` : notBanned;
 }
 
 export async function leaderboard(userId: string, scope: LeaderboardScope): Promise<LeaderboardResult> {

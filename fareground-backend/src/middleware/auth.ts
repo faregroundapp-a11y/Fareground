@@ -16,6 +16,20 @@ const seenBuild = new Map<string, number>();
  * leave out anyone on a build older than MIN_APP_BUILD. Written in the
  * background and only when the number changes - never slows a request down.
  */
+/** Banned or not, per user, cached for a minute so this is not a query per request. */
+const banCache = new Map<string, { at: number; banned: boolean }>();
+const BAN_CACHE_MS = 60_000;
+
+async function isBanned(userId: string): Promise<boolean> {
+  const hit = banCache.get(userId);
+  if (hit && Date.now() - hit.at < BAN_CACHE_MS) return hit.banned;
+  const r = await query<{ banned: boolean }>('SELECT banned_at IS NOT NULL AS banned FROM users WHERE id = $1', [userId]);
+  const banned = r.rows[0]?.banned ?? false;
+  if (banCache.size > 50_000) banCache.clear();
+  banCache.set(userId, { at: Date.now(), banned });
+  return banned;
+}
+
 function rememberBuild(userId: string, header: string | undefined): void {
   const build = Number(header ?? 0);
   if (!Number.isInteger(build) || build <= 0 || seenBuild.get(userId) === build) return;
@@ -67,7 +81,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     // malformed, expired, or signed with the wrong key.
     throw new HttpError(401, 'Invalid or expired token.');
   }
-  next();
+  // BANNED (2026-10-05, mod console): refused on every request, within a
+  // minute of the ban. If the check itself fails, let the request through
+  // rather than lock everybody out over a database hiccup.
+  const userId = req.userId;
+  isBanned(userId).then(
+    (banned) => next(banned ? new HttpError(403, 'This account has been suspended. Contact support@fareground.app.') : undefined),
+    () => next(),
+  );
 }
 
 /**
