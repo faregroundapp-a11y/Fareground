@@ -93,7 +93,26 @@ export type AdRewardKind =
   | 'TREASURE_KEY'
   // 2026-09-28: the "bonus" ad offered right after claiming a parcel. One per
   // parcel, and NOT one of the day's MAX_WP_ADS_PER_DAY - it is extra.
-  | 'CLAIM_BONUS';
+  | 'CLAIM_BONUS'
+  // 2026-10-05: breaks the chains on steps - see STEPS_PER_UNLOCK_AD.
+  | 'UNLOCK_STEPS';
+
+/**
+ * CHAINED STEPS (2026-10-05, the product owner's call).
+ *
+ * Walk Points from steps no longer land in the balance on their own. They
+ * build up, chained, in users.locked_wp, and each rewarded ad breaks the
+ * chain on STEPS_PER_UNLOCK_AD steps' worth. Nothing chained is ever lost -
+ * a player who skips a day just has more to unlock - and a daily push
+ * reminds them when there is at least one ad's worth waiting.
+ *
+ * Builds from STEP_LOCK_FROM_BUILD know about the chains; older ones are
+ * paid straight in as before, until MIN_APP_BUILD retires them (setting
+ * MIN_APP_BUILD to this or higher turns the chains on for everyone).
+ */
+export const STEPS_PER_UNLOCK_AD = 1_000;
+export const UNLOCK_WP_PER_AD = STEPS_PER_UNLOCK_AD / STEPS_PER_WALK_POINT;
+export const STEP_LOCK_FROM_BUILD = 10;
 
 /**
  * ---------------------------------------------------------------------------

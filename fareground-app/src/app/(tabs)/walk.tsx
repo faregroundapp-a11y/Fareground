@@ -11,6 +11,7 @@ import { PlayerPicture } from '@/components/PlayerPicture';
 import { BoostSheet } from '@/components/BoostSheet';
 import { DailySheet } from '@/components/DailySheet';
 import { Button } from '@/components/Button';
+import { ChainedSteps } from '@/components/ChainedSteps';
 import { CountUp } from '@/components/CountUp';
 import { BoltIcon, ChestIcon, FlagIcon, PulseIcon } from '@/components/icons';
 import { Runner } from '@/components/Runner';
@@ -175,6 +176,15 @@ export default function WalkScreen() {
         </View>
 
         <View style={styles.content}>
+        {/* CHAINED STEPS (2026-10-05): WP from steps wait here until an ad
+            breaks the chains on 1,000 of them. Hidden when nothing is chained. */}
+        <ChainedSteps
+          lockedWp={balance?.lockedWalkPoints ?? 0}
+          stepsPerWp={stepsPerWp}
+          stepsPerUnlockAd={balance?.stepsPerUnlockAd ?? 1000}
+          onUnlocked={refreshBalance}
+        />
+
         {/* Next parcel: one row with its bar. */}
         <View style={[styles.card, styles.row]}>
           <View style={[styles.wellSm, { backgroundColor: colors.claimSoft }]}>

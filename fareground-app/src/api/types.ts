@@ -41,6 +41,8 @@ export type AdRewardKind =
   /** An ad is the price of a parcel, and the key to a treasure box. */
   | 'CLAIM'
   | 'TREASURE_KEY'
+  /** Breaks the chains on 1,000 steps (2026-10-05). */
+  | 'UNLOCK_STEPS'
   /** The bonus offered right after a claim: one per parcel, outside the daily bonus-WP ads. */
   | 'CLAIM_BONUS';
 
@@ -148,6 +150,9 @@ export interface Balance {
   /** What the NEXT parcel costs - it rises with land owned. */
   parcelPrice: number;
   stepsPerWalkPoint: number;
+  /** CHAINED STEPS: Walk Points waiting behind the chains, and the steps one ad frees. Missing from older servers. */
+  lockedWalkPoints?: number;
+  stepsPerUnlockAd?: number;
   rewards: RewardStatus;
   /** Your runner's colour (it follows your shirt). */
   jerseyColor: string;
@@ -206,6 +211,9 @@ export interface StepSyncResult {
   lifetimeSteps: number;
   stepsUntilNextWalkPoint: number;
   stepsPerWalkPoint: number;
+  /** Walk Points now behind the chains, and whether this sync's went there. */
+  lockedWalkPoints?: number;
+  chained?: boolean;
   /** WP just paid to whoever invited you, if you qualified with this sync. */
   referralBonusPaid: number;
   replayed: boolean;

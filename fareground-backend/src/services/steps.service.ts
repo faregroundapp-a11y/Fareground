@@ -37,6 +37,7 @@ import {
   walkPointsForTotalSteps,
   type StepLimitReason,
   type TraceQuality,
+  STEP_LOCK_FROM_BUILD,
 } from '../game/rules';
 import { applyShare, payoutShare, recordEvent } from './integrity.service';
 import { config } from '../config/env';
@@ -57,6 +58,8 @@ export type StepSource = 'DEVICE_SENSOR' | 'HEALTH_STORE' | 'MOTION_HISTORY' | '
 
 export interface StepSyncInput {
   userId: string;
+  /** The app build that sent this (X-Fareground-Build): decides whether steps are chained. */
+  appBuild?: number;
   /** What the phone claims was walked. */
   rawSteps: number;
   /**
@@ -98,6 +101,10 @@ export interface StepSyncResult {
   limit: StepLimitReason;
   wpEarned: number;
   walkPointsBalance: number;
+  /** Walk Points waiting behind the chains (see STEPS_PER_UNLOCK_AD). */
+  lockedWalkPoints: number;
+  /** True when this sync's WP went into the chains rather than the balance. */
+  chained: boolean;
   lifetimeSteps: number;
   stepsUntilNextWalkPoint: number;
   stepsPerWalkPoint: number;
@@ -150,6 +157,11 @@ async function touchDevice(
  * phones syncing at the same moment cannot both read the same "previous total"
  * and double-pay.
  */
+/** Do this build's steps go behind the chains? See STEP_LOCK_FROM_BUILD. */
+export function stepsAreChained(appBuild: number | undefined): boolean {
+  return (appBuild ?? 0) >= STEP_LOCK_FROM_BUILD || config.minAppBuild >= STEP_LOCK_FROM_BUILD;
+}
+
 export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
   const {
     userId, rawSteps: claimedSteps, days, idempotencyKey, platform, deviceId,
@@ -160,8 +172,8 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // 1. Lock this user's row for the rest of the transaction. Any other
     //    request touching the same user waits here until we commit, which is
     //    what makes every read below safe.
-    const userResult = await client.query<{ walk_points_balance: number; created_at: Date; minutes_today: number }>(
-      `SELECT walk_points_balance, created_at,
+    const userResult = await client.query<{ walk_points_balance: number; locked_wp: number; created_at: Date; minutes_today: number }>(
+      `SELECT walk_points_balance, locked_wp, created_at,
               EXTRACT(EPOCH FROM (NOW() - ${localMidnightSql('time_zone')})) / 60 AS minutes_today
          FROM users WHERE id = $1 FOR UPDATE`,
       [userId],
@@ -198,6 +210,8 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
           limit: row.rejected_steps > 0 ? 'RATE_LIMIT' : 'OK',
           wpEarned: row.wp_earned,
           walkPointsBalance: userResult.rows[0].walk_points_balance,
+          lockedWalkPoints: userResult.rows[0].locked_wp,
+          chained: stepsAreChained(input.appBuild),
           lifetimeSteps: lifetime,
           stepsUntilNextWalkPoint: stepsUntilNextWalkPoint(lifetime),
           stepsPerWalkPoint: STEPS_PER_WALK_POINT,
@@ -485,11 +499,14 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
     // 6. Credit the balance. We add in SQL (`= balance + $2`) rather than
     //    computing the new number in JavaScript and overwriting - the database
     //    is the one place that always holds the current truth.
-    const updated = await client.query<{ walk_points_balance: number }>(
-      `UPDATE users
-          SET walk_points_balance = walk_points_balance + $2
-        WHERE id = $1
-        RETURNING walk_points_balance`,
+    //    CHAINED STEPS: for builds that know about them, the WP go into the
+    //    locked pile instead, and ads release them (rules.ts).
+    const chained = stepsAreChained(input.appBuild);
+    const updated = await client.query<{ walk_points_balance: number; locked_wp: number }>(
+      chained
+        ? `UPDATE users SET locked_wp = locked_wp + $2 WHERE id = $1 RETURNING walk_points_balance, locked_wp`
+        : `UPDATE users SET walk_points_balance = walk_points_balance + $2 WHERE id = $1
+           RETURNING walk_points_balance, locked_wp`,
       [userId, wpEarned],
     );
 
@@ -503,6 +520,8 @@ export async function syncSteps(input: StepSyncInput): Promise<StepSyncResult> {
       limit: allowance.reason,
       wpEarned,
       walkPointsBalance: updated.rows[0].walk_points_balance,
+      lockedWalkPoints: updated.rows[0].locked_wp,
+      chained,
       lifetimeSteps: newLifetimeSteps,
       stepsUntilNextWalkPoint: stepsUntilNextWalkPoint(newLifetimeSteps),
       stepsPerWalkPoint: STEPS_PER_WALK_POINT,

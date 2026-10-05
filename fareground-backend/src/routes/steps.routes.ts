@@ -140,6 +140,7 @@ stepsRouter.post(
 
     const result = await syncSteps({
       userId,
+      appBuild: Number(req.get('X-Fareground-Build') ?? 0) || 0,
       rawSteps: body.steps,
       days: body.days,
       idempotencyKey,

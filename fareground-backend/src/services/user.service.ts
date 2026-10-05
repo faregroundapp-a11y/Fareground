@@ -14,6 +14,7 @@ import {
   parcelPriceWp,
   splitMicroCoins,
   parcelRateSql,
+  STEPS_PER_UNLOCK_AD,
 } from '../game/rules';
 import { HttpError } from '../utils/httpError';
 import { settleFinishedWeek } from './leaderboard.service';
@@ -37,6 +38,9 @@ export interface BalanceResult {
   /** What the next parcel costs, and how many steps make a Walk Point. */
   parcelPrice: number;
   stepsPerWalkPoint: number;
+  /** CHAINED STEPS: Walk Points waiting for an unlock ad, and how many steps one ad frees. */
+  lockedWalkPoints: number;
+  stepsPerUnlockAd: number;
 
   /** Boost and rewarded-ad state, for the boost button and the timer. */
   rewards: RewardStatus;
@@ -91,12 +95,13 @@ export async function settleCoinIncome(
   // both read the same old clock and both pay out for it.
   const locked = await client.query<{
     walk_points_balance: number;
+    locked_wp: number;
     coin_balance: number;
     coin_remainder_micro: number;
     last_coin_claim_at: Date;
     now: Date;
   }>(
-    `SELECT walk_points_balance, coin_balance, coin_remainder_micro, last_coin_claim_at, NOW() AS now
+    `SELECT walk_points_balance, locked_wp, coin_balance, coin_remainder_micro, last_coin_claim_at, NOW() AS now
        FROM users WHERE id = $1 FOR UPDATE`,
     [userId],
   );
@@ -185,6 +190,8 @@ export async function settleCoinIncome(
     lastCoinClaimAt: row.last_coin_claim_at,
     parcelPrice: parcelPriceWp(f.parcel_count),
     stepsPerWalkPoint: STEPS_PER_WALK_POINT,
+    lockedWalkPoints: user.locked_wp,
+    stepsPerUnlockAd: STEPS_PER_UNLOCK_AD,
     rewards,
     redeemableUsd: formatCoinsAsUsd(row.coin_balance),
     usdPerSecond: coinsPerMonthToUsdPerSecond(effectiveCoinsPerMonth),

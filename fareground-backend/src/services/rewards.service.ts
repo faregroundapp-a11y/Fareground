@@ -46,6 +46,7 @@ import {
   type AdRewardKind,
   CLAIM_BONUS_WINDOW_MINUTES,
   CLAIM_BONUS_WP,
+  UNLOCK_WP_PER_AD,
   parcelPriceWp,
   parcelRateSql,
 } from '../game/rules';
@@ -243,6 +244,14 @@ export async function rewardStatus(client: PoolClient, userId: string): Promise<
   };
 }
 
+/** An unlock ad needs something to unlock. */
+async function assertHasChainedSteps(client: PoolClient, userId: string): Promise<void> {
+  const r = await client.query<{ locked_wp: number }>('SELECT locked_wp FROM users WHERE id = $1', [userId]);
+  if ((r.rows[0]?.locked_wp ?? 0) <= 0) {
+    throw new HttpError(409, 'There are no chained steps to unlock right now. Go for a walk!');
+  }
+}
+
 /** Kinds with a per-day cap, re-checked when a ticket is paid as well as issued. */
 const DAILY_CAPPED_KINDS: ReadonlySet<AdRewardKind> = new Set(['BOOST', 'WALK_POINTS', 'INSTANT_COLLECT', 'SCOUT']);
 
@@ -321,6 +330,8 @@ export async function startAdReward(
     } else if (kind === 'CLAIM_BONUS') {
       if (!targetParcelId) throw new HttpError(400, 'Say which parcel the bonus is for.');
       await assertCanClaimBonus(client, userId, targetParcelId);
+    } else if (kind === 'UNLOCK_STEPS') {
+      await assertHasChainedSteps(client, userId);
     } else if (kind === 'TREASURE_KEY') {
       // The box itself is checked when it is opened; the key is spent then.
     } else if (kind === 'COSMETIC') {
@@ -477,6 +488,19 @@ async function grant(
       ticket.user_id,
       amount,
     ]);
+  } else if (ticket.kind === 'UNLOCK_STEPS') {
+    // Break one ad's worth of chains: move it from the locked pile into the
+    // balance. No integrity throttle here - these WP were already judged
+    // when the steps were synced; the ad only releases them.
+    const r = await client.query<{ released: number }>(
+      `WITH me AS (SELECT LEAST(locked_wp, $2)::int AS n FROM users WHERE id = $1)
+       UPDATE users u SET locked_wp = u.locked_wp - me.n, walk_points_balance = u.walk_points_balance + me.n
+         FROM me WHERE u.id = $1
+       RETURNING me.n AS released`,
+      [ticket.user_id, UNLOCK_WP_PER_AD],
+    );
+    amount = r.rows[0]?.released ?? 0;
+    if (amount <= 0) throw new HttpError(409, 'There are no chained steps to unlock right now.');
   } else if (ticket.kind === 'WALK_POINTS') {
     amount = await throttledAmount(client, ticket.user_id, AD_WALK_POINTS);
     await client.query('UPDATE users SET walk_points_balance = walk_points_balance + $2 WHERE id = $1', [

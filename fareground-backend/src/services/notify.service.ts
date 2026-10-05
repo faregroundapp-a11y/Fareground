@@ -20,10 +20,10 @@
  *     a lapsed player with an unclaimed chest is not buzzed twice at once.
  */
 import { pool } from '../db/pool';
-import { parcelRateSql } from '../game/rules';
+import { STEPS_PER_WALK_POINT, UNLOCK_WP_PER_AD, parcelRateSql } from '../game/rules';
 import { sendToUsers, type PushMessage } from './push.service';
 
-export type NotificationKind = 'STREAK_RISK' | 'CHEST_READY' | 'COMEBACK' | 'BOOST_ENDED';
+export type NotificationKind = 'STREAK_RISK' | 'CHEST_READY' | 'COMEBACK' | 'BOOST_ENDED' | 'STEPS_CHAINED';
 
 /** Quiet hours, in the player's own clock. */
 const EARLIEST_HOUR = 9;
@@ -175,6 +175,25 @@ async function boostEnded(exclude: Set<string>): Promise<Candidate[]> {
 }
 
 /**
+ * CHAINED STEPS (2026-10-05): at least one ad's worth of steps is waiting to
+ * be unlocked. Evenings only, once a day, and only for people who have
+ * played in the last fortnight - the steps never expire, so this is a
+ * reminder, not a threat. `n` is the steps waiting.
+ */
+async function stepsChained(exclude: Set<string>): Promise<Candidate[]> {
+  const r = await pool.query<Candidate>(
+    `SELECT u.id AS user_id, ${LOCAL_DAY} AS local_day, (u.locked_wp * ${STEPS_PER_WALK_POINT})::int AS n
+       FROM users u
+      WHERE ${CONTACTABLE}
+        AND ${LOCAL_HOUR} >= 17
+        AND u.locked_wp >= ${UNLOCK_WP_PER_AD}
+        AND u.last_active_at > NOW() - INTERVAL '14 days'
+      LIMIT ${MAX_PER_KIND}`,
+  );
+  return r.rows.filter((c) => !exclude.has(c.user_id));
+}
+
+/**
  * SOMEONE RANG YOUR DOORBELL (2026-10-04) - sent the moment it happens, not
  * by the timer. One a day per owner (a busy parcel would otherwise buzz all
  * day), inside the same quiet hours as everything else. Never throws.
@@ -215,7 +234,7 @@ export async function notifyDoorbell(stopId: string): Promise<void> {
  * notifications off for good.
  */
 export async function dispatchDueNotifications(): Promise<Record<NotificationKind, number>> {
-  const sent: Record<NotificationKind, number> = { STREAK_RISK: 0, CHEST_READY: 0, COMEBACK: 0, BOOST_ENDED: 0 };
+  const sent: Record<NotificationKind, number> = { STREAK_RISK: 0, CHEST_READY: 0, COMEBACK: 0, BOOST_ENDED: 0, STEPS_CHAINED: 0 };
   const reached = new Set<string>();
 
   const take = (rows: Candidate[]) => {
@@ -227,6 +246,12 @@ export async function dispatchDueNotifications(): Promise<Record<NotificationKin
     title: `Your ${plural(c.n, 'day', 'day')} streak ends tonight`,
     body: "Open Fareground before midnight to keep it - the chest is still waiting.",
     data: { screen: 'daily' },
+  }));
+
+  sent.STEPS_CHAINED = await claimAndSend('STEPS_CHAINED', take(await stepsChained(reached)), (c) => ({
+    title: `${c.n.toLocaleString('en-GB')} steps are in chains`,
+    body: 'Your walk is waiting. Watch an ad to break the chains and turn them into Walk Points.',
+    data: { screen: 'walk' },
   }));
 
   sent.CHEST_READY = await claimAndSend('CHEST_READY', take(await chestReady(reached)), () => ({
@@ -272,7 +297,7 @@ export function startNotificationLoop(everyMs = 5 * 60_000): { stop: () => void 
       if (!lock.rows[0].got) return;
       try {
         const sent = await dispatchDueNotifications();
-        const total = sent.STREAK_RISK + sent.CHEST_READY + sent.COMEBACK + sent.BOOST_ENDED;
+        const total = sent.STREAK_RISK + sent.CHEST_READY + sent.COMEBACK + sent.BOOST_ENDED + sent.STEPS_CHAINED;
         if (total > 0) {
           console.log(
             `[push] sent ${total} (streak ${sent.STREAK_RISK}, chest ${sent.CHEST_READY}, comeback ${sent.COMEBACK})`,
